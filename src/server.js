@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const Fastify = require('fastify');
 const { createRepository } = require('./database');
 const { registerAuth } = require('./auth');
@@ -19,10 +20,8 @@ function buildServer(options = {}) {
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
-    ['/', 'index.html', 'text/html; charset=utf-8'],
     ['/styles.css', 'styles.css', 'text/css; charset=utf-8'],
     ['/status.js', 'status.js', 'application/javascript; charset=utf-8'],
-    ['/acesso', 'access.html', 'text/html; charset=utf-8'],
     ['/access.js', 'access.js', 'application/javascript; charset=utf-8']
   ];
 
@@ -35,9 +34,19 @@ function buildServer(options = {}) {
     return payload;
   });
 
+  const assetUrls = new Map();
   for (const [route, fileName, contentType] of assets) {
     const content = fs.readFileSync(path.join(projectRoot, 'public', fileName));
+    const hash = createHash('sha256').update(content).digest('hex').slice(0, 16);
+    const versionedUrl = `/assets/${hash}/${fileName}`;
+    assetUrls.set(fileName, versionedUrl);
     app.get(route, async (request, reply) => reply.type(contentType).send(content));
+    app.get(versionedUrl, async (request, reply) => reply.type(contentType).send(content));
+  }
+  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html']]) {
+    let content = fs.readFileSync(path.join(projectRoot, 'public', fileName), 'utf8');
+    for (const [asset, url] of assetUrls) content = content.replaceAll(`="${asset}"`, `="${url}"`).replaceAll(`="/${asset}"`, `="${url}"`);
+    app.get(route, async (request, reply) => reply.type('text/html; charset=utf-8').send(content));
   }
 
   app.get('/health', async () => ({

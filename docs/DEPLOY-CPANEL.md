@@ -34,4 +34,6 @@ Este fluxo serve ao ambiente de testes. Ainda não inclui migrações de banco, 
 
 Desde v0.1.0, os testes da release são descobertos somente em `test/*.test.js` por `scripts/run-tests.js`, incluindo autenticação e migração; o runner remove as credenciais DB do ambiente de testes para impedir conexão acidental ao banco real. A migração MySQL é uma operação privada e explícita, conforme [instalação e acesso](INSTALACAO-ACESSO.md). O cron não cria tabelas nem administradores. `.env` continua fora das releases e já é carregado por `passenger.cjs`; este marco não exige alterar o bootstrap.
 
+Os documentos HTML referenciam assets em `/assets/<hash-do-conteudo>/<arquivo>`. No teste, `/styles.css` antigo foi servido diretamente pelo LiteSpeed e pelo cache da Cloudflare, ignorando a release nova. URLs com hash evitam colisão com esses arquivos e distinguem versões sem precisar purgar cache ou alterar outros sites. Verifique CSS/JS pelo endereço incluído no HTML da release, não apenas pelas rotas antigas de compatibilidade.
+
 Referências: [deploy Git do cPanel](https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/), [reinício Passenger](https://www.phusionpassenger.com/library/admin/apache/restart_app.html).

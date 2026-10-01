@@ -49,6 +49,7 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 - MySQL real, WebSocket/polling e funções do CRM ainda não foram homologados.
 - v0.1.0: 16 testes locais, auditoria npm sem vulnerabilidades e Actions `36906333782` em Node 22/24 passaram. O cron ativou o commit funcional `fede32493f4e2e98c1befba86fa1a40eee26c96f`; `/health` confirmou v0.1.0/hash e `/api/installation` confirmou configuração pendente. Base de autenticação publicada; não confundir esse resultado com primeiro acesso testado em MySQL real.
 - Pendente autorização específica para criar o usuário MySQL `xfxpanel_clchat` e associá-lo somente a `xfxpanel_chatcrm`. Pergunta enviada nesta conversa; opção preselecionada não é autorização. Nenhum usuário de banco, privilégio novo ou administrador foi criado. Após resposta, concluir configuração/migração privada e validar login/logout reais; o administrador deve escolher uma senha privada, sem credenciais padrão.
+- Atenção a assets: `/styles.css` antigo foi servido diretamente por LiteSpeed e cache Cloudflare. O HTML agora usa URLs `/assets/<hash-do-conteudo>/<arquivo>` para CSS/JS da release, evitando colisões e atualizações parciais. Não confiar em respostas das rotas antigas como prova de versão do frontend. Há teste de conteúdo/hash além dos 16 testes iniciais.
 
 ## Próximas prioridades
 

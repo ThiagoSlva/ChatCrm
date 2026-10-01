@@ -33,3 +33,21 @@ test('pagina e assets publicos sao servidos com politica restrita', async (t) =>
     assert.match(response.headers['content-security-policy'], /frame-ancestors 'none'/);
   }
 });
+
+test('HTML usa assets identificados pelo conteudo para evitar cache ou arquivos antigos no Passenger', async (t) => {
+  const app = buildServer();
+  t.after(() => app.close());
+  for (const url of ['/', '/acesso']) {
+    const html = (await app.inject(url)).body;
+    const urls = [...html.matchAll(/(?:href|src)="(\/assets\/[a-f0-9]{16}\/[^"]+)"/g)].map(match => match[1]);
+    assert.equal(urls.length, 2);
+    for (const asset of urls) {
+      const response = await app.inject(asset);
+      assert.equal(response.statusCode, 200);
+      const { createHash } = require('node:crypto');
+      assert.equal(createHash('sha256').update(response.body).digest('hex').slice(0, 16), asset.split('/')[2]);
+      assert.equal(response.headers['x-content-type-options'], 'nosniff');
+    }
+  }
+  assert.equal((await app.inject('/assets/0000000000000000/styles.css')).statusCode, 404);
+});
