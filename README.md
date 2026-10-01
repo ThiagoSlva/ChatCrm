@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Estado atual: v0.1.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login e logout. Esses fluxos foram testados por HTTPS com persistência real em MariaDB 11.8.6 na hospedagem de testes. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, operadores, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
+**Estado atual: v0.2.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login, logout e gestão de operadores com permissões. Instalação e autenticação já foram testadas por HTTPS com persistência real em MariaDB 11.8.6; a homologação da nova gestão de equipe está registrada no andamento. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
 
 ## Executar a base
 
@@ -17,6 +17,8 @@ Abra `http://127.0.0.1:3000`. O servidor usa `HOST` e `PORT` do ambiente, com es
 Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa oferecer Node.js compatível e gerenciador de aplicações. A entrada atual é `app.js` em CommonJS. Compatibilidade com Passenger, instalação sem SSH e recursos de chat ainda precisam de homologação.
 
 Para preparar o banco e criar o primeiro administrador, siga o [guia de instalação e acesso](docs/INSTALACAO-ACESSO.md). Abra `/acesso` após configurar o ambiente. Não existem credenciais padrão.
+
+Administradores podem [cadastrar, desativar e reativar operadores](docs/OPERADORES.md) em `/acesso`. Desativar revoga as sessões; operadores não acessam a gestão da equipe.
 
 O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` contém caminhos específicos dessa hospedagem e deve ser adaptada para outras instalações.
 

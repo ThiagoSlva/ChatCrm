@@ -44,6 +44,17 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.passwordHash, undefined);
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
+    const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
+    if (profile.data.user.role === 'admin') {
+      assert.equal(team.response.status, 200);
+      assert.equal(Array.isArray(team.data.users), true);
+      assert.equal(team.data.users.every(user => user.role === 'operator' && !user.password_hash && !user.passwordHash), true);
+      checks.push('team-admin-read');
+      // This route never changes administrators, even with valid CSRF.
+      const protectedAdmin = await request('/api/team/operators/' + profile.data.user.id, 'PATCH', { active: false }, { Origin: url.origin, 'Content-Type': 'application/json', Cookie: cookie, 'X-CSRF-Token': csrfToken });
+      assert.equal(protectedAdmin.response.status, 404);
+      checks.push('team-admin-protected');
+    } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }
     assert.equal((await request('/api/auth/logout', 'POST', {}, { Cookie: cookie })).response.status, 403);
     checks.push('csrf-required');
     const logout = await request('/api/auth/logout', 'POST', {}, { Cookie: cookie, 'X-CSRF-Token': csrfToken });

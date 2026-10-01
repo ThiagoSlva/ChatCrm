@@ -16,6 +16,17 @@ function createRepository(env = process.env) {
   const options = databaseOptions(env);
   if (!options) return null;
   const pool = mysql.createPool(options);
+  return repositoryForPool(pool);
+}
+
+function repositoryForPool(pool) {
+  async function transaction(work) {
+    const connection = await pool.getConnection();
+    try { await connection.beginTransaction(); const result = await work(connection); await connection.commit(); return result; }
+    catch (error) { await connection.rollback(); throw error; }
+    finally { connection.release(); }
+  }
+  const userFields = 'id, name, email, role, active';
   return {
     async status() {
       const [schema] = await pool.execute('SELECT version FROM cl_schema WHERE id = 1');
@@ -43,7 +54,13 @@ function createRepository(env = process.env) {
     },
     async createSession(token, userId) {
       await pool.execute('DELETE FROM cl_sessions WHERE expires_at <= UTC_TIMESTAMP()');
-      await pool.execute('INSERT INTO cl_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR))', [digest(token), userId]);
+      return transaction(async connection => {
+        // Serialize login with deactivation so a disabled user cannot retain a new session.
+        const [users] = await connection.execute('SELECT id FROM cl_users WHERE id = ? AND active = 1 FOR UPDATE', [userId]);
+        if (!users.length) return false;
+        await connection.execute('INSERT INTO cl_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR))', [digest(token), userId]);
+        return true;
+      });
     },
     async session(token) {
       const [rows] = await pool.execute('SELECT u.id, u.name, u.email, u.role FROM cl_sessions s JOIN cl_users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP() AND u.active = 1', [digest(token)]);
@@ -51,8 +68,36 @@ function createRepository(env = process.env) {
     },
     async revoke(token) { await pool.execute('DELETE FROM cl_sessions WHERE token_hash = ?', [digest(token)]); },
     async company() { const [rows] = await pool.execute('SELECT name FROM cl_company WHERE id = 1'); return rows[0]?.name || ''; },
+    async listOperators(page, limit) {
+      const [counts] = await pool.execute("SELECT COUNT(*) AS total FROM cl_users WHERE role = 'operator'");
+      // Integers are validated by the route; no user strings enter this SQL fragment.
+      const [rows] = await pool.execute(`SELECT ${userFields} FROM cl_users WHERE role = 'operator' ORDER BY id DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`);
+      return { users: rows.map(row => ({ ...row, active: Boolean(row.active) })), total: Number(counts[0].total), page, limit };
+    },
+    async createOperator({ name, email, passwordHash }) {
+      return transaction(async connection => {
+        await connection.execute('SELECT id FROM cl_schema WHERE id = 1 FOR UPDATE');
+        const [counts] = await connection.execute("SELECT COUNT(*) AS total FROM cl_users WHERE role = 'operator'");
+        if (Number(counts[0].total) >= 200) { const error = new Error(); error.statusCode = 409; throw error; }
+        let result;
+        try { [result] = await connection.execute("INSERT INTO cl_users (name, email, password_hash, role) VALUES (?, ?, ?, 'operator')", [name, email, passwordHash]); }
+        catch (error) { if (error.code === 'ER_DUP_ENTRY') error.statusCode = 409; throw error; }
+        const [rows] = await connection.execute(`SELECT ${userFields} FROM cl_users WHERE id = ?`, [result.insertId]);
+        return { ...rows[0], active: Boolean(rows[0].active) };
+      });
+    },
+    async setOperatorActive(id, active) {
+      return transaction(async connection => {
+        const [rows] = await connection.execute(`SELECT ${userFields} FROM cl_users WHERE id = ? AND role = 'operator' FOR UPDATE`, [id]);
+        if (!rows.length) return null;
+        await connection.execute("UPDATE cl_users SET active = ? WHERE id = ? AND role = 'operator'", [active ? 1 : 0, id]);
+        // Revocation is in the same transaction, including idempotent deactivations.
+        if (!active) await connection.execute('DELETE FROM cl_sessions WHERE user_id = ?', [id]);
+        return { ...rows[0], active };
+      });
+    },
     async close() { await pool.end(); }
   };
 }
 
-module.exports = { databaseOptions, createRepository };
+module.exports = { databaseOptions, createRepository, repositoryForPool };

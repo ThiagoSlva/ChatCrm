@@ -36,4 +36,6 @@ Desde v0.1.0, os testes da release são descobertos somente em `test/*.test.js` 
 
 Os documentos HTML referenciam assets em `/assets/<hash-do-conteudo>/<arquivo>`. No teste, `/styles.css` antigo foi servido diretamente pelo LiteSpeed e pelo cache da Cloudflare, ignorando a release nova. URLs com hash evitam colisão com esses arquivos e distinguem versões sem precisar purgar cache ou alterar outros sites. Verifique CSS/JS pelo endereço incluído no HTML da release, não apenas pelas rotas antigas de compatibilidade.
 
+v0.2.0 mantém o schema v1 e não exige migração nem alteração do bootstrap. Para verificar a gestão de operadores em MariaDB sem deixar contas, execute explicitamente `node --env-file=/home/xfxpanel/apps/chatcrm-test/.env /home/xfxpanel/apps/chatcrm-test/current/scripts/verify-team-database.js` com o ambiente Node ativo. O comando reverte a transação de teste e não imprime credenciais. Depois, repita a verificação HTTPS do guia de acesso e confira o hash em `/health`.
+
 Referências: [deploy Git do cPanel](https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/), [reinício Passenger](https://www.phusionpassenger.com/library/admin/apache/restart_app.html).

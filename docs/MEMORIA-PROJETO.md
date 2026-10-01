@@ -16,7 +16,7 @@ Plano principal: Node.js/TypeScript, Fastify, MySQL, interface React/Vite, uma i
 
 ## Estado funcional
 
-Versão 0.1.0, fase 1 em andamento. Servidor Fastify, diagnóstico, `/health`, migração MySQL v1 privada, tela `/acesso`, criação protegida de empresa/primeiro administrador, login, perfil autenticado e logout. Schema: `cl_schema`, `cl_company`, `cl_users`, `cl_sessions`. Senhas scrypt, sessões aleatórias com hash no banco, cookies seguros e controle de origem/CSRF. Dezessete testes locais passaram em Node 22, usando repositório em memória e conexão simulada. Conexão/migração e instalação/login/logout também verificados em MariaDB 11.8.6, Node 24.21.0 e HTTPS real no cPanel. Chat, cadastro de operadores, leads, campanhas, chatbot e instalador completo ainda não existem. Não apresentar a base como CRM completo.
+Versão 0.2.0, fase 1 em andamento. Servidor Fastify, diagnóstico, `/health`, migração MySQL v1 privada, tela `/acesso`, criação protegida de empresa/primeiro administrador, login, perfil e logout; cadastro, lista paginada, desativação/reativação de operadores exclusivos do administrador. Schema: `cl_schema`, `cl_company`, `cl_users`, `cl_sessions`, sem DDL novo nesta versão. Senhas scrypt, sessões com hash, cookies seguros, origem/CSRF e autorização por papel no servidor. Desativação revoga sessões em transação, e login serializa a verificação de estado ativo. Vinte e três testes locais passaram em Node 22, usando persistência simulada. Instalação/login/logout já verificados em MariaDB 11.8.6, Node 24.21.0 e HTTPS real; homologação da nova equipe deve ser registrada no andamento. Chat, departamentos, leads, campanhas, chatbot e instalador completo ainda não existem. Não apresentar a base como CRM completo.
 
 Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOKEN` e variáveis DB precisam estar no ambiente privado; a aplicação fica bloqueada para instalação sem configuração válida. Segredo sem valor padrão e banco exclusivo. Migração recusa tabelas de outros sistemas, mantém marcador v0 em interrupção e só marca v1 ao concluir; executada explicitamente, nunca no cron de deploy. O primeiro administrador usa transação/trava; não cadastrar credenciais conhecidas. O runner agora descobre toda a suíte em `test/` e remove credenciais DB dos testes.
 
@@ -59,7 +59,7 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 
 1. Manter a memória e o acompanhamento atualizados; o ciclo de deploy automático já foi validado.
 2. Manter a configuração MySQL privada e verificar acesso após alterações relevantes com o comando explícito; conexão/schema/primeiro administrador/login/logout já foram testados com banco real.
-3. Implementar cadastro de operadores, permissões, recuperação/troca de senha pelo próprio usuário e limitação de login persistida; homologar IP/proxy cPanel sem confiar em headers arbitrários.
+3. Homologar operadores nesta release pelos comandos explícitos e registrar evidências; depois implementar departamentos/permissões de atendimento, recuperação/troca de senha pelo próprio usuário e limitação de login persistida. Homologar IP/proxy cPanel sem confiar em headers arbitrários.
 4. Chat atendente/visitante, widget de site, identidades e persistência de mensagens.
 5. Leads, funil e histórico; depois portal, campanhas consentidas e filas.
 6. Instalador cPanel, backup/restauração, limites de recursos, acessibilidade e testes de fluxos completos.

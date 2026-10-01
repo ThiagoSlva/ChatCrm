@@ -35,6 +35,19 @@ function registerAuth(app, repository, env = process.env) {
     if (++entry.count > 10 || activeHashes >= 2) { deny(reply, 429, 'Muitas tentativas. Aguarde e tente novamente.'); return false; }
     return true;
   }
+  async function authorize(request, reply, { admin = false, write = false } = {}) {
+    if (write && !allowed(request, reply)) return null;
+    const token = readToken(request);
+    const user = repository && token && await repository.session(token);
+    if (!user) { deny(reply, 401, 'Entre para acessar o painel.'); return null; }
+    if (admin && user.role !== 'admin') { deny(reply, 403, 'Somente administradores podem gerenciar a equipe.'); return null; }
+    if (write && !equal(request.headers['x-csrf-token'], digest('csrf:' + token))) { deny(reply, 403, 'Sessao invalida.'); return null; }
+    return user;
+  }
+  async function hashWork(work) {
+    activeHashes++;
+    try { return await work(); } finally { activeHashes--; }
+  }
   const schema = { body: { type: 'object', additionalProperties: false, required: ['email', 'password'], properties: {
     email: { type: 'string', minLength: 3, maxLength: 254, pattern: '^[A-Za-z0-9.!#$%&\u0027*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' },
     password: { type: 'string', minLength: 15, maxLength: 256 }
@@ -67,7 +80,7 @@ function registerAuth(app, repository, env = process.env) {
       const valid = user ? await verifyPassword(request.body.password, user.passwordHash) : (await hashPassword(request.body.password), false);
       if (!valid) return deny(reply, 401, 'E-mail ou senha incorretos.');
       const token = secret();
-      await repository.createSession(token, user.id);
+      if (await repository.createSession(token, user.id) === false) return deny(reply, 401, 'E-mail ou senha incorretos.');
       reply.header('Set-Cookie', cookie(token, 28800));
       return { authenticated: true };
     } finally { activeHashes--; }
@@ -86,6 +99,7 @@ function registerAuth(app, repository, env = process.env) {
     reply.header('Set-Cookie', cookie('', 0));
     return { authenticated: false };
   });
+  return { authorize, throttle, hashWork, identityProperties: schema.body.properties };
 }
 
 module.exports = { registerAuth };

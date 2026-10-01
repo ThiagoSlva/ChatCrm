@@ -72,7 +72,7 @@ No ambiente de testes, o administrador inicial é `admin@example.test`, com empr
 - POST exige origem idêntica a `APP_URL`. Logout também exige token CSRF derivado da sessão; senhas e segredos nunca aparecem na URL.
 - Login e instalação têm limite de dez tentativas por endereço a cada quinze minutos, no processo, e no máximo dois cálculos de senha simultâneos. A memória do limitador é limitada. Não confia em `X-Forwarded-For` arbitrário.
 - Atrás de Passenger/proxy, diferentes usuários podem compartilhar o endereço observado. O limitador reinicia com o processo e não é compartilhado entre instâncias. Homologar proxy confiável e limitação persistida antes de produção ou equipes maiores.
-- Não existe senha pública de demonstração, recuperação de senha, MFA, administração de operadores ou auditoria de acessos nesta versão. O papel `operator` está reservado no schema, sem cadastro disponível.
+- Não existe senha pública de demonstração, recuperação/troca de senha, MFA ou auditoria de acessos nesta versão. A gestão de operadores está implementada conforme [operadores e permissões](OPERADORES.md).
 - MySQL exige configuração privada explícita; falhas retornam mensagens genéricas. `/health` confirma o servidor e a versão do código, sem afirmar que o banco está configurado. `/api/installation` retorna somente o estado da instalação.
 
 Referências operacionais: [commits implícitos no MySQL](https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html), [travas de migração](https://dev.mysql.com/doc/refman/8.4/en/locking-functions.html). Migração não substitui backup e restauração testada.
