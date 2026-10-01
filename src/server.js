@@ -37,6 +37,7 @@ function buildServer(options = {}) {
     status: 'ok',
     application: 'conversa-livre',
     version: '0.0.1',
+    commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
     phase: 'hosting-validation',
     crmImplemented: false,
     chatImplemented: false
