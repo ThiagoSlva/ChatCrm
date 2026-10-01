@@ -1,0 +1,37 @@
+{
+  "assessed_on": "2026-10-01",
+  "purpose": "Referencias para estudo de viabilidade de CRM com chat proprio",
+  "official_source_index": "https://telegram.org/apps",
+  "repositories": [
+    {
+      "name": "telegram-web-a",
+      "path": "referencias\\telegram-web-a",
+      "origin": "https://github.com/Ajaxy/telegram-tt.git",
+      "commit": "28ffcf710b15571e5a2f7bb3bdce3fc90fc8ec80",
+      "commit_date": "2026-09-29T16:17:24+02:00",
+      "license": "GPL-3.0-or-later",
+      "shallow_history": true,
+      "working_tree_clean": true,
+      "connectivity_check": "passed",
+      "dependencies_installed": false,
+      "build_verified": false
+    },
+    {
+      "name": "telegram-web-k",
+      "path": "referencias\\telegram-web-k",
+      "origin": "https://github.com/morethanwords/tweb.git",
+      "commit": "e55552763f3dcca269230bb7487213bbaf82ff6a",
+      "commit_date": "2026-09-29T15:24:46-04:00",
+      "license": "GPL-3.0-only",
+      "shallow_history": true,
+      "working_tree_clean": true,
+      "connectivity_check": "passed",
+      "dependencies_installed": false,
+      "build_verified": false
+    }
+  ],
+  "web_k_submodules": [
+    " 088d20ab45aaf60fa610ee2dfac7933850178bad src/opus-recorder (heads/master)",
+    " 563ede1c269817b9d5eb6081696cd6a692b257a5 src/solid (563ede1)"
+  ]
+}
