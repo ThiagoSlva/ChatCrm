@@ -47,6 +47,8 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 - Deploy de release manual executado com sucesso; `/health` retornou HTTP 200 e commit `64cbca94cb0b4aecf6dadcbcdef7ebab6c063708`.
 - Cron registrado e atualização automática verificada: o commit de memória `f319441224a8834515e67ff9510b1f3d7a0ae040` apareceu em `/health` sem deploy manual, às 13h42 de 01/10/2026 (America/Sao_Paulo).
 - MySQL real, WebSocket/polling e funções do CRM ainda não foram homologados.
+- v0.1.0: 16 testes locais, auditoria npm sem vulnerabilidades e Actions `36906333782` em Node 22/24 passaram. O cron ativou o commit funcional `fede32493f4e2e98c1befba86fa1a40eee26c96f`; `/health` confirmou v0.1.0/hash e `/api/installation` confirmou configuração pendente. Base de autenticação publicada; não confundir esse resultado com primeiro acesso testado em MySQL real.
+- Pendente autorização específica para criar o usuário MySQL `xfxpanel_clchat` e associá-lo somente a `xfxpanel_chatcrm`. Pergunta enviada nesta conversa; opção preselecionada não é autorização. Nenhum usuário de banco, privilégio novo ou administrador foi criado. Após resposta, concluir configuração/migração privada e validar login/logout reais; o administrador deve escolher uma senha privada, sem credenciais padrão.
 
 ## Próximas prioridades
 
