@@ -16,7 +16,7 @@ Plano principal: Node.js/TypeScript, Fastify, MySQL, interface React/Vite, uma i
 
 ## Estado funcional
 
-Versão 0.1.0, início da fase 1. Servidor Fastify, diagnóstico, `/health`, migração MySQL v1 privada, tela `/acesso`, criação protegida de empresa/primeiro administrador, login, perfil autenticado e logout. Schema: `cl_schema`, `cl_company`, `cl_users`, `cl_sessions`. Senhas scrypt, sessões aleatórias com hash no banco, cookies seguros e controle de origem/CSRF. Dezesseis testes locais passaram em Node 22, usando repositório em memória e conexão simulada. MySQL real e primeiro acesso no cPanel ainda pendentes. Chat, cadastro de operadores, leads, campanhas, chatbot e instalador completo ainda não existem. Não apresentar a base como CRM completo.
+Versão 0.1.0, fase 1 em andamento. Servidor Fastify, diagnóstico, `/health`, migração MySQL v1 privada, tela `/acesso`, criação protegida de empresa/primeiro administrador, login, perfil autenticado e logout. Schema: `cl_schema`, `cl_company`, `cl_users`, `cl_sessions`. Senhas scrypt, sessões aleatórias com hash no banco, cookies seguros e controle de origem/CSRF. Dezessete testes locais passaram em Node 22, usando repositório em memória e conexão simulada. Conexão/migração e instalação/login/logout também verificados em MariaDB 11.8.6, Node 24.21.0 e HTTPS real no cPanel. Chat, cadastro de operadores, leads, campanhas, chatbot e instalador completo ainda não existem. Não apresentar a base como CRM completo.
 
 Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOKEN` e variáveis DB precisam estar no ambiente privado; a aplicação fica bloqueada para instalação sem configuração válida. Segredo sem valor padrão e banco exclusivo. Migração recusa tabelas de outros sistemas, mantém marcador v0 em interrupção e só marca v1 ao concluir; executada explicitamente, nunca no cron de deploy. O primeiro administrador usa transação/trava; não cadastrar credenciais conhecidas. O runner agora descobre toda a suíte em `test/` e remove credenciais DB dos testes.
 
@@ -28,7 +28,7 @@ Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOK
 - cPanel oferece Git Version Control, Terminal, Cron Jobs e CloudLinux Setup Node.js App. Aplicação dedicada: `/home/xfxpanel/apps/chatcrm-test`, Node 24.21.0, Production, domínio na raiz e entrada `passenger.cjs`.
 - Clone cPanel: `/home/xfxpanel/repositories/chatcrm`, origem pública HTTPS do GitHub, branch `main`. Não contém segredos.
 - Ambiente Node: `/home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate`.
-- Banco exclusivo `xfxpanel_chatcrm` criado pelo Database Wizard em 01/10/2026. Ainda sem usuário associado, tabelas ou credenciais configuradas. Não usar bancos de outros sites; falta autorização específica para criar usuário/acesso MySQL dedicado.
+- Banco exclusivo `xfxpanel_chatcrm`, usuário `xfxpanel_clchat`, MariaDB 11.8.6. Concedidos somente SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER e REFERENCES nesse banco; nenhuma permissão global ou DROP. Configuração privada `.env` e schema v1 concluídos. Não usar bancos de outros sites.
 
 ## Deploy e recuperação
 
@@ -46,16 +46,20 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 - Página em HTTPS abriu no navegador e confirmou o servidor conectado.
 - Deploy de release manual executado com sucesso; `/health` retornou HTTP 200 e commit `64cbca94cb0b4aecf6dadcbcdef7ebab6c063708`.
 - Cron registrado e atualização automática verificada: o commit de memória `f319441224a8834515e67ff9510b1f3d7a0ae040` apareceu em `/health` sem deploy manual, às 13h42 de 01/10/2026 (America/Sao_Paulo).
-- MySQL real, WebSocket/polling e funções do CRM ainda não foram homologados.
+- MySQL/MariaDB real e base de acesso verificados nesta hospedagem; WebSocket/polling e funções do CRM ainda não foram homologados.
 - v0.1.0: 16 testes locais, auditoria npm sem vulnerabilidades e Actions `36906333782` em Node 22/24 passaram. O cron ativou o commit funcional `fede32493f4e2e98c1befba86fa1a40eee26c96f`; `/health` confirmou v0.1.0/hash e `/api/installation` confirmou configuração pendente. Base de autenticação publicada; não confundir esse resultado com primeiro acesso testado em MySQL real.
-- Pendente autorização específica para criar o usuário MySQL `xfxpanel_clchat` e associá-lo somente a `xfxpanel_chatcrm`. Pergunta enviada nesta conversa; opção preselecionada não é autorização. Nenhum usuário de banco, privilégio novo ou administrador foi criado. Após resposta, concluir configuração/migração privada e validar login/logout reais; o administrador deve escolher uma senha privada, sem credenciais padrão.
+- Autorização recebida em 01/10/2026, como resposta à solicitação concreta de acesso dedicado: “está autorizado a fazer qualquer mudança necessária ok”. Registrar também em AGENTS. O usuário MySQL dedicado, sua configuração privada, migração e instalação inicial foram concluídos; não repetir a confirmação para esse mesmo acesso. O escopo continua somente este projeto/domínio, sem divulgar segredos, alterar outros sites ou comprar serviços.
 - Atenção a assets: `/styles.css` antigo foi servido diretamente por LiteSpeed e cache Cloudflare. O HTML agora usa URLs `/assets/<hash-do-conteudo>/<arquivo>` para CSS/JS da release, evitando colisões e atualizações parciais. Não confiar em respostas das rotas antigas como prova de versão do frontend. Correção funcional `5ec2f60afa2d86174463bff0f0ea573080490422`: 17 testes locais e Actions `36907205663` em Node 22/24 passaram; `/health` confirmou o commit servido e os assets do HTML responderam HTTP 200/hash correspondente/headers corretos após o cron.
+- MySQL real: conexão e quatro tabelas v1 verificadas. Administrador de testes `admin@example.test` criado pelo endpoint HTTPS; senha aleatória somente em `/home/xfxpanel/apps/chatcrm-test/.first-access.json`, modo 600. Não copiar esse arquivo ou `.env` para Git/docs/conversa. Login, perfil, cookie seguro, CSRF no logout, revogação e bloqueio de instalação duplicada passaram. `SETUP_TOKEN` removido do arquivo privado e reinício solicitado. Relatórios sem credenciais em `.mysql-verification.json` e `.auth-verification.json`, na raiz privada.
+- Verificação de escopo/armazenamento passou: arquivos privados em modo 600, segredo de instalação ausente, SHOW GRANTS sem acesso a outros bancos nem GRANT OPTION, um administrador e zero sessões remanescentes. HTTP bloqueou `.env` (403) e credencial/relatórios (404). Não imprimir SHOW GRANTS inteiro: algumas versões podem incluir hash de autenticação do banco.
+- UAPI CLI está limitada pelo CageFS: `/usr/local/cpanel/bin/uapi` existe, mas depende de `/usr/local/cpanel/cpanel`, ausente no ambiente. Não insistir nem mudar a proteção. O Database Wizard criou usuário e concedeu os privilégios; configuração foi enviada por entrada sem eco ao terminal e salva em arquivo privado. Nenhuma senha existente foi alterada.
+- Verificador repetível implementado em `scripts/verify-access.js`, comando `verify:access`: usa arquivo privado de credenciais e APP_URL HTTPS, abre/encerra somente uma sessão, testa recusas/autenticação e não imprime segredos. Não integrar automaticamente ao cron/CI. Executar na hospedagem após publicar o script e registrar o resultado.
 
 ## Próximas prioridades
 
 1. Manter a memória e o acompanhamento atualizados; o ciclo de deploy automático já foi validado.
-2. Configurar MySQL dedicado, rodar a migração implementada e homologar instalação/login/logout com banco real; a criação de usuário/privilégios do banco exige autorização específica conforme AGENTS e política de navegador. A versão já possui guia e fluxo protegidos.
-3. Implementar cadastro de operadores, permissões, recuperação de senha e limitação de login persistida; homologar IP/proxy cPanel sem confiar em headers arbitrários.
+2. Manter a configuração MySQL privada e verificar acesso após alterações relevantes com o comando explícito; conexão/schema/primeiro administrador/login/logout já foram testados com banco real.
+3. Implementar cadastro de operadores, permissões, recuperação/troca de senha pelo próprio usuário e limitação de login persistida; homologar IP/proxy cPanel sem confiar em headers arbitrários.
 4. Chat atendente/visitante, widget de site, identidades e persistência de mensagens.
 5. Leads, funil e histórico; depois portal, campanhas consentidas e filas.
 6. Instalador cPanel, backup/restauração, limites de recursos, acessibilidade e testes de fluxos completos.

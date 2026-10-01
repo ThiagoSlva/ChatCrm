@@ -10,7 +10,8 @@
     "start": "node app.js",
     "test": "node scripts/run-tests.js",
     "check:database": "node scripts/check-database.js",
-    "migrate:database": "node scripts/migrate-database.js"
+    "migrate:database": "node scripts/migrate-database.js",
+    "verify:access": "node scripts/verify-access.js"
   },
   "dependencies": {
     "fastify": "5.12.5",

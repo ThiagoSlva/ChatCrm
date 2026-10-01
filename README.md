@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Estado atual: v0.1.0, início da fase 1. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login e logout. O acesso depende de configurar um banco exclusivo e variáveis privadas; a homologação com MySQL real ainda está pendente. Chat, operadores, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
+**Estado atual: v0.1.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login e logout. Esses fluxos foram testados por HTTPS com persistência real em MariaDB 11.8.6 na hospedagem de testes. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, operadores, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
 
 ## Executar a base
 

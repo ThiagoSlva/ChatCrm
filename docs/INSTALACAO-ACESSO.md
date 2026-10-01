@@ -1,6 +1,6 @@
 # Instalação do primeiro administrador — v0.1.0
 
-Esta entrega implementa a base de autenticação. Chat, operadores, recuperação de senha e CRM ainda estão em desenvolvimento. Os testes automatizados usam repositório em memória e conexão simulada; a operação com MySQL real precisa ser homologada no ambiente dedicado antes de declarar esta etapa concluída.
+Esta entrega implementa a base de autenticação. Chat, operadores, recuperação de senha e CRM ainda estão em desenvolvimento. Os 17 testes automatizados usam repositório em memória e conexão simulada. No ambiente dedicado, a conexão, migração, primeiro administrador, login e logout também foram verificados por HTTPS com MariaDB 11.8.6 e Node 24.21.0. Essa evidência cobre a base de acesso desta hospedagem, sem homologar o CRM completo ou outros provedores.
 
 ## Configuração privada
 
@@ -51,6 +51,19 @@ Depois reinicie somente `apps/chatcrm-test` pelo gerenciador Node. Não coloque 
 Abra `/acesso`. A tela informa se falta configuração ou migração. Quando o banco estiver pronto, informe empresa, nome, e-mail, senha de pelo menos 15 caracteres e segredo de instalação. Crie o administrador e entre com e-mail e senha. Remova `SETUP_TOKEN` da configuração e reinicie após concluir; o banco bloqueia uma segunda instalação mesmo que o segredo ainda esteja configurado.
 
 O primeiro cadastro usa uma transação e trava na linha única do schema para impedir dois administradores iniciais em requisições concorrentes. A criação da empresa e do usuário acontece na mesma transação.
+
+## Verificação repetível de acesso
+
+O comando `npm run verify:access -- CAMINHO_PRIVADO` verifica uma instalação já configurada por HTTPS: acesso anônimo, origem estrangeira, senha incorreta, login, cookie seguro, perfil, CSRF, logout e revogação. O arquivo privado contém o e-mail e a senha do usuário usado no teste; mantenha-o fora do Git e da pasta pública, com acesso restrito ao dono. O comando não cria administradores nem altera senhas e não imprime credenciais ou tokens. Ele abre e encerra uma sessão de verificação.
+
+Este comando é explícito: não roda em CI, `npm test` ou no cron de deploy. Esses processos continuam isolados do banco real. Para esta hospedagem:
+
+```sh
+source /home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate
+node --env-file=/home/xfxpanel/apps/chatcrm-test/.env /home/xfxpanel/apps/chatcrm-test/current/scripts/verify-access.js /home/xfxpanel/apps/chatcrm-test/.first-access.json
+```
+
+No ambiente de testes, o administrador inicial é `admin@example.test`, com empresa/nome de teste. Sua senha aleatória fica somente em `/home/xfxpanel/apps/chatcrm-test/.first-access.json`, modo 600, acessível ao dono pelo gerenciador de arquivos do cPanel; não é uma senha padrão do pacote. `.env`, `.mysql-verification.json` e `.auth-verification.json` também ficam privados, fora de releases e do domínio. `SETUP_TOKEN` foi removido após instalar e testar o bloqueio do instalador.
 
 ## Segurança e limites desta entrega
 

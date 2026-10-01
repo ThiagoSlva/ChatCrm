@@ -8,6 +8,8 @@ Criar um chat e CRM independente, gratuito, de código aberto e auto-hospedado, 
 
 O usuário autorizou continuar implementando e melhorando o projeto com autonomia, incluindo ideias úteis como fluxos de chatbot, publicar o código no GitHub e fazer deploys no ambiente de testes. Transforme “perfeito” em melhorias concretas, critérios verificáveis e prioridades. Desenvolva a base funcional antes de módulos opcionais. Respeite pedidos posteriores e evite trabalho repetitivo sem benefício.
 
+Em 01/10/2026, após a solicitação concreta para criar `xfxpanel_clchat` com acesso somente a `xfxpanel_chatcrm`, o usuário respondeu: “está autorizado a fazer qualquer mudança necessária ok”. Isso autoriza concluir esse acesso dedicado, gerar/guardar sua configuração privada, executar migrações e instalar/testar o sistema no ambiente deste projeto, além das melhorias necessárias ao projeto. Não interpretar como autorização para modificar outros sites, divulgar segredos, comprar serviços ou contornar limites/regras de segurança. Não repetir a confirmação já recebida para esse mesmo acesso e escopo.
+
 ## Execução
 
 - Confira Git, memória, pendências e saúde do ambiente. Não descarte trabalho local.
