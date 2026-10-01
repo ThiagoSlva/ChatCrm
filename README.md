@@ -18,6 +18,8 @@ Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa ofer
 
 O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` contém caminhos específicos dessa hospedagem e deve ser adaptada para outras instalações.
 
+Para retomar o desenvolvimento, leia a [memória do projeto](docs/MEMORIA-PROJETO.md), o [andamento](docs/ANDAMENTO.md) e as [orientações de contribuição](AGENTS.md).
+
 O código original e os documentos usam [licença MIT](LICENSE). As dependências mantêm suas licenças. Os clientes GPL do Telegram baixados para pesquisa não integram o código publicado.
 
 O canal será independente: não envia mensagens para números de WhatsApp. Visitantes e clientes precisam acessar o widget ou portal da empresa. O código será gratuito; hospedagem, domínio e serviços opcionais podem ter custos.
