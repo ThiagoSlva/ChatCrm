@@ -42,12 +42,12 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 - GitHub Actions, matriz Node 22 e 24: execução `36892950361` concluída com sucesso.
 - Página em HTTPS abriu no navegador e confirmou o servidor conectado.
 - Deploy de release manual executado com sucesso; `/health` retornou HTTP 200 e commit `64cbca94cb0b4aecf6dadcbcdef7ebab6c063708`.
-- Cron registrado com sucesso. Confirmação de uma atualização executada pelo cron deve ser anotada em `ANDAMENTO.md` após observar o hash novo, sem confundir criação do cron com teste completo.
+- Cron registrado e atualização automática verificada: o commit de memória `f319441224a8834515e67ff9510b1f3d7a0ae040` apareceu em `/health` sem deploy manual, às 13h42 de 01/10/2026 (America/Sao_Paulo).
 - MySQL real, WebSocket/polling e funções do CRM ainda não foram homologados.
 
 ## Próximas prioridades
 
-1. Confirmar atualização automática pela execução agendada e registrar evidência.
+1. Manter a memória e o acompanhamento atualizados; o ciclo de deploy automático já foi validado.
 2. Implementar instalação/configuração MySQL e schema com migrações; criar somente banco dedicado deste projeto.
 3. Autenticação, primeiro administrador, operadores, permissões e sessões seguras.
 4. Chat atendente/visitante, widget de site, identidades e persistência de mensagens.

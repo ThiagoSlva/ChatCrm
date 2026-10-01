@@ -8,7 +8,7 @@ Verificado: três testes locais e no cPanel; Actions em Node 22/24 passou; pági
 
 Automação de continuidade criada e ativa nesta conversa: **Evoluir Conversa Livre — ChatCrm**, a cada 60 minutos. Identificador: `evoluir-conversa-livre-chatcrm`. Cada execução deve ler a memória, verificar o andamento, implementar a próxima entrega útil, testar e documentar. Inclui evolução futura como fluxos de chatbot. Depende do aplicativo/computador disponíveis e dos limites de uso da conta.
 
-Em andamento: confirmar um commit posterior ativado pelo cron do cPanel. A memória publicada neste commit serve também como alteração para validar esse fluxo.
+Deploy automático confirmado: o commit `f319441224a8834515e67ff9510b1f3d7a0ae040`, que publicou a memória, apareceu em `/health` após o cron, sem atualização manual do clone ou da aplicação. Verificação em 01/10/2026, às 13h42 (America/Sao_Paulo). O ambiente respondeu com `status: ok`. O ciclo GitHub → cron → testes → release → reinício está validado para esta base.
 
 Próxima entrega funcional: instalação e schema MySQL, autenticação/primeiro administrador e operadores, conforme fase 1 do plano. Chat e CRM ainda não implementados. Não cadastrar credenciais de demonstração públicas.
 
