@@ -1,6 +1,6 @@
 {
   "name": "conversa-livre",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "description": "Base de homologacao para CRM e chat aberto auto-hospedado",
   "license": "MIT",
@@ -8,8 +8,9 @@
   "engines": { "node": "^22.0.0 || ^24.0.0" },
   "scripts": {
     "start": "node app.js",
-    "test": "node --test test/server.test.js",
-    "check:database": "node scripts/check-database.js"
+    "test": "node scripts/run-tests.js",
+    "check:database": "node scripts/check-database.js",
+    "migrate:database": "node scripts/migrate-database.js"
   },
   "dependencies": {
     "fastify": "5.12.5",

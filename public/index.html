@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Conversa Livre — diagnóstico</title>
+  <title>Conversa Livre — sua empresa</title>
   <link rel="stylesheet" href="styles.css">
   <script src="status.js" defer></script>
 </head>
@@ -12,22 +12,23 @@
     <aside class="sidebar">
       <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">c</span>Conversa Livre</a>
       <p class="sidebar-label">SEU CANAL, SEU CONTROLE</p>
-      <nav aria-label="Navegação"><a class="nav-item active" href="./" aria-current="page">Visão geral</a></nav>
+      <nav aria-label="Navegação"><a class="nav-item active" href="./" aria-current="page">Visão geral</a><a class="nav-item" href="/acesso">Acesso da equipe</a></nav>
       <div class="sidebar-note"><strong>Código aberto</strong><p>Hospedado por você.<br>Construído para sua equipe.</p></div>
     </aside>
     <main>
-      <header><span class="eyebrow">BASE DE INSTALAÇÃO</span><span class="version">Fase 0 · v0.0.1</span></header>
+      <header><span class="eyebrow">BASE DE INSTALAÇÃO</span><span class="version">Fase 1 · v0.1.0</span></header>
       <section class="welcome">
         <p class="eyebrow">ATENDIMENTO COM IDENTIDADE PRÓPRIA</p>
         <h1>Um novo espaço<br>para suas conversas.</h1>
-        <p class="intro">A primeira base do seu chat e CRM está aqui. Vamos validar a hospedagem antes de começar os atendimentos.</p>
+        <p class="intro">O espaço da sua equipe começa pelo primeiro administrador. Prepare a instalação e acompanhe a construção do seu chat e CRM.</p>
+        <a class="button-link" href="/acesso">Preparar acesso da equipe</a>
       </section>
       <section class="cards" aria-label="Estado do projeto">
         <article class="card"><span class="card-label">Servidor</span><h2 id="server-status">Verificando…</h2><p id="server-detail" role="status" aria-live="polite">Consultando o aplicativo Node.js.</p><button id="refresh" type="button">Verificar novamente</button></article>
-        <article class="card"><span class="card-label">Banco de dados</span><h2>Próxima verificação</h2><p>A conexão MySQL é testada pelo comando <code>npm run check:database</code>, com as credenciais na sua hospedagem.</p></article>
+        <article class="card"><span class="card-label">Instalação</span><h2 id="installation-status">Verificando…</h2><p id="installation-detail">Consultando a configuração do banco e o primeiro acesso.</p><a href="/acesso">Abrir acesso da equipe</a></article>
       </section>
       <section class="roadmap"><div><p class="eyebrow">O QUE VEM A SEGUIR</p><h2>Do primeiro contato à próxima venda.</h2></div><div class="steps"><p><span>01</span>Operadores e permissões</p><p><span>02</span>Chat e botão no seu site</p><p><span>03</span>Leads e funil de vendas</p><p><span>04</span>Portal e campanhas</p></div></section>
-      <footer>Esta versão valida o servidor. Chat, cadastro de leads e autenticação ainda serão implementados.</footer>
+      <footer>Autenticação e instalação estão disponíveis para testes após configurar o MySQL. Chat, operadores e leads são as próximas entregas.</footer>
     </main>
   </div>
 </body>

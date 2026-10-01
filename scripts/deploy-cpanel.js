@@ -29,7 +29,7 @@ git(['archive', '--format=tar', '--output=' + archive, commit]);
 execFileSync('tar', ['-xf', archive, '-C', release], { timeout: 30000 });
 fs.unlinkSync(archive);
 execFileSync('npm', ['ci', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: release, stdio: 'inherit', timeout: 240000 });
-execFileSync(process.execPath, ['--test', 'test/server.test.js'], { cwd: release, stdio: 'inherit', timeout: 60000 });
+execFileSync(process.execPath, ['scripts/run-tests.js'], { cwd: release, stdio: 'inherit', timeout: 60000 });
 fs.writeFileSync(path.join(release, '.deploy-commit'), commit + '\n');
 const current = path.join(appRoot, 'current');
 if (fs.existsSync(current) && !fs.lstatSync(current).isSymbolicLink()) throw new Error('current precisa ser um link de release.');

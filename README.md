@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Estado atual: fase 0. Conversa Livre é um nome provisório.** Já existe uma base Node.js executável para validar a hospedagem: página de diagnóstico, endpoint `/health`, comando de conexão MySQL e testes automatizados. Chat, autenticação, operadores, leads, campanhas e instalador ainda precisam ser implementados. Não use esta versão para atendimento real.
+**Estado atual: v0.1.0, início da fase 1. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login e logout. O acesso depende de configurar um banco exclusivo e variáveis privadas; a homologação com MySQL real ainda está pendente. Chat, operadores, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
 
 ## Executar a base
 
@@ -15,6 +15,8 @@ npm start
 Abra `http://127.0.0.1:3000`. O servidor usa `HOST` e `PORT` do ambiente, com esses valores como padrão. Para testar MySQL, copie `.env.example` para `.env`, preencha as variáveis privadas e execute `npm run check:database`. O comando executa somente `SELECT 1`, sem criar tabelas ou alterar dados.
 
 Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa oferecer Node.js compatível e gerenciador de aplicações. A entrada atual é `app.js` em CommonJS. Compatibilidade com Passenger, instalação sem SSH e recursos de chat ainda precisam de homologação.
+
+Para preparar o banco e criar o primeiro administrador, siga o [guia de instalação e acesso](docs/INSTALACAO-ACESSO.md). Abra `/acesso` após configurar o ambiente. Não existem credenciais padrão.
 
 O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` contém caminhos específicos dessa hospedagem e deve ser adaptada para outras instalações.
 
@@ -34,7 +36,7 @@ Projeto planejado para um CRM e chat de código aberto, gratuito e auto-hospedad
 - [Contrato proposto de integração](docs/API-PROPOSTA.md): widget e API para sites existentes.
 - [Fluxo proposto de instalação no cPanel](docs/INSTALACAO-CPANEL-PROPOSTA.md): experiência que o pacote final deverá oferecer.
 
-Estes documentos são especificações. TypeScript e React estão previstos no plano; a base inicial usa JavaScript e HTML/CSS para validar infraestrutura. O instalador, a API de integração e o CRM ainda não foram implementados. O objetivo é distribuir código e pacote instalável, sem serviço comercial obrigatório, ativação externa ou dependência de conta do autor.
+Estes documentos são especificações. TypeScript e React estão previstos no plano; a base inicial usa JavaScript e HTML/CSS. O primeiro cadastro e a autenticação foram implementados, mas o instalador completo, a API de integração e o CRM continuam pendentes. O objetivo é distribuir código e pacote instalável, sem serviço comercial obrigatório, ativação externa ou dependência de conta do autor.
 
 A [análise inicial do Telegram](docs/VIABILIDADE-CRM.md) permanece como referência histórica; o plano atual prioriza Node.js/TypeScript, MySQL e auto-hospedagem simples, conforme a orientação posterior do usuário. PHP é uma alternativa de compatibilidade, sem compromisso de desenvolver duas versões.
 

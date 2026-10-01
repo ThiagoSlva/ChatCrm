@@ -3,6 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Fastify = require('fastify');
+const { createRepository } = require('./database');
+const { registerAuth } = require('./auth');
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -12,11 +14,16 @@ function loadEnvironment() {
 }
 
 function buildServer(options = {}) {
-  const app = Fastify({ logger: options.logger || false });
+  const app = Fastify({ logger: options.logger || false, bodyLimit: 8192 });
+  const env = options.env || process.env;
+  const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
+  if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
     ['/', 'index.html', 'text/html; charset=utf-8'],
     ['/styles.css', 'styles.css', 'text/css; charset=utf-8'],
-    ['/status.js', 'status.js', 'application/javascript; charset=utf-8']
+    ['/status.js', 'status.js', 'application/javascript; charset=utf-8'],
+    ['/acesso', 'access.html', 'text/html; charset=utf-8'],
+    ['/access.js', 'access.js', 'application/javascript; charset=utf-8']
   ];
 
   app.addHook('onSend', async (request, reply, payload) => {
@@ -36,12 +43,15 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.0.1',
+    version: '0.1.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'hosting-validation',
+    phase: 'authentication-base',
+    authenticationImplemented: true,
     crmImplemented: false,
     chatImplemented: false
   }));
+
+  registerAuth(app, repository, env);
 
   app.setNotFoundHandler(async (request, reply) => {
     reply.code(404).send({ error: 'Rota nao encontrada.' });

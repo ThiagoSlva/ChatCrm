@@ -32,4 +32,6 @@ Variáveis privadas ficam no gerenciador Node ou no `.env` da raiz da aplicaçã
 
 Este fluxo serve ao ambiente de testes. Ainda não inclui migrações de banco, verificação automática pós-deploy, rotação de logs nem limpeza de releases. Monitore espaço e logs; planeje esses recursos antes de hospedar atendimento real. Não apague releases automaticamente enquanto uma recuperação estiver em andamento.
 
+Desde v0.1.0, os testes da release são descobertos somente em `test/*.test.js` por `scripts/run-tests.js`, incluindo autenticação e migração; o runner remove as credenciais DB do ambiente de testes para impedir conexão acidental ao banco real. A migração MySQL é uma operação privada e explícita, conforme [instalação e acesso](INSTALACAO-ACESSO.md). O cron não cria tabelas nem administradores. `.env` continua fora das releases e já é carregado por `passenger.cjs`; este marco não exige alterar o bootstrap.
+
 Referências: [deploy Git do cPanel](https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/), [reinício Passenger](https://www.phusionpassenger.com/library/admin/apache/restart_app.html).

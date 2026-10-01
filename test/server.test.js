@@ -17,7 +17,7 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
 test('arquivos privados e caminhos arbitrarios nao sao publicados', async (t) => {
   const app = buildServer();
   t.after(() => app.close());
-  for (const url of ['/.env', '/package.json', '/src/server.js', '/docs/PLANO-IMPLEMENTACAO.md', '/%2e%2e/.env']) {
+  for (const url of ['/.env', '/package.json', '/src/server.js', '/src/auth.js', '/.deployed.json', '/deploy.log', '/storage/config.json', '/docs/PLANO-IMPLEMENTACAO.md', '/%2e%2e/.env']) {
     const response = await app.inject(url);
     assert.equal(response.statusCode, 404, url);
   }
@@ -26,7 +26,7 @@ test('arquivos privados e caminhos arbitrarios nao sao publicados', async (t) =>
 test('pagina e assets publicos sao servidos com politica restrita', async (t) => {
   const app = buildServer();
   t.after(() => app.close());
-  for (const url of ['/', '/styles.css', '/status.js']) {
+  for (const url of ['/', '/styles.css', '/status.js', '/acesso', '/access.js']) {
     const response = await app.inject(url);
     assert.equal(response.statusCode, 200, url);
     assert.equal(response.headers['x-content-type-options'], 'nosniff');

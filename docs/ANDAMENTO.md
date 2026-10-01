@@ -15,3 +15,11 @@ Próxima entrega funcional: instalação e schema MySQL, autenticação/primeiro
 Pendências de infraestrutura: MySQL dedicado e conexão real; teste de recuperação; limites de retenção de releases e logs; verificação de saúde pós-deploy. Sem bloqueio conhecido para desenvolver localmente.
 
 Atualize esta página a cada entrega com resultado, validação, pendência e próximo passo. Não registre apenas intenções como trabalho concluído.
+
+## 01/10/2026 — v0.1.0: primeiro acesso implementado
+
+Código concluído: migração privada MySQL v1, configuração fechada sem banco/URL/segredo, tela `/acesso`, criação única do primeiro administrador e empresa, login, perfil e logout. Senhas scrypt com sal, cookies HTTPS seguros, sessões com hash e expiração no banco, origem explícita, CSRF no logout e limite de tentativas. Interface informa claramente quando a instalação está pendente.
+
+Validação local: 16 testes passaram em Node 22, incluindo segredo/origem inválidos, dupla instalação concorrente, autenticação, revogação, entradas fracas, limite de tentativas e migração que recusa banco de outro site. Esses testes simulam persistência e conexão; não são homologação MySQL real. O deploy passa a executar toda a suíte, isolando as credenciais DB dos testes.
+
+Publicação GitHub, CI Node 22/24 e hash no cPanel: verificar e registrar após publicar esta entrega. Banco dedicado `xfxpanel_chatcrm` criado e confirmado pelo Database Wizard; ainda sem usuário associado ou tabelas. Configuração privada e primeiro administrador real ainda pendentes. Próximo passo: autorizar/criar usuário MySQL com acesso exclusivo ao banco deste projeto, preparar configuração privada e homologar o fluxo real; depois implementar operadores. A aba Database Wizard está no passo 2, aguardando autorização para criar esse acesso. Guia: `INSTALACAO-ACESSO.md`.

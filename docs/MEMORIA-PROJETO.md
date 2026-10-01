@@ -16,7 +16,9 @@ Plano principal: Node.js/TypeScript, Fastify, MySQL, interface React/Vite, uma i
 
 ## Estado funcional
 
-Versão 0.0.1, fase 0. Servidor Fastify, página de diagnóstico, `/health`, comando privado `npm run check:database` que executa somente `SELECT 1`, headers de segurança e três testes automatizados. Chat, operadores, autenticação, leads, campanhas, chatbot e instalador ainda não existem. Não apresentar a base como CRM completo.
+Versão 0.1.0, início da fase 1. Servidor Fastify, diagnóstico, `/health`, migração MySQL v1 privada, tela `/acesso`, criação protegida de empresa/primeiro administrador, login, perfil autenticado e logout. Schema: `cl_schema`, `cl_company`, `cl_users`, `cl_sessions`. Senhas scrypt, sessões aleatórias com hash no banco, cookies seguros e controle de origem/CSRF. Dezesseis testes locais passaram em Node 22, usando repositório em memória e conexão simulada. MySQL real e primeiro acesso no cPanel ainda pendentes. Chat, cadastro de operadores, leads, campanhas, chatbot e instalador completo ainda não existem. Não apresentar a base como CRM completo.
+
+Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOKEN` e variáveis DB precisam estar no ambiente privado; a aplicação fica bloqueada para instalação sem configuração válida. Segredo sem valor padrão e banco exclusivo. Migração recusa tabelas de outros sistemas, mantém marcador v0 em interrupção e só marca v1 ao concluir; executada explicitamente, nunca no cron de deploy. O primeiro administrador usa transação/trava; não cadastrar credenciais conhecidas. O runner agora descobre toda a suíte em `test/` e remove credenciais DB dos testes.
 
 ## GitHub e hospedagem
 
@@ -26,6 +28,7 @@ Versão 0.0.1, fase 0. Servidor Fastify, página de diagnóstico, `/health`, com
 - cPanel oferece Git Version Control, Terminal, Cron Jobs e CloudLinux Setup Node.js App. Aplicação dedicada: `/home/xfxpanel/apps/chatcrm-test`, Node 24.21.0, Production, domínio na raiz e entrada `passenger.cjs`.
 - Clone cPanel: `/home/xfxpanel/repositories/chatcrm`, origem pública HTTPS do GitHub, branch `main`. Não contém segredos.
 - Ambiente Node: `/home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate`.
+- Banco exclusivo `xfxpanel_chatcrm` criado pelo Database Wizard em 01/10/2026. Ainda sem usuário associado, tabelas ou credenciais configuradas. Não usar bancos de outros sites; falta autorização específica para criar usuário/acesso MySQL dedicado.
 
 ## Deploy e recuperação
 
@@ -48,8 +51,8 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 ## Próximas prioridades
 
 1. Manter a memória e o acompanhamento atualizados; o ciclo de deploy automático já foi validado.
-2. Implementar instalação/configuração MySQL e schema com migrações; criar somente banco dedicado deste projeto.
-3. Autenticação, primeiro administrador, operadores, permissões e sessões seguras.
+2. Configurar MySQL dedicado, rodar a migração implementada e homologar instalação/login/logout com banco real; a criação de usuário/privilégios do banco exige autorização específica conforme AGENTS e política de navegador. A versão já possui guia e fluxo protegidos.
+3. Implementar cadastro de operadores, permissões, recuperação de senha e limitação de login persistida; homologar IP/proxy cPanel sem confiar em headers arbitrários.
 4. Chat atendente/visitante, widget de site, identidades e persistência de mensagens.
 5. Leads, funil e histórico; depois portal, campanhas consentidas e filas.
 6. Instalador cPanel, backup/restauração, limites de recursos, acessibilidade e testes de fluxos completos.
