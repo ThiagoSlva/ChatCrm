@@ -35,6 +35,8 @@ Reversão após a migração precisa de código compatível com schema v2. As ve
 node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/verify-departments-database.js"
 ```
 
-Testes locais cobrem autorização, tipos, paginação, limite e conflitos com atores modificados. O verificador SQL usa uma conexão com savepoints; não prova concorrência entre processos nem testa o limite de 50 no banco real. Registre hash servido, Actions e verificações efetivamente executadas em [andamento](ANDAMENTO.md). Revisão visual autenticada permanece pendente até uma sessão/preview autorizado disponível.
+`scripts/verify-access.js` confere capacidades no perfil e, para administrador com schema v2, lê a lista de departamentos pela sessão HTTPS efêmera. Confere campos seguros e paginação; não cria ou altera departamentos. Use o arquivo privado de credenciais já configurado, conforme o guia de acesso, e não coloque esse verificador no cron.
+
+Testes locais cobrem autorização, tipos, paginação, limite e conflitos com atores modificados. Nove verificações SQL de departamentos passaram em MariaDB real na hospedagem de testes, com rollback; verificação de equipe/senha também passou após v2. O verificador SQL usa uma conexão com savepoints; não prova concorrência entre processos nem testa o limite de 50 no banco real. Registre hash servido, Actions e verificações HTTPS efetivamente executadas em [andamento](ANDAMENTO.md). Revisão visual autenticada permanece pendente até uma sessão/preview autorizado disponível.
 
 Este módulo prepara a separação do atendimento; ainda não há chat ou mensagens. Quando forem implementados, autorização do departamento e gravação da mensagem precisarão compartilhar a transação para impedir envio após remoção concorrente do vínculo.

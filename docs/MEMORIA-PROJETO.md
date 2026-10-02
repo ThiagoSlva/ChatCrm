@@ -18,11 +18,11 @@ Plano principal: Node.js/TypeScript, Fastify, MySQL, interface React/Vite, uma i
 
 ## Estado funcional
 
-Versão 0.3.0 publicada, fase 1 em andamento. Inclui instalação, autenticação, gestão administrativa de operadores e troca da própria senha em `/acesso`, com senha atual, confirmação e revogação de todas as sessões. Schema v1 preservado, sem DDL ou mudança no bootstrap. Troca e login revalidam hash/estado/sessão sob trava, para impedir acesso baseado em senha antiga. Trinta e um testes locais passaram, incluindo entrelaçamentos de operações com persistência simulada. Instalação, autenticação, operadores e troca de senha homologados em MariaDB 11.8.6, Node 24.21.0 e HTTPS. Revisão visual do formulário autenticado de senha permanece pendente; a página pública v0.3.0 foi conferida. Chat, departamentos, leads, campanhas, chatbot e instalador completo ainda não existem. Não apresentar a base como CRM completo.
+Versão 0.4.0 publicada, fase 1 em andamento. Inclui instalação, autenticação, gestão de operadores, troca da própria senha e departamentos com vínculos em `/acesso`. Administrador organiza áreas; operadores consultam apenas as áreas ativas às quais pertencem. Remoção de vínculo nega a próxima requisição com a sessão existente; desativação preserva vínculos. Senha atual, confirmação e revogação de sessões protegem a troca da própria senha. Não apresentar a base como CRM completo: chat, widget, leads, campanhas, chatbot e instalador completo ainda não existem.
 
-Próxima release v0.4.0 em preparação: departamentos e vínculos implementados, APIs e interface, schema v2 retomável e coexistência com v1. Acesso/equipe continuam em v1; apenas departamentos exigem v2. Revisão de código concluída e corrida do limite de 50 corrigida/testada por simulação. Homologação real e publicação ainda devem ser registradas no andamento. Não voltar para v0.3 depois de v2 sem recuperação específica: preservar release v0.4 compatível e backup privado antes do DDL.
+Schema v2 migrado explicitamente na hospedagem após backup privado e confirmação de compatibilidade da aplicação com v1. Registros, hashes e sessões existentes foram preservados. Cinquenta e quatro testes passaram localmente, em Actions Node 22/24 e no cPanel. Nove verificações SQL de departamentos e doze de equipe/senha passaram em MariaDB real com dados sintéticos revertidos. Revisão visual autenticada de senha/departamentos, concorrência SQL entre processos, limite de 50 no banco real e restauração continuam pendentes. Não voltar para v0.3 depois de v2: preservar release v0.4 compatível e o backup privado anterior ao DDL.
 
-Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOKEN` e variáveis DB precisam estar no ambiente privado; a aplicação fica bloqueada para instalação sem configuração válida. Segredo sem valor padrão e banco exclusivo. Migração recusa tabelas de outros sistemas, mantém marcador v0 em interrupção e só marca v1 ao concluir; executada explicitamente, nunca no cron de deploy. O primeiro administrador usa transação/trava; não cadastrar credenciais conhecidas. O runner agora descobre toda a suíte em `test/` e remove credenciais DB dos testes.
+Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOKEN` e variáveis DB precisam estar no ambiente privado; a aplicação fica bloqueada para instalação sem configuração válida. Segredo sem valor padrão e banco exclusivo. Migração recusa tabelas de outros sistemas, mantém o marcador anterior durante preparação incompleta e só marca a nova versão ao validar toda a estrutura; executada explicitamente, nunca no cron de deploy. O primeiro administrador usa transação/trava; não cadastrar credenciais conhecidas. O runner descobre toda a suíte em `test/`, remove credenciais DB e executa arquivos sequencialmente para reduzir processos simultâneos no cPanel, preservando a concorrência explícita dentro dos testes.
 
 ## GitHub e hospedagem
 
@@ -32,7 +32,7 @@ Leia `INSTALACAO-ACESSO.md` para configuração e limites. `APP_URL`, `SETUP_TOK
 - cPanel oferece Git Version Control, Terminal, Cron Jobs e CloudLinux Setup Node.js App. Aplicação dedicada: `<APP_ROOT>`, Node 24.21.0, Production, domínio na raiz e entrada `passenger.cjs`.
 - Clone cPanel: `<REPO_ROOT>`, origem pública HTTPS do GitHub, branch `main`. Não contém segredos.
 - Ambiente Node: `<NODE_ENV_ACTIVATE>`.
-- Banco exclusivo `<DATABASE_NAME>`, usuário `<DATABASE_USER>`, MariaDB 11.8.6. Concedidos somente SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER e REFERENCES nesse banco; nenhuma permissão global ou DROP. Configuração privada `.env` e schema v1 concluídos. Não usar bancos de outros sites.
+- Banco exclusivo `<DATABASE_NAME>`, usuário `<DATABASE_USER>`, MariaDB 11.8.6. Concedidos somente SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER e REFERENCES nesse banco; nenhuma permissão global ou DROP. Configuração privada `.env` preservada; schema v2 concluído com seis tabelas. Não usar bancos de outros sites.
 
 ## Deploy e recuperação
 
@@ -66,8 +66,8 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 
 1. Manter a memória e o acompanhamento atualizados; o ciclo de deploy automático já foi validado.
 2. Manter a configuração MySQL privada e verificar acesso após alterações relevantes com o comando explícito; conexão/schema/primeiro administrador/login/logout já foram testados com banco real.
-3. Departamentos e permissões de atendimento; concluir revisão visual do formulário de senha quando houver preview autorizado disponível. Recuperação de senha e limitação de login persistida continuam pendentes. Homologar IP/proxy cPanel sem confiar em headers arbitrários.
-4. Chat atendente/visitante, widget de site, identidades e persistência de mensagens.
+3. Chat atendente/visitante, widget de site, identidades e persistência de mensagens; autorizar departamento e gravação na mesma transação. Departamentos e vínculos já têm API/interface e homologação SQL.
+4. Concluir revisão visual autenticada quando houver preview autorizado disponível. Recuperação de senha e limitação de login persistida continuam pendentes. Homologar IP/proxy cPanel sem confiar em headers arbitrários.
 5. Leads, funil e histórico; depois portal, campanhas consentidas e filas.
 6. Instalador cPanel, backup/restauração, limites de recursos, acessibilidade e testes de fluxos completos.
 7. Chatbot com regras e editor de fluxos, transferência para humano e extensões úteis, com critérios e testes.

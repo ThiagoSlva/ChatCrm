@@ -46,6 +46,10 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.passwordHash, undefined);
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
+    const capabilities = profile.data.capabilities;
+    assert.equal([1, 2].includes(capabilities?.schemaVersion), true);
+    assert.equal(capabilities.departments, capabilities.schemaVersion === 2);
+    checks.push('capabilities');
     const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
     if (profile.data.user.role === 'admin') {
       assert.equal(team.response.status, 200);
@@ -56,6 +60,25 @@ async function verifyAccess(origin, credentials) {
       const protectedAdmin = await request('/api/team/operators/' + profile.data.user.id, 'PATCH', { active: false }, { Origin: url.origin, 'Content-Type': 'application/json', Cookie: cookie, 'X-CSRF-Token': csrfToken });
       assert.equal(protectedAdmin.response.status, 404);
       checks.push('team-admin-protected');
+      if (capabilities.departments) {
+        const departments = await request('/api/team/departments?page=1&limit=20', 'GET', null, { Cookie: cookie });
+        assert.equal(departments.response.status, 200);
+        assert.equal(Array.isArray(departments.data.departments), true);
+        assert.equal(Number.isInteger(departments.data.total) && departments.data.total >= 0 && departments.data.total <= 50, true);
+        assert.equal(departments.data.page, 1); assert.equal(departments.data.limit, 20);
+        assert.equal(departments.data.departments.length <= Math.min(20, departments.data.total), true);
+        const ids = new Set();
+        for (const department of departments.data.departments) {
+          assert.deepEqual(Object.keys(department).sort(), ['active', 'id', 'name']);
+          assert.equal(Number.isInteger(department.id) && department.id >= 1 && department.id <= 4294967295, true);
+          assert.equal(ids.has(department.id), false); ids.add(department.id);
+          assert.equal(typeof department.name, 'string');
+          assert.equal(department.name.length >= 2 && department.name.length <= 100 && department.name === department.name.trim(), true);
+          assert.equal(/[\u0000-\u001f\u007f]/.test(department.name), false);
+          assert.equal(typeof department.active, 'boolean');
+        }
+        checks.push('departments-admin-read');
+      }
     } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }
     assert.equal((await request('/api/auth/logout', 'POST', {}, { Cookie: cookie })).response.status, 403);
     checks.push('csrf-required');
