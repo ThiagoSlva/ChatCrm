@@ -22,6 +22,8 @@ async function verifyAccess(origin, credentials) {
   checks.push('installation-complete');
   assert.equal((await request('/api/auth/me')).response.status, 401);
   checks.push('anonymous-denied');
+  assert.equal((await request('/api/auth/password', 'POST', { currentPassword: 'anonymous-verification-password', newPassword: 'new-anonymous-verification-password', confirmation: 'new-anonymous-verification-password' })).response.status, 401);
+  checks.push('anonymous-password-change-denied');
   const payload = { email: credentials.email, password: credentials.password };
   assert.equal((await request('/api/auth/login', 'POST', payload, { Origin: 'https://unauthorized.example.test' })).response.status, 403);
   checks.push('foreign-origin-denied');

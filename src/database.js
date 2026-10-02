@@ -1,7 +1,7 @@
 'use strict';
 
 const mysql = require('mysql2/promise');
-const { digest } = require('./security');
+const { digest, equal } = require('./security');
 
 function databaseOptions(env = process.env) {
   if (!env.DB_HOST || !env.DB_NAME || !env.DB_USER || !env.DB_PASSWORD) return null;
@@ -52,13 +52,24 @@ function repositoryForPool(pool) {
       const [rows] = await pool.execute('SELECT id, name, email, role, password_hash AS passwordHash FROM cl_users WHERE email = ? AND active = 1', [email]);
       return rows[0] || null;
     },
-    async createSession(token, userId) {
+    async createSession(token, userId, expectedPasswordHash) {
       await pool.execute('DELETE FROM cl_sessions WHERE expires_at <= UTC_TIMESTAMP()');
       return transaction(async connection => {
-        // Serialize login with deactivation so a disabled user cannot retain a new session.
-        const [users] = await connection.execute('SELECT id FROM cl_users WHERE id = ? AND active = 1 FOR UPDATE', [userId]);
-        if (!users.length) return false;
+        // Serialize login with deactivation and password changes; verified credentials must still match.
+        const [users] = await connection.execute('SELECT password_hash AS passwordHash FROM cl_users WHERE id = ? AND active = 1 FOR UPDATE', [userId]);
+        if (!users.length || !equal(users[0].passwordHash, expectedPasswordHash)) return false;
         await connection.execute('INSERT INTO cl_sessions (token_hash, user_id, expires_at) VALUES (?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR))', [digest(token), userId]);
+        return true;
+      });
+    },
+    async changePassword(userId, expectedPasswordHash, passwordHash, token) {
+      return transaction(async connection => {
+        const [users] = await connection.execute('SELECT password_hash AS passwordHash FROM cl_users WHERE id = ? AND active = 1 FOR UPDATE', [userId]);
+        if (!users.length || !equal(users[0].passwordHash, expectedPasswordHash)) return false;
+        const [sessions] = await connection.execute('SELECT user_id FROM cl_sessions WHERE token_hash = ? AND user_id = ? AND expires_at > UTC_TIMESTAMP() FOR UPDATE', [digest(token), userId]);
+        if (!sessions.length) return false;
+        await connection.execute('UPDATE cl_users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
+        await connection.execute('DELETE FROM cl_sessions WHERE user_id = ?', [userId]);
         return true;
       });
     },

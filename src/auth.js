@@ -76,11 +76,12 @@ function registerAuth(app, repository, env = process.env) {
     activeHashes++;
     try {
       const user = await repository.findUser(request.body.email.toLowerCase());
+      const verifiedHash = user?.passwordHash;
       // Unknown accounts still incur password hashing work, and return the same message.
-      const valid = user ? await verifyPassword(request.body.password, user.passwordHash) : (await hashPassword(request.body.password), false);
+      const valid = user ? await verifyPassword(request.body.password, verifiedHash) : (await hashPassword(request.body.password), false);
       if (!valid) return deny(reply, 401, 'E-mail ou senha incorretos.');
       const token = secret();
-      if (await repository.createSession(token, user.id) === false) return deny(reply, 401, 'E-mail ou senha incorretos.');
+      if (await repository.createSession(token, user.id, verifiedHash) === false) return deny(reply, 401, 'E-mail ou senha incorretos.');
       reply.header('Set-Cookie', cookie(token, 28800));
       return { authenticated: true };
     } finally { activeHashes--; }
@@ -98,6 +99,25 @@ function registerAuth(app, repository, env = process.env) {
     await repository.revoke(token);
     reply.header('Set-Cookie', cookie('', 0));
     return { authenticated: false };
+  });
+  app.post('/api/auth/password', { schema: { body: { type: 'object', additionalProperties: false,
+    required: ['currentPassword', 'newPassword', 'confirmation'], properties: {
+      currentPassword: schema.body.properties.password, newPassword: schema.body.properties.password, confirmation: schema.body.properties.password
+    } } } }, async (request, reply) => {
+    const user = await authorize(request, reply, { write: true });
+    if (!user || !throttle(request, reply)) return;
+    const { currentPassword, newPassword, confirmation } = request.body;
+    if (newPassword !== confirmation) return deny(reply, 400, 'A confirmacao deve ser igual a nova senha.');
+    if (newPassword === currentPassword) return deny(reply, 400, 'Escolha uma senha diferente da atual.');
+    return hashWork(async () => {
+      const identity = await repository.findUser(user.email);
+      const verifiedHash = identity?.passwordHash;
+      if (!identity || identity.id !== user.id || !await verifyPassword(currentPassword, verifiedHash)) return deny(reply, 400, 'Senha atual incorreta.');
+      const passwordHash = await hashPassword(newPassword);
+      if (!await repository.changePassword(user.id, verifiedHash, passwordHash, readToken(request))) return deny(reply, 409, 'O acesso mudou durante a operacao. Entre novamente.');
+      reply.header('Set-Cookie', cookie('', 0));
+      return { passwordChanged: true, authenticated: false };
+    });
   });
   return { authorize, throttle, hashWork, identityProperties: schema.body.properties };
 }

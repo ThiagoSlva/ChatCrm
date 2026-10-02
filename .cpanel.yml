@@ -1,4 +1,4 @@
 ---
 deployment:
   tasks:
-    - /bin/bash -lc 'source /home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate && /usr/bin/flock -n /home/xfxpanel/apps/chatcrm-test/.deploy.lock node /home/xfxpanel/repositories/chatcrm/scripts/deploy-cpanel.js /home/xfxpanel/repositories/chatcrm /home/xfxpanel/apps/chatcrm-test'
+    - /bin/bash -lc 'test -n "$CHATCRM_NODE_ENV" && test -n "$CHATCRM_REPO_ROOT" && test -n "$CHATCRM_APP_ROOT" && source "$CHATCRM_NODE_ENV" && /usr/bin/flock -n "$CHATCRM_APP_ROOT/.deploy.lock" node "$CHATCRM_REPO_ROOT/scripts/deploy-cpanel.js" "$CHATCRM_REPO_ROOT" "$CHATCRM_APP_ROOT"'

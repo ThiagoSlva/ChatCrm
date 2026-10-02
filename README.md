@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Estado atual: v0.2.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login, logout e gestão de operadores com permissões. Instalação e autenticação já foram testadas por HTTPS com persistência real em MariaDB 11.8.6; a homologação da nova gestão de equipe está registrada no andamento. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
+**Estado atual: v0.3.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login, logout, gestão de operadores e troca da própria senha. Instalação, autenticação e operadores já foram homologados em MariaDB 11.8.6 e HTTPS; as evidências de cada entrega estão no andamento. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
 
 ## Executar a base
 
@@ -20,7 +20,9 @@ Para preparar o banco e criar o primeiro administrador, siga o [guia de instala�
 
 Administradores podem [cadastrar, desativar e reativar operadores](docs/OPERADORES.md) em `/acesso`. Desativar revoga as sessões; operadores não acessam a gestão da equipe.
 
-O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` contém caminhos específicos dessa hospedagem e deve ser adaptada para outras instalações.
+Administradores e operadores podem [trocar a própria senha](docs/SENHA.md), informando a atual. A troca encerra todas as sessões e exige novo login.
+
+O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` exige parâmetros privados definidos para cada instalação; os exemplos publicados não expõem a conta ou os caminhos internos da hospedagem.
 
 Para retomar o desenvolvimento, leia a [memória do projeto](docs/MEMORIA-PROJETO.md), o [andamento](docs/ANDAMENTO.md) e as [orientações de contribuição](AGENTS.md).
 

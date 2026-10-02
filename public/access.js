@@ -22,6 +22,8 @@ async function refresh() {
   byId('team').hidden = true;
   byId('operator-list').replaceChildren();
   byId('operator-create').reset();
+  byId('password-change').reset();
+  byId('password-message').textContent = '';
   byId('message').textContent = '';
   try {
     const installation = await api('/api/installation');
@@ -68,6 +70,25 @@ byId('logout').addEventListener('click', async () => {
   finally { byId('logout').disabled = false; }
 });
 byId('retry').addEventListener('click', refresh);
+byId('password-change').addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const body = Object.fromEntries(new FormData(form));
+  if (body.newPassword !== body.confirmation) { byId('password-message').textContent = 'A confirmação deve ser igual à nova senha.'; return; }
+  const controls = form.querySelectorAll('input, button');
+  controls.forEach(control => { control.disabled = true; });
+  byId('password-message').textContent = 'Aguarde…';
+  try {
+    await api('/api/auth/password', { method: 'POST', headers: teamHeaders(), body: JSON.stringify(body) });
+    form.reset(); await refresh();
+    byId('message').textContent = 'Senha alterada e sessões encerradas. Entre com sua nova senha.';
+    byId('email').focus();
+  } catch (error) {
+    form.reset();
+    if (error.status === 401 || error.status === 409) { await refresh(); byId('message').textContent = error.message; }
+    else byId('password-message').textContent = error.message;
+  } finally { controls.forEach(control => { control.disabled = false; }); }
+});
 
 function teamHeaders() { return { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }; }
 function setTeamBusy(value) {

@@ -25,9 +25,10 @@ async function verifyTeamDatabase(connection, origin) {
     };
     const repository = repositoryForPool({ execute: nested.execute, getConnection: async () => nested, end: async () => {} });
     assert.equal(await repository.status(), 'installed');
-    const [admin] = await connection.execute("INSERT INTO cl_users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')", ['Administrador isolado', `admin-${suffix}@example.test`, await hashPassword(secret())]);
+    const adminPasswordHash = await hashPassword(secret());
+    const [admin] = await connection.execute("INSERT INTO cl_users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')", ['Administrador isolado', `admin-${suffix}@example.test`, adminPasswordHash]);
     const token = secret();
-    assert.equal(await repository.createSession(token, admin.insertId), true);
+    assert.equal(await repository.createSession(token, admin.insertId, adminPasswordHash), true);
     const headers = { origin, cookie: '__Host-cl_session=' + token, 'x-csrf-token': digest('csrf:' + token) };
     app = buildServer({ repository, env: { APP_URL: origin, NODE_ENV: 'production' } });
     const create = changes => app.inject({ method: 'POST', url: '/api/team/operators', headers, payload: { name: 'Operador isolado', email, password, ...changes } });
@@ -58,8 +59,31 @@ async function verifyTeamDatabase(connection, origin) {
     checks.push('deactivation-revokes-and-blocks-login');
     assert.equal((await patch(user.id, true)).statusCode, 200);
     assert.equal((await app.inject({ url: '/api/auth/me', headers: { cookie: operatorCookie } })).statusCode, 401);
-    assert.equal((await login()).statusCode, 200);
+    const firstSession = await login();
+    assert.equal(firstSession.statusCode, 200);
     checks.push('reactivation-requires-new-login');
+    const secondSession = await login();
+    const firstCookie = firstSession.headers['set-cookie'].split(';')[0];
+    const secondCookie = secondSession.headers['set-cookie'].split(';')[0];
+    const profile = (await app.inject({ url: '/api/auth/me', headers: { cookie: firstCookie } })).json();
+    const newPassword = secret();
+    const passwordHeaders = { origin, cookie: firstCookie, 'x-csrf-token': profile.csrfToken };
+    const change = currentPassword => app.inject({ method: 'POST', url: '/api/auth/password', headers: passwordHeaders, payload: { currentPassword, newPassword, confirmation: newPassword } });
+    assert.equal((await change(secret())).statusCode, 400);
+    checks.push('password-current-required');
+    const verifiedIdentity = await repository.findUser(email);
+    const changed = await change(password);
+    assert.equal(changed.statusCode, 200);
+    assert.equal(changed.json().passwordChanged, true);
+    assert.match(changed.headers['set-cookie'], /Max-Age=0/);
+    for (const cookie of [firstCookie, secondCookie]) assert.equal((await app.inject({ url: '/api/auth/me', headers: { cookie } })).statusCode, 401);
+    checks.push('password-change-revokes-all-sessions');
+    assert.equal(await repository.createSession(secret(), user.id, verifiedIdentity.passwordHash), false);
+    checks.push('stale-verified-password-cannot-create-session');
+    assert.equal((await login()).statusCode, 401);
+    const newLogin = await app.inject({ method: 'POST', url: '/api/auth/login', headers: { origin }, payload: { email, password: newPassword } });
+    assert.equal(newLogin.statusCode, 200);
+    checks.push('old-password-denied-new-password-accepted');
   } finally {
     try { if (app) await app.close(); }
     finally { await connection.rollback(); }

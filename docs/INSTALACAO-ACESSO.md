@@ -1,6 +1,6 @@
-# Instalação do primeiro administrador — v0.1.0
+# Instalação e acesso — v0.3.0
 
-Esta entrega implementa a base de autenticação. Chat, operadores, recuperação de senha e CRM ainda estão em desenvolvimento. Os 17 testes automatizados usam repositório em memória e conexão simulada. No ambiente dedicado, a conexão, migração, primeiro administrador, login e logout também foram verificados por HTTPS com MariaDB 11.8.6 e Node 24.21.0. Essa evidência cobre a base de acesso desta hospedagem, sem homologar o CRM completo ou outros provedores.
+Esta entrega inclui instalação, autenticação, gestão de operadores e troca da própria senha. Chat, recuperação de senha esquecida e CRM ainda estão em desenvolvimento. Os testes automatizados usam persistência simulada; os verificadores explícitos homologam os fluxos com MariaDB real e HTTPS na hospedagem de testes. Essa evidência cobre os módulos registrados no andamento, sem homologar o CRM completo ou outros provedores.
 
 ## Configuração privada
 
@@ -36,15 +36,15 @@ npm start
 
 A migração v1 cria `cl_schema`, `cl_company`, `cl_users` e `cl_sessions`. Recusa tabelas de outro sistema e versões desconhecidas. DDL não é revertido por uma transação no MySQL: uma instalação interrompida preserva o marcador v0 e pode retomar. O marcador só muda para v1 após terminar a criação da estrutura. Não há comandos DROP, TRUNCATE ou migração automática no processo web.
 
-No ambiente de releases deste projeto, o arquivo privado fica em `/home/xfxpanel/apps/chatcrm-test/.env`. O bootstrap já carrega esse arquivo, preservado entre deploys. Ative o ambiente Node e execute explicitamente com a configuração privada:
+No ambiente de releases deste projeto, o arquivo privado fica em `<APP_ROOT>/.env`. O bootstrap já carrega esse arquivo, preservado entre deploys. Ative o ambiente Node e execute explicitamente com a configuração privada:
 
 ```sh
-source /home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate
-node --env-file=/home/xfxpanel/apps/chatcrm-test/.env /home/xfxpanel/apps/chatcrm-test/current/scripts/check-database.js
-node --env-file=/home/xfxpanel/apps/chatcrm-test/.env /home/xfxpanel/apps/chatcrm-test/current/scripts/migrate-database.js
+source "$CHATCRM_NODE_ENV"
+node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/check-database.js"
+node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/migrate-database.js"
 ```
 
-Depois reinicie somente `apps/chatcrm-test` pelo gerenciador Node. Não coloque `.env` dentro de `current`, `releases`, da pasta do domínio ou do clone Git. Não copie arquivos privados junto com o pacote público.
+Defina antes `CHATCRM_NODE_ENV` e `CHATCRM_APP_ROOT` com os caminhos privados mostrados pelo seu gerenciador, conforme o guia de deploy. Depois reinicie somente a aplicação deste projeto pelo gerenciador Node. Não coloque `.env` dentro de `current`, `releases`, da pasta do domínio ou do clone Git. Não copie arquivos privados junto com o pacote público.
 
 ## Primeiro acesso
 
@@ -59,11 +59,11 @@ O comando `npm run verify:access -- CAMINHO_PRIVADO` verifica uma instalação j
 Este comando é explícito: não roda em CI, `npm test` ou no cron de deploy. Esses processos continuam isolados do banco real. Para esta hospedagem:
 
 ```sh
-source /home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate
-node --env-file=/home/xfxpanel/apps/chatcrm-test/.env /home/xfxpanel/apps/chatcrm-test/current/scripts/verify-access.js /home/xfxpanel/apps/chatcrm-test/.first-access.json
+source "$CHATCRM_NODE_ENV"
+node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/verify-access.js" "$CHATCRM_APP_ROOT/.first-access.json"
 ```
 
-No ambiente de testes, o administrador inicial é `admin@example.test`, com empresa/nome de teste. Sua senha aleatória fica somente em `/home/xfxpanel/apps/chatcrm-test/.first-access.json`, modo 600, acessível ao dono pelo gerenciador de arquivos do cPanel; não é uma senha padrão do pacote. `.env`, `.mysql-verification.json` e `.auth-verification.json` também ficam privados, fora de releases e do domínio. `SETUP_TOKEN` foi removido após instalar e testar o bloqueio do instalador.
+No ambiente de testes, o administrador inicial é `admin@example.test`, com empresa/nome de teste. Sua senha aleatória fica somente em `<APP_ROOT>/.first-access.json`, modo 600, acessível ao dono pelo gerenciador de arquivos do cPanel; não é uma senha padrão do pacote. `.env`, `.mysql-verification.json` e `.auth-verification.json` também ficam privados, fora de releases e do domínio. `SETUP_TOKEN` foi removido após instalar e testar o bloqueio do instalador.
 
 ## Segurança e limites desta entrega
 
@@ -72,7 +72,7 @@ No ambiente de testes, o administrador inicial é `admin@example.test`, com empr
 - POST exige origem idêntica a `APP_URL`. Logout também exige token CSRF derivado da sessão; senhas e segredos nunca aparecem na URL.
 - Login e instalação têm limite de dez tentativas por endereço a cada quinze minutos, no processo, e no máximo dois cálculos de senha simultâneos. A memória do limitador é limitada. Não confia em `X-Forwarded-For` arbitrário.
 - Atrás de Passenger/proxy, diferentes usuários podem compartilhar o endereço observado. O limitador reinicia com o processo e não é compartilhado entre instâncias. Homologar proxy confiável e limitação persistida antes de produção ou equipes maiores.
-- Não existe senha pública de demonstração, recuperação/troca de senha, MFA ou auditoria de acessos nesta versão. A gestão de operadores está implementada conforme [operadores e permissões](OPERADORES.md).
+- Não existe senha pública de demonstração, recuperação de senha esquecida, MFA ou auditoria de acessos nesta versão. A [troca da própria senha](SENHA.md) e a [gestão de operadores](OPERADORES.md) estão implementadas.
 - MySQL exige configuração privada explícita; falhas retornam mensagens genéricas. `/health` confirma o servidor e a versão do código, sem afirmar que o banco está configurado. `/api/installation` retorna somente o estado da instalação.
 
 Referências operacionais: [commits implícitos no MySQL](https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html), [travas de migração](https://dev.mysql.com/doc/refman/8.4/en/locking-functions.html). Migração não substitui backup e restauração testada.

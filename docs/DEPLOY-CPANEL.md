@@ -1,10 +1,10 @@
 # Deploy de testes pelo GitHub
 
-Ambiente: `https://testeschat.cloudyx.xyz`, repositório público `ThiagoSlva/ChatCrm`, branch `main`. A configuração `.cpanel.yml` é específica desta conta de testes; outros usuários devem ajustar caminhos e origem antes de usar.
+Ambiente autorizado de testes: `https://testeschat.cloudyx.xyz`, repositório público `ThiagoSlva/ChatCrm`, branch `main`. Este guia e `.cpanel.yml` usam parâmetros genéricos; os valores reais são privados e devem ser definidos por quem instala.
 
 ## Funcionamento
 
-O cPanel mantém o clone em `/home/xfxpanel/repositories/chatcrm`. A aplicação Node 24 usa a pasta privada `/home/xfxpanel/apps/chatcrm-test` e o arquivo de entrada `passenger.cjs`.
+O cPanel mantém o clone em `<REPO_ROOT>`. A aplicação Node 24 usa a pasta privada `<APP_ROOT>` e o arquivo de entrada `passenger.cjs`.
 
 Um cron verifica `main` a cada dois minutos. Quando o commit muda, o script exporta uma cópia numa pasta nova, instala as dependências do lockfile sem executar scripts de instalação e roda os testes. Só depois troca o link `current` para ativar a release e solicita reinício do Passenger. Não é um webhook instantâneo: a atualização depende do próximo cron e da duração da instalação e dos testes.
 
@@ -12,17 +12,17 @@ O GitHub não recebe chave SSH, senha ou token do cPanel. O clone usa HTTPS de u
 
 ## Configuração desta hospedagem
 
-Clone pelo **Git Version Control**, com origem `https://github.com/ThiagoSlva/ChatCrm.git` e pasta `repositories/chatcrm`. Crie a aplicação no **Setup Node.js App**, em `apps/chatcrm-test`, com Node 24, modo Production e o domínio de testes.
+Clone pelo **Git Version Control**, com origem `https://github.com/ThiagoSlva/ChatCrm.git`, em uma pasta privada escolhida para o projeto. Crie a aplicação no **Setup Node.js App**, em outra pasta privada, com Node 24, modo Production e o domínio definido para a instalação.
 
 Copie `passenger.cjs` do clone para a raiz da aplicação e escolha esse arquivo como entrada no gerenciador. Esse bootstrap permanece fora das releases; mudanças nele precisam de revisão e atualização manual.
 
-Cron a cada dois minutos:
+Exemplo de cron a cada dois minutos. Defina `CHATCRM_NODE_ENV` com o arquivo de ativação mostrado pelo gerenciador, `CHATCRM_REPO_ROOT` com o clone e `CHATCRM_APP_ROOT` com a aplicação, usando caminhos absolutos privados. O cron precisa ter esses valores explicitamente disponíveis; não pressupõe que herde variáveis da aplicação:
 
 ```sh
-/bin/bash -lc 'source /home/xfxpanel/nodevenv/apps/chatcrm-test/24/bin/activate && /usr/bin/flock -n /home/xfxpanel/apps/chatcrm-test/.deploy.lock node /home/xfxpanel/repositories/chatcrm/scripts/deploy-cpanel.js /home/xfxpanel/repositories/chatcrm /home/xfxpanel/apps/chatcrm-test' >> /home/xfxpanel/apps/chatcrm-test/deploy.log 2>&1
+/bin/bash -lc 'test -n "$CHATCRM_NODE_ENV" && test -n "$CHATCRM_REPO_ROOT" && test -n "$CHATCRM_APP_ROOT" && source "$CHATCRM_NODE_ENV" && /usr/bin/flock -n "$CHATCRM_APP_ROOT/.deploy.lock" node "$CHATCRM_REPO_ROOT/scripts/deploy-cpanel.js" "$CHATCRM_REPO_ROOT" "$CHATCRM_APP_ROOT"'
 ```
 
-O mesmo comando, sem o redirecionamento, executa o primeiro deploy manualmente. O `.cpanel.yml` também permite executar o deploy pelo botão **Deploy HEAD Commit** após **Update from Remote**. Não edite o clone no servidor: alterações locais interrompem o script para preservar o trabalho.
+O mesmo comando executa o primeiro deploy manualmente; configure o redirecionamento do log em um caminho privado da aplicação. `.cpanel.yml` usa as mesmas três variáveis e recusa a execução se faltarem. O deploy pelo botão **Deploy HEAD Commit**, após **Update from Remote**, só funciona com esses parâmetros disponíveis ao processo do cPanel. O cron de testes existente mantém seus valores privados e não foi alterado. Não edite o clone no servidor: alterações locais interrompem o script para preservar o trabalho.
 
 ## Dados e recuperação
 
@@ -36,6 +36,8 @@ Desde v0.1.0, os testes da release são descobertos somente em `test/*.test.js` 
 
 Os documentos HTML referenciam assets em `/assets/<hash-do-conteudo>/<arquivo>`. No teste, `/styles.css` antigo foi servido diretamente pelo LiteSpeed e pelo cache da Cloudflare, ignorando a release nova. URLs com hash evitam colisão com esses arquivos e distinguem versões sem precisar purgar cache ou alterar outros sites. Verifique CSS/JS pelo endereço incluído no HTML da release, não apenas pelas rotas antigas de compatibilidade.
 
-v0.2.0 mantém o schema v1 e não exige migração nem alteração do bootstrap. Para verificar a gestão de operadores em MariaDB sem deixar contas, execute explicitamente `node --env-file=/home/xfxpanel/apps/chatcrm-test/.env /home/xfxpanel/apps/chatcrm-test/current/scripts/verify-team-database.js` com o ambiente Node ativo. O comando reverte a transação de teste e não imprime credenciais. Depois, repita a verificação HTTPS do guia de acesso e confira o hash em `/health`.
+v0.2.0 mantém o schema v1 e não exige migração nem alteração do bootstrap. Para verificar a gestão de operadores em MariaDB sem deixar contas, execute explicitamente `node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/verify-team-database.js"` com o ambiente Node ativo e `CHATCRM_APP_ROOT` definido. O comando reverte a transação de teste e não imprime credenciais. Depois, repita a verificação HTTPS do guia de acesso e confira o hash em `/health`.
+
+v0.3.0 também mantém o schema v1. O mesmo verificador SQL cobre troca de senha somente de usuários sintéticos não commitados, revogação de todas as sessões e recusa a hash verificado antes da troca. Não execute uma troca na conta real para validar o deploy: preserve `.first-access.json`, `.env` e senhas existentes. A verificação HTTPS testa a recusa do novo endpoint a visitantes sem modificar credenciais.
 
 Referências: [deploy Git do cPanel](https://docs.cpanel.net/knowledge-base/web-services/guide-to-git-deployment/), [reinício Passenger](https://www.phusionpassenger.com/library/admin/apache/restart_app.html).

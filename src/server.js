@@ -53,11 +53,12 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.2.0',
+    version: '0.3.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'team-base',
+    phase: 'identity-base',
     authenticationImplemented: true,
     operatorsImplemented: true,
+    passwordChangeImplemented: true,
     crmImplemented: false,
     chatImplemented: false
   }));

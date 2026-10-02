@@ -2,13 +2,15 @@
 
 Leia `docs/MEMORIA-PROJETO.md`, `docs/ANDAMENTO.md` e `docs/DEPLOY-CPANEL.md` no início de cada retomada. Consulte `docs/PLANO-IMPLEMENTACAO.md` para arquitetura e fases. Atualize a memória e o andamento depois de cada entrega verificada.
 
+Quando existir, leia também `storage/operations/MEMORIA-CPANEL-PRIVADA.md` para os parâmetros reais do ambiente autorizado. Esse arquivo é local e ignorado no Git: nunca publique seu conteúdo. Documentação e exemplos públicos devem usar parâmetros genéricos de conta, banco, usuário e caminhos internos. Segredos continuam somente na hospedagem.
+
 ## Objetivo e preferências do usuário
 
 Criar um chat e CRM independente, gratuito, de código aberto e auto-hospedado, com Node.js, MySQL, instalação simples em cPanel, operadores, leads, widget/API para sites e campanhas no canal próprio. Interface original inspirada na clareza do Telegram. O usuário não deseja vender o sistema. Não copiar marca, ícones, código GPL ou rede do Telegram. Não usar integrações não oficiais para disparar mensagens no WhatsApp.
 
 O usuário autorizou continuar implementando e melhorando o projeto com autonomia, incluindo ideias úteis como fluxos de chatbot, publicar o código no GitHub e fazer deploys no ambiente de testes. Transforme “perfeito” em melhorias concretas, critérios verificáveis e prioridades. Desenvolva a base funcional antes de módulos opcionais. Respeite pedidos posteriores e evite trabalho repetitivo sem benefício.
 
-Em 01/10/2026, após a solicitação concreta para criar `xfxpanel_clchat` com acesso somente a `xfxpanel_chatcrm`, o usuário respondeu: “está autorizado a fazer qualquer mudança necessária ok”. Isso autoriza concluir esse acesso dedicado, gerar/guardar sua configuração privada, executar migrações e instalar/testar o sistema no ambiente deste projeto, além das melhorias necessárias ao projeto. Não interpretar como autorização para modificar outros sites, divulgar segredos, comprar serviços ou contornar limites/regras de segurança. Não repetir a confirmação já recebida para esse mesmo acesso e escopo.
+Em 01/10/2026, após a solicitação concreta para criar `<DATABASE_USER>` com acesso somente a `<DATABASE_NAME>`, o usuário respondeu: “está autorizado a fazer qualquer mudança necessária ok”. Isso autoriza concluir esse acesso dedicado, gerar/guardar sua configuração privada, executar migrações e instalar/testar o sistema no ambiente deste projeto, além das melhorias necessárias ao projeto. Não interpretar como autorização para modificar outros sites, divulgar segredos, comprar serviços ou contornar limites/regras de segurança. Não repetir a confirmação já recebida para esse mesmo acesso e escopo.
 
 ## Execução
 
