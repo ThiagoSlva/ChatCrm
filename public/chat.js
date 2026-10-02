@@ -85,7 +85,11 @@ async function visitorRun(work, automatic = false, focusId = null) {
       visitorForget(); visitorElement('visitor-start').hidden = false;
       visitorElement('visitor-feedback').textContent = error.message; visitorElement('visitor-name').focus();
     } else if (error.status === 503) visitorShowUnavailable(error.message);
+    else if (visitorElement('visitor-space').hidden && visitorElement('visitor-start').hidden) {
+      visitorShowUnavailable(error.status ? error.message : 'Não foi possível conectar ao atendimento. Use Verificar novamente para tentar outra vez.');
+    }
     else {
+      if (visitorElement('visitor-feedback').textContent === 'Verificando o atendimento…') visitorElement('visitor-feedback').textContent = '';
       const feedback = visitorSelected ? 'visitor-message-feedback' : 'visitor-feedback';
       visitorElement(feedback).textContent = error.status ? error.message : 'A conexão falhou. O texto foi preservado; reenviar a mesma mensagem evita duplicação.';
     }
@@ -99,6 +103,7 @@ async function visitorRun(work, automatic = false, focusId = null) {
 }
 function visitorShowUnavailable(message) {
   visitorSuspended = true;
+  visitorElement('visitor-feedback').textContent = '';
   visitorElement('visitor-start').hidden = true;
   visitorElement('visitor-space').hidden = true;
   visitorElement('visitor-unavailable').hidden = false;

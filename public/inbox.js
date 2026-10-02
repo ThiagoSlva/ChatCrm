@@ -82,6 +82,15 @@ function inboxSchedule(delay) {
     if (!document.hidden && inboxSelected && Date.now() - inboxMessagesAttemptAt >= 3000) await inboxLoadMessages();
   }, true), delay === undefined ? next : delay);
 }
+function inboxShowPending(message, connectionFailure = false) {
+  inboxSuspended = true;
+  inboxElement('inbox-space').hidden = true; inboxElement('inbox-pending').hidden = false;
+  inboxElement('inbox-feedback').textContent = '';
+  inboxElement('inbox-description').textContent = connectionFailure ? 'Não foi possível verificar seu acesso. Tente novamente abaixo.' : 'O atendimento ainda precisa ser preparado na hospedagem.';
+  const panel = inboxElement('inbox-pending');
+  panel.querySelector('h2').textContent = connectionFailure ? 'Vamos conferir a conexão' : 'Prepare o atendimento';
+  panel.querySelector('p').textContent = message;
+}
 async function inboxRun(work, automatic = false, focusId = null) {
   if (inboxBusy || inboxDisposed || (automatic && document.hidden)) return;
   clearTimeout(inboxTimer); const generation = inboxGeneration; const focusedId = document.activeElement?.id;
@@ -91,9 +100,13 @@ async function inboxRun(work, automatic = false, focusId = null) {
     if (generation !== inboxGeneration || inboxDisposed || (automatic && error.name === 'AbortError')) return;
     if (error.status === 401) {
       inboxForget(); inboxElement('inbox-login').hidden = false; inboxElement('inbox-feedback').textContent = error.message;
+      inboxElement('inbox-description').textContent = 'Entre com sua conta da equipe para acessar o atendimento.';
     } else if (error.status === 503) {
-      inboxSuspended = true; inboxElement('inbox-space').hidden = true; inboxElement('inbox-pending').hidden = false; inboxElement('inbox-feedback').textContent = error.message;
+      inboxShowPending(error.message);
+    } else if (inboxElement('inbox-space').hidden) {
+      inboxShowPending(error.status ? error.message : 'A conexão falhou. Use Verificar novamente para tentar outra vez.', true);
     } else {
+      if (inboxElement('inbox-feedback').textContent === 'Verificando seu acesso…') inboxElement('inbox-feedback').textContent = '';
       const feedback = inboxSelected ? 'inbox-message-feedback' : 'inbox-feedback';
       inboxElement(feedback).textContent = error.status ? error.message : 'A conexão falhou. A resposta foi preservada; reenviar o mesmo texto evita duplicação.';
     }
@@ -115,7 +128,7 @@ async function inboxInitialize({ preserve = Boolean(inboxProfile) } = {}) {
     const profile = await inboxApi('/api/auth/me');
     if (previousId !== profile.user.id) inboxClearIdentityData();
     inboxProfile = profile; inboxCsrf = profile.csrfToken;
-    if (profile.capabilities?.chat !== true) { inboxSuspended = true; inboxElement('inbox-pending').hidden = false; inboxElement('inbox-feedback').textContent = ''; return; }
+    if (profile.capabilities?.chat !== true) { inboxShowPending('O chat ainda precisa ser preparado na hospedagem. A gestão da equipe e dos departamentos continua disponível.'); return; }
     inboxSuspended = false;
     inboxElement('inbox-space').hidden = false; inboxElement('inbox-identity').textContent = `${profile.user.name} · ${profile.company}`;
     inboxElement('inbox-description').textContent = profile.user.role === 'admin' ? 'Gerencie os atendimentos das áreas ativas. Habilite a entrada pública por departamento no acesso da equipe.' : 'Assuma e responda aos atendimentos das áreas às quais você está vinculado.';
@@ -245,6 +258,7 @@ for (const action of ['claim', 'release', 'close']) inboxElement('inbox-' + acti
 inboxElement('inbox-logout').addEventListener('click', () => inboxRun(async () => {
   await inboxApi('/api/auth/logout', { method: 'POST', headers: inboxHeaders(), body: '{}' });
   inboxForget(); inboxElement('inbox-login').hidden = false; inboxElement('inbox-feedback').textContent = 'Sessão encerrada. Entre novamente para acessar o atendimento.';
+  inboxElement('inbox-description').textContent = 'Entre com sua conta da equipe para acessar o atendimento.';
 }));
 inboxElement('inbox-reload').addEventListener('click', () => inboxRun(async () => { const selectionRetained = await inboxLoadQueue(); if (inboxSelected) await inboxLoadMessages(); if (selectionRetained) inboxElement('inbox-feedback').textContent = 'Fila atualizada.'; }));
 inboxElement('inbox-previous').addEventListener('click', () => inboxRun(async () => { inboxPage--; await inboxLoadQueue(); }));

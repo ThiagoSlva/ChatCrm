@@ -1,6 +1,6 @@
 # Atendimento de texto — recorte v0.5
 
-Código v0.5 em revisão e homologação. Este documento define o contrato desta entrega, separado da API futura de CRM. Consulte o andamento para as verificações efetivamente concluídas; não apresentar como CRM completo.
+v0.5 publicado e verificado funcionalmente no ambiente de testes. Este documento define o contrato desta entrega, separado da API futura de CRM. Consulte o andamento para as evidências e limites das verificações; não apresentar como CRM completo.
 
 Uma página `/chat` abre no domínio da instalação; o widget inicial é um botão que abre essa página em nova aba. Não depende de cookies de terceiros nem incorpora o painel em iframe. Um visitante recebe identidade própria por cookie HTTPS/HttpOnly, validade de oito horas e token armazenado somente como hash. Nome informado não comprova identidade nem recupera histórico de outro navegador. Não coletar e-mail nesta etapa.
 
@@ -60,3 +60,11 @@ Polling sem requisições sobrepostas, a cada três segundos no chat aberto e ci
 ## Critérios de entrega
 
 Isolar dois visitantes e operadores de áreas diferentes; remoção de vínculo/sessão impede escrita; duas assunções têm um vencedor; reenvio não duplica; mensagens concorrentes preservam sequência/histórico; encerramento impede novos envios; desativação preserva registros; reinício não perde histórico. Confirmar capacidades/SQL real, HTTP e hash servido; registrar limites de revisão visual, concorrência e carga efetivamente ensaiados.
+
+## Verificações realizadas e pendências
+
+Em 02/10/2026, 85 testes passaram localmente, em Actions Node 22/24 e na release isolada do cPanel. Compatibilidade com v2 confirmada antes da migração explícita para v3; backup e comparação privada preservaram registros anteriores e canais privados. Treze checks SQL de chat, nove de departamentos e doze de equipe/senha passaram em MariaDB com dados sintéticos revertidos. Dezoito checks HTTPS passaram, incluindo canais públicos seguros, recusa de visitante anônimo/origem estrangeira e fila administrativa. Não foi criada conversa de visitante pelo proxy HTTPS nessa verificação.
+
+Mock de DOM/fetch verificou recuperação de resposta perdida, reenvio após encerramento/mudança de responsável, 400/413, sessão já criada, BFCache, identidade alterada, escopo revogado e máximo de uma requisição em andamento. Rascunhos/chaves ficam na memória da página; recarregar completamente ou fechar a aba não os recupera. Não há localStorage com mensagens ou segredos.
+
+Página pública real com nenhum canal habilitado foi conferida em desktop e 390 px, sem overflow horizontal; caixa de atendimento anônima exige login. Revisão visual autenticada, conversa entre dois navegadores pelo proxy HTTPS, concorrência SQL entre conexões, carga, retenção, proxy/IP e restauração permanecem pendentes. O verificador SQL usa uma conexão/savepoints; novo objeto de repositório comprova leitura persistida, sem afirmar ensaio de reinício do servidor ou corrida real entre processos.

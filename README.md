@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Código v0.5.0: primeiro recorte de atendimento de texto, em homologação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, acesso da equipe, operadores, senha, departamentos e atendimento visitante/operador com histórico, fila e reenvio idempotente. O widget inicial abre a página do chat em nova aba, sem cookies de terceiros. Consulte o andamento para saber qual release foi efetivamente publicada e verificada. Outras instalações precisam configurar seu banco exclusivo, preparar o schema e habilitar explicitamente um canal. Leads, portal, campanhas e instalador completo seguem pendentes. Não use esta versão para atendimento real antes dos critérios de produção.
+**v0.5.0: primeiro recorte de atendimento de texto publicado no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, acesso da equipe, operadores, senha, departamentos e atendimento visitante/operador com histórico, fila e reenvio idempotente. O widget inicial abre a página do chat em nova aba, sem cookies de terceiros. Consulte o andamento para as evidências e limites das verificações. Outras instalações precisam configurar seu banco exclusivo, preparar o schema e habilitar explicitamente um canal. Leads, portal, campanhas e instalador completo seguem pendentes. Não use esta versão para atendimento real antes dos critérios de produção.
 
 ## Executar a base
 
