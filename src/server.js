@@ -11,6 +11,7 @@ const { registerDepartments } = require('./departments');
 const { registerChat } = require('./chat');
 const { registerContacts } = require('./contacts');
 const { registerOpportunities } = require('./opportunities');
+const { registerConversationContacts } = require('./conversation-contacts');
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -30,6 +31,7 @@ function buildServer(options = {}) {
     ['/access.js', 'access.js', 'application/javascript; charset=utf-8'],
     ['/chat.js', 'chat.js', 'application/javascript; charset=utf-8'],
     ['/inbox.js', 'inbox.js', 'application/javascript; charset=utf-8'],
+    ['/inbox-crm.js', 'inbox-crm.js', 'application/javascript; charset=utf-8'],
     ['/widget.js', 'widget.js', 'application/javascript; charset=utf-8'],
     ['/contacts.js', 'contacts.js', 'application/javascript; charset=utf-8'],
     ['/opportunities.js', 'opportunities.js', 'application/javascript; charset=utf-8']
@@ -62,9 +64,9 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.7.0',
+    version: '0.8.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'opportunities-mvp',
+    phase: 'conversation-contact-mvp',
     authenticationImplemented: true,
     operatorsImplemented: true,
     passwordChangeImplemented: true,
@@ -72,6 +74,7 @@ function buildServer(options = {}) {
     inboxToolsImplemented: true,
     contactsImplemented: true,
     opportunitiesImplemented: true,
+    conversationContactsImplemented: true,
     crmImplemented: false,
     chatImplemented: true
   }));
@@ -82,6 +85,7 @@ function buildServer(options = {}) {
   registerChat(app, repository, auth);
   registerContacts(app, repository, auth);
   registerOpportunities(app, repository, auth);
+  registerConversationContacts(app, repository, auth);
 
   app.setNotFoundHandler(async (request, reply) => {
     reply.code(404).send({ error: 'Rota nao encontrada.' });

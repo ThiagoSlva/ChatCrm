@@ -68,7 +68,10 @@ async function verifyOpportunitiesDatabase(connection) {
     };
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
-    assert.deepEqual(await repository.capabilities(), { schemaVersion: 5, departments: true, chat: true, contacts: true, opportunities: true });
+    const capabilities = await repository.capabilities();
+    assert.equal([5, 6].includes(capabilities.schemaVersion), true);
+    assert.equal(capabilities.opportunities, true);
+    if (capabilities.schemaVersion === 6) assert.equal(capabilities.conversationContacts, true);
     await verifyDepartmentSchema(connection); await verifyChatSchema(connection); await verifyContactSchema(connection); await verifyOpportunitySchema(connection);
     checks.push('schema-v5-opportunity-event-columns-defaults-indexes-foreign-keys');
     baseline = await preservationFingerprint(connection);

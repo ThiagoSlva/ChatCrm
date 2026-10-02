@@ -47,12 +47,13 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2, 3, 4, 5].includes(capabilities?.schemaVersion), true);
+    assert.equal([1, 2, 3, 4, 5, 6].includes(capabilities?.schemaVersion), true);
     assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
     if (capabilities.schemaVersion >= 3) assert.equal(capabilities.chat, true);
     else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);
     assert.equal(capabilities.contacts === true, capabilities.schemaVersion >= 4);
     assert.equal(capabilities.opportunities === true, capabilities.schemaVersion >= 5);
+    assert.equal(capabilities.conversationContacts === true, capabilities.schemaVersion >= 6);
     checks.push('capabilities');
     const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
     if (profile.data.user.role === 'admin') {
@@ -195,6 +196,26 @@ async function verifyAccess(origin, credentials) {
           for (const row of events.data.events) assert.deepEqual(Object.keys(row).sort(), ['actorName','amountCents','createdAt','stage','title','version']);
         }
         checks.push(list.data.opportunities.length ? 'opportunities-history-authorized-read' : 'opportunities-history-absent-denied');
+      }
+      if (capabilities.schemaVersion === 5) {
+        assert.equal((await request('/api/crm/conversations/4294967295/contact', 'GET', null, { Cookie: cookie })).response.status, 503);
+        checks.push('conversation-contact-schema5-preparation-pending');
+      }
+      if (capabilities.conversationContacts) {
+        const route = '/api/crm/conversations/4294967295/contact';
+        assert.equal((await request(route, 'GET')).response.status, 401);
+        assert.equal((await request(route + '/events', 'GET')).response.status, 401);
+        checks.push('conversation-contact-anonymous-denied');
+        for (const query of ['extra=1','version=0','a=1&a=2']) assert.equal((await request(route + '?' + query, 'GET', null, { Cookie: cookie })).response.status, 400);
+        checks.push('conversation-contact-invalid-detail-denied');
+        for (const query of ['page=0','limit=51','page=1&page=2','extra=1']) assert.equal((await request(route + '/events?' + query, 'GET', null, { Cookie: cookie })).response.status, 400);
+        checks.push('conversation-contact-invalid-history-denied');
+        assert.equal((await request(route, 'GET', null, { Cookie: cookie })).response.status, 404);
+        checks.push('conversation-contact-absent-detail-denied');
+        assert.equal((await request(route + '/events?page=1&limit=20', 'GET', null, { Cookie: cookie })).response.status, 404);
+        checks.push('conversation-contact-absent-history-denied');
+        assert.equal((await request(route, 'PATCH', { version: 0, contactId: null }, { Origin: url.origin, 'Content-Type': 'application/json', Cookie: cookie })).response.status, 403);
+        checks.push('conversation-contact-csrf-required');
       }
     } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }
     assert.equal((await request('/api/auth/logout', 'POST', {}, { Cookie: cookie })).response.status, 403);

@@ -1,6 +1,7 @@
 'use strict';
 
 const inboxElement = id => document.getElementById(id);
+let inboxCrm = null;
 let inboxProfile = null;
 let inboxCsrf = null;
 let inboxSelected = null;
@@ -58,10 +59,11 @@ function inboxQueueUrl() {
 }
 function inboxMarkUnconfirmed(message = 'Verificando o estado deste atendimento…') {
   inboxMetadataConfirmed = false; inboxMetadataNotice = message;
+  inboxCrm?.unconfirmed();
   if (inboxSelected) inboxRenderConversation();
 }
 function inboxRevokeSelected(id) {
-  inboxHistories.delete(id);
+  inboxHistories.delete(id); inboxCrm?.revoke(id);
   if (inboxSelected?.id !== id) return;
   inboxDraft(id).text = inboxElement('inbox-text').value;
   inboxSelected = null; inboxMetadataConfirmed = false; inboxMetadataNotice = ''; inboxOutsidePage = false;
@@ -76,7 +78,13 @@ async function inboxLoadMetadata() {
   const generation = inboxGeneration; const id = inboxSelected.id;
   inboxMarkUnconfirmed();
   let result;
-  try { result = await inboxApi('/api/chat/team/conversations/' + id); }
+  try {
+    result = await inboxApi('/api/chat/team/conversations/' + id);
+    const conversation = result?.conversation;
+    if (!conversation || conversation.id !== id || !Number.isSafeInteger(conversation.departmentId) || conversation.departmentId < 1 || typeof conversation.visitorName !== 'string' || typeof conversation.departmentName !== 'string' || !['waiting', 'open', 'closed'].includes(conversation.status) || !(conversation.assignedTo === null || (Number.isSafeInteger(conversation.assignedTo) && conversation.assignedTo > 0))) {
+      throw new Error('Não foi possível confirmar o estado recebido. Atualize a fila para revalidar.');
+    }
+  }
   catch (error) {
     if (generation === inboxGeneration && inboxSelected?.id === id) {
       if (error.status === 403 || error.status === 404) inboxRevokeSelected(id);
@@ -105,8 +113,10 @@ function inboxSetControls() {
   inboxElement('inbox-send').disabled = inboxBusy || !inboxMetadataConfirmed || (!owner && !pending);
   inboxElement('inbox-send').textContent = pending ? 'Reenviar mesma resposta' : 'Enviar resposta';
   inboxElement('inbox-space').setAttribute('aria-busy', String(inboxBusy));
+  inboxCrm?.controls();
 }
 function inboxClearIdentityData() {
+  inboxCrm?.clear();
   inboxProfile = null; inboxCsrf = null; inboxSelected = null; inboxPage = 1; inboxTotal = 0;
   inboxFilters = { status: 'active', assignment: 'any', q: '' }; inboxWriteFilters();
   inboxMetadataConfirmed = false; inboxMetadataNotice = ''; inboxOutsidePage = false;
@@ -219,7 +229,7 @@ function inboxState(conversation) {
 }
 async function inboxSelect(conversation) {
   if (inboxSelected) inboxDraft().text = inboxElement('inbox-text').value;
-  inboxSelected = conversation; inboxMetadataConfirmed = false; inboxMetadataNotice = 'Verificando o estado deste atendimento…'; inboxOutsidePage = false;
+  inboxSelected = conversation; inboxCrm?.select(conversation.id); inboxMetadataConfirmed = false; inboxMetadataNotice = 'Verificando o estado deste atendimento…'; inboxOutsidePage = false;
   inboxMessageNodes = new Map(); inboxElement('inbox-messages').replaceChildren();
   inboxElement('inbox-text').value = inboxDraft().text;
   inboxElement('inbox-message-feedback').textContent = inboxDraft().pending ? 'Há uma resposta aguardando confirmação. Reenvie o mesmo texto para confirmar sem duplicar.' : '';

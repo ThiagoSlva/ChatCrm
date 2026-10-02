@@ -27,6 +27,11 @@ const opportunityStatements = [
   "CREATE TABLE IF NOT EXISTS cl_opportunities (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, contact_id INT UNSIGNED NOT NULL, title VARCHAR(150) NOT NULL, amount_cents INT UNSIGNED NOT NULL DEFAULT 0, stage ENUM('new','qualified','proposal','won','lost') NOT NULL DEFAULT 'new', version INT UNSIGNED NOT NULL DEFAULT 1, created_by INT UNSIGNED NOT NULL, client_key CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, UNIQUE KEY cl_opportunities_request (created_by, client_key), INDEX cl_opportunities_queue (contact_id, stage, updated_at, id), FOREIGN KEY (contact_id) REFERENCES cl_contacts(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (created_by) REFERENCES cl_users(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
   "CREATE TABLE IF NOT EXISTS cl_opportunity_events (opportunity_id INT UNSIGNED NOT NULL, version INT UNSIGNED NOT NULL, actor_id INT UNSIGNED NOT NULL, title VARCHAR(150) NOT NULL, amount_cents INT UNSIGNED NOT NULL DEFAULT 0, stage ENUM('new','qualified','proposal','won','lost') NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY (opportunity_id, version), FOREIGN KEY (opportunity_id) REFERENCES cl_opportunities(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (actor_id) REFERENCES cl_users(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 ];
+const conversationContactStatements = [
+  "CREATE TABLE IF NOT EXISTS cl_conversation_contacts (conversation_id INT UNSIGNED NOT NULL PRIMARY KEY, contact_id INT UNSIGNED NULL, version INT UNSIGNED NOT NULL DEFAULT 1, updated_by INT UNSIGNED NOT NULL, updated_at DATETIME NOT NULL, INDEX cl_conversation_contacts_contact (contact_id, conversation_id), INDEX cl_conversation_contacts_actor (updated_by), FOREIGN KEY (conversation_id) REFERENCES cl_chat_conversations(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (contact_id) REFERENCES cl_contacts(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (updated_by) REFERENCES cl_users(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  "CREATE TABLE IF NOT EXISTS cl_conversation_contact_events (conversation_id INT UNSIGNED NOT NULL, version INT UNSIGNED NOT NULL, contact_id INT UNSIGNED NULL, actor_id INT UNSIGNED NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY (conversation_id, version), INDEX cl_conversation_contact_events_contact (contact_id), INDEX cl_conversation_contact_events_actor (actor_id), FOREIGN KEY (conversation_id) REFERENCES cl_conversation_contacts(conversation_id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (contact_id) REFERENCES cl_contacts(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (actor_id) REFERENCES cl_users(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+];
+const conversationContactTables = ['cl_conversation_contacts', 'cl_conversation_contact_events'];
 const opportunityTables = ['cl_opportunities', 'cl_opportunity_events'];
 const chatTables = ['cl_visitors', 'cl_chat_conversations', 'cl_chat_messages', 'cl_chat_limits'];
 const unsignedInt = /^int(?:\(\d+\))? unsigned$/;
@@ -177,8 +182,55 @@ async function verifyOpportunitySchema(connection) {
   if (foreignKeys.length !== keys.length || keys.some(([table, column, target]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === 'id' && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos de oportunidades incompativeis.');
 }
 
-async function migrate(connection, { targetVersion = 5 } = {}) {
-  if (![1, 2, 3, 4, 5].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
+async function verifyConversationContactSchema(connection) {
+  const instant = /^datetime(?:\(0\))?$/;
+  const expected = {
+    cl_conversation_contacts: [
+      ['conversation_id', unsignedInt, null, false], ['contact_id', unsignedInt, null, true],
+      ['version', unsignedInt, '1', false], ['updated_by', unsignedInt, null, false], ['updated_at', instant, null, false]
+    ],
+    cl_conversation_contact_events: [
+      ['conversation_id', unsignedInt, null, false], ['version', unsignedInt, null, false],
+      ['contact_id', unsignedInt, null, true], ['actor_id', unsignedInt, null, false], ['created_at', instant, null, false]
+    ]
+  };
+  const indexes = {};
+  const exactIndex = (rows, columns, unique) => {
+    const keys = new Set(rows.map(row => row.Key_name));
+    return [...keys].some(key => {
+      const ordered = rows.filter(row => row.Key_name === key).sort((a, b) => Number(a.Seq_in_index) - Number(b.Seq_in_index));
+      return ordered.length === columns.length && ordered.every((row, position) =>
+        Number(row.Seq_in_index) === position + 1 && row.Column_name === columns[position] && !row.Sub_part && Number(row.Non_unique) === (unique ? 0 : 1));
+    });
+  };
+  for (const table of conversationContactTables) {
+    const [columns] = await connection.query('SHOW FULL COLUMNS FROM ' + table);
+    if (columns.length !== expected[table].length || !expected[table].every(([field, type, defaultValue, nullable]) => columns.some(row =>
+      row.Field === field && type.test(row.Type.toLowerCase()) && row.Null === (nullable ? 'YES' : 'NO') &&
+      (defaultValue === null ? row.Default === null : String(row.Default) === defaultValue) && (row.Extra || '') === ''))) throw new Error('Estrutura de vinculos atendimento-contato incompativel.');
+    [indexes[table]] = await connection.query('SHOW INDEX FROM ' + table);
+  }
+  const [tables] = await connection.execute("SELECT TABLE_NAME AS tableName, ENGINE AS engine, TABLE_COLLATION AS tableCollation FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('cl_conversation_contacts', 'cl_conversation_contact_events')");
+  if (tables.length !== conversationContactTables.length || conversationContactTables.some(table => !tables.some(row => row.tableName === table && row.engine?.toLowerCase() === 'innodb' && row.tableCollation === 'utf8mb4_unicode_ci'))) throw new Error('Engine ou collation de vinculos atendimento-contato incompativel.');
+  if (!exactIndex(indexes.cl_conversation_contacts.filter(row => row.Key_name === 'PRIMARY'), ['conversation_id'], true) ||
+    !exactIndex(indexes.cl_conversation_contacts, ['contact_id', 'conversation_id'], false) || !exactIndex(indexes.cl_conversation_contacts, ['updated_by'], false) ||
+    !exactIndex(indexes.cl_conversation_contact_events.filter(row => row.Key_name === 'PRIMARY'), ['conversation_id', 'version'], true) ||
+    !exactIndex(indexes.cl_conversation_contact_events, ['contact_id'], false) || !exactIndex(indexes.cl_conversation_contact_events, ['actor_id'], false)) throw new Error('Indices de vinculos atendimento-contato incompativeis.');
+  for (const table of conversationContactTables) {
+    const uniqueNames = new Set(indexes[table].filter(row => Number(row.Non_unique) === 0).map(row => row.Key_name));
+    const primary = table === 'cl_conversation_contacts' ? ['conversation_id'] : ['conversation_id', 'version'];
+    if ([...uniqueNames].some(key => !exactIndex(indexes[table].filter(row => row.Key_name === key), primary, true))) throw new Error('Unicidade de vinculos atendimento-contato incompativel.');
+  }
+  const [foreignKeys] = await connection.execute("SELECT k.TABLE_NAME AS tableName, k.COLUMN_NAME AS columnName, k.REFERENCED_TABLE_NAME AS referencedTable, k.REFERENCED_COLUMN_NAME AS referencedColumn, (k.REFERENCED_TABLE_SCHEMA = DATABASE()) AS localSchema, r.DELETE_RULE AS deleteRule, r.UPDATE_RULE AS updateRule FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME WHERE k.TABLE_SCHEMA = DATABASE() AND k.TABLE_NAME IN ('cl_conversation_contacts', 'cl_conversation_contact_events') AND k.REFERENCED_TABLE_NAME IS NOT NULL");
+  const keys = [
+    ['cl_conversation_contacts', 'conversation_id', 'cl_chat_conversations', 'id'], ['cl_conversation_contacts', 'contact_id', 'cl_contacts', 'id'], ['cl_conversation_contacts', 'updated_by', 'cl_users', 'id'],
+    ['cl_conversation_contact_events', 'conversation_id', 'cl_conversation_contacts', 'conversation_id'], ['cl_conversation_contact_events', 'contact_id', 'cl_contacts', 'id'], ['cl_conversation_contact_events', 'actor_id', 'cl_users', 'id']
+  ];
+  if (foreignKeys.length !== keys.length || keys.some(([table, column, target, referencedColumn]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === referencedColumn && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos e historico atendimento-contato incompativeis.');
+}
+
+async function migrate(connection, { targetVersion = 6 } = {}) {
+  if (![1, 2, 3, 4, 5, 6].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
   // Keep the established lock so an older explicit v1 migrator cannot race this one.
   const [lock] = await connection.execute("SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired");
   if (Number(lock[0]?.acquired) !== 1) throw new Error('Outra migracao em andamento.');
@@ -186,7 +238,7 @@ async function migrate(connection, { targetVersion = 5 } = {}) {
     const [tables] = await connection.query('SHOW TABLES');
     const names = tables.map(row => Object.values(row)[0]);
     const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
-    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables];
+    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables];
     if (names.some(name => !allowed.includes(name))) throw new Error('Use um banco exclusivo e vazio para o projeto.');
     if (names.length && !names.includes('cl_schema')) throw new Error('Banco sem identificacao do projeto.');
     let version = 0;
@@ -195,7 +247,7 @@ async function migrate(connection, { targetVersion = 5 } = {}) {
       // A crash between creating the marker table and inserting its row is resumable.
       if (!rows.length && names.length !== 1) throw new Error('Banco sem identificacao do projeto.');
       version = rows.length ? Number(rows[0].version) : 0;
-      if (![0, 1, 2, 3, 4, 5].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
+      if (![0, 1, 2, 3, 4, 5, 6].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
     }
     if (version > targetVersion) throw new Error('Downgrade de schema nao permitido.');
     if (version >= 1 && baseTables.some(name => !names.includes(name))) throw new Error('Estrutura base incompleta.');
@@ -206,7 +258,9 @@ async function migrate(connection, { targetVersion = 5 } = {}) {
     if (version < 3 && names.includes('cl_contacts')) throw new Error('Estrutura sem chat concluido.');
     if (version >= 4 && !names.includes('cl_contacts')) throw new Error('Estrutura de contatos incompleta.');
     if (version < 4 && names.some(name => opportunityTables.includes(name))) throw new Error('Estrutura sem contatos concluidos.');
-    if (version === 5 && opportunityTables.some(name => !names.includes(name))) throw new Error('Estrutura de oportunidades incompleta.');
+    if (version >= 5 && opportunityTables.some(name => !names.includes(name))) throw new Error('Estrutura de oportunidades incompleta.');
+    if (version < 5 && names.some(name => conversationContactTables.includes(name))) throw new Error('Estrutura sem oportunidades concluidas.');
+    if (version >= 6 && conversationContactTables.some(name => !names.includes(name))) throw new Error('Estrutura de vinculos atendimento-contato incompleta.');
     // MySQL DDL commits implicitly. Keep v1 intact while v2 is partial, and resume by table.
     if (version === 0) {
       await connection.query(statements[0]);
@@ -235,10 +289,15 @@ async function migrate(connection, { targetVersion = 5 } = {}) {
       await verifyContactSchema(connection);
       if (version === 3) { await connection.execute('UPDATE cl_schema SET version = 4 WHERE id = 1'); version = 4; }
     }
-    if (targetVersion === 5) {
+    if (targetVersion >= 5) {
       if (version === 4) for (const statement of opportunityStatements) await connection.query(statement);
       await verifyOpportunitySchema(connection);
-      if (version === 4) await connection.execute('UPDATE cl_schema SET version = 5 WHERE id = 1');
+      if (version === 4) { await connection.execute('UPDATE cl_schema SET version = 5 WHERE id = 1'); version = 5; }
+    }
+    if (targetVersion >= 6) {
+      if (version === 5) for (const statement of conversationContactStatements) await connection.query(statement);
+      await verifyConversationContactSchema(connection);
+      if (version === 5) await connection.execute('UPDATE cl_schema SET version = 6 WHERE id = 1');
     }
     return { schemaVersion: targetVersion };
   } finally { await connection.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
@@ -253,4 +312,4 @@ async function main() {
   finally { if (connection) await connection.end(); }
 }
 if (require.main === module) main().catch(() => { process.stderr.write('Migracao interrompida. Confira configuracao, banco exclusivo e acesso MySQL.\n'); process.exitCode = 1; });
-module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema };
+module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema };

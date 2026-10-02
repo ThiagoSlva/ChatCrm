@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.7.0: oportunidades com etapas e histórico publicadas no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Associação ao chat, portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
+**v0.8.0: associação manual entre atendimento e contato em homologação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
@@ -8,6 +8,8 @@ A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md
 [Contatos e leads](docs/CONTATOS-MVP.md) ficam em /contatos, com busca, filtros e edição que detecta alterações concorrentes. Exigem migração explícita v4 depois de backup privado e release compatível.
 
 [Oportunidades e histórico](docs/OPORTUNIDADES-MVP.md) ficam em /vendas, com contato autorizado, valor BRL e etapas manuais. Exigem schema5 após backup atualizado e release compatível. Consulte o andamento para confirmar publicação e verificações.
+
+O [contexto do contato no atendimento](docs/ASSOCIACAO-ATENDIMENTO.md) permite vincular manualmente um cadastro existente da mesma área, com responsável, confirmação, versões e histórico. Exige schema6 após backup privado e release compatível; não verifica a identidade do visitante nem concede acesso a outras conversas. Consulte o andamento para evidências de homologação.
 
 A [verificação manual de concorrência SQL](docs/VERIFICACAO-CONCORRENCIA-CRM.md) cobre oportunidades em duas conexões físicas. Exige banco de testes vazio, backup privado atual e opção explícita para fixtures temporariamente confirmadas; não faz parte do cron ou de npm test. Consulte o andamento para evidências.
 
