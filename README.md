@@ -9,6 +9,8 @@ A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md
 
 [Oportunidades e histórico](docs/OPORTUNIDADES-MVP.md) ficam em /vendas, com contato autorizado, valor BRL e etapas manuais. Exigem schema5 após backup atualizado e release compatível. Consulte o andamento para confirmar publicação e verificações.
 
+A [verificação manual de concorrência SQL](docs/VERIFICACAO-CONCORRENCIA-CRM.md) cobre oportunidades em duas conexões físicas. Exige banco de testes vazio, backup privado atual e opção explícita para fixtures temporariamente confirmadas; não faz parte do cron ou de npm test. Consulte o andamento para evidências.
+
 ## Executar a base
 
 Requisitos: Node.js 22 ou 24 e npm. MySQL é opcional para abrir a página.

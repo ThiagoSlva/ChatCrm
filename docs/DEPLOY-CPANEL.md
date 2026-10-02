@@ -55,3 +55,6 @@ v0.6.0 adiciona contatos e schema v4. Publique e valide compatibilidade de acess
 
 
 v0.7.0 adiciona oportunidades e histórico no schema v5. Publique a aplicação compatível e valide acesso/contatos/chat em v4; apenas vendas deve aguardar preparação. Faça backup privado atualizado das onze tabelas e preserve release v0.7 compatível antes de migrar explicitamente. Confirme preservação dos registros e canais e execute verificadores SQL/HTTPS. v0.6 não aceita5: não reduzir marcador, apagar tabelas ou recuperar código anterior incompatível. Cron e bootstrap permanecem iguais. [Contrato e procedimento](OPORTUNIDADES-MVP.md).
+
+
+Concorrência CRM em schema5 tem um procedimento manual separado: [verificação entre conexões](VERIFICACAO-CONCORRENCIA-CRM.md). Ele exige banco de testes vazio, backup privado atual e `--allow-temporary-fixtures`, pois duas conexões precisam enxergar registros sintéticos temporariamente confirmados. Não executar no cron, em CI ou com dados operacionais existentes. A limpeza valida propriedade e dependências antes de apagar somente fixtures; uma divergência interrompe a operação. Não altera schema, configuração, canais ou credenciais existentes. Registre resultados e preservação, além do hash servido.
