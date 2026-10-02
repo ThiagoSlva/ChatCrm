@@ -47,10 +47,11 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2, 3].includes(capabilities?.schemaVersion), true);
+    assert.equal([1, 2, 3, 4].includes(capabilities?.schemaVersion), true);
     assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
-    if (capabilities.schemaVersion === 3) assert.equal(capabilities.chat, true);
+    if (capabilities.schemaVersion >= 3) assert.equal(capabilities.chat, true);
     else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);
+    assert.equal(capabilities.contacts === true, capabilities.schemaVersion >= 4);
     checks.push('capabilities');
     const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
     if (profile.data.user.role === 'admin') {
@@ -127,6 +128,35 @@ async function verifyAccess(origin, credentials) {
         } else {
           assert.equal((await request('/api/chat/team/conversations/4294967295', 'GET', null, { Cookie: cookie })).response.status, 404);
           checks.push('chat-detail-absent-denied');
+        }
+      }
+      if (capabilities.contacts) {
+        assert.equal((await request('/api/crm/contacts', 'GET')).response.status, 401);
+        checks.push('contacts-anonymous-denied');
+        const contacts = await request('/api/crm/contacts?page=1&limit=20', 'GET', null, { Cookie: cookie });
+        assert.equal(contacts.response.status, 200); assert.equal(Array.isArray(contacts.data.contacts), true);
+        assert.equal(Number.isInteger(contacts.data.total) && contacts.data.total >= 0 && contacts.data.total <= 5000, true);
+        assert.equal(contacts.data.page, 1); assert.equal(contacts.data.limit, 20); assert.equal(contacts.data.contacts.length <= 20, true);
+        for (const contact of contacts.data.contacts) {
+          assert.deepEqual(Object.keys(contact).sort(), ['company', 'createdAt', 'departmentId', 'departmentName', 'email', 'id', 'kind', 'name', 'phone', 'updatedAt', 'version']);
+          assert.equal(['lead', 'contact', 'customer'].includes(contact.kind), true);
+        }
+        checks.push('contacts-team-read-safe-fields');
+        const filtered = await request('/api/crm/contacts?kind=lead&q=Verification%25_!%5C', 'GET', null, { Cookie: cookie });
+        assert.equal(filtered.response.status, 200); assert.equal(Array.isArray(filtered.data.contacts), true);
+        assert.equal(filtered.data.contacts.every(contact => contact.kind === 'lead'), true);
+        checks.push('contacts-filters-literal-read');
+        for (const query of ['kind=invalid', 'kind=lead&kind=customer', 'q=a&q=b', 'q=%00', 'extra=1']) {
+          assert.equal((await request('/api/crm/contacts?' + query, 'GET', null, { Cookie: cookie })).response.status, 400);
+        }
+        checks.push('contacts-invalid-filters-denied');
+        if (contacts.data.contacts.length) {
+          const detail = await request('/api/crm/contacts/' + contacts.data.contacts[0].id, 'GET', null, { Cookie: cookie });
+          assert.equal(detail.response.status, 200); assert.equal(detail.data.contact.id, contacts.data.contacts[0].id);
+          checks.push('contacts-authorized-detail');
+        } else {
+          assert.equal((await request('/api/crm/contacts/4294967295', 'GET', null, { Cookie: cookie })).response.status, 404);
+          checks.push('contacts-absent-detail-denied');
         }
       }
     } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }

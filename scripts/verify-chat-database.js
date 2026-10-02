@@ -22,6 +22,8 @@ async function preservationFingerprint(connection) {
     ['cl_chat_messages', 'conversation_id, `sequence`, sender, author_id, client_key, text, created_at', 'conversation_id, `sequence`'],
     ['cl_chat_limits', 'key_hash, window_start, count, expires_at', 'key_hash']
   ];
+  const [schema] = await connection.execute('SELECT version FROM cl_schema WHERE id = 1');
+  if (Number(schema[0]?.version) >= 4) tables.push(['cl_contacts', 'id, department_id, name, email, phone, company, kind, version, created_by, client_key, request_hash, created_at, updated_at', 'id']);
   const fingerprints = [];
   for (const [table, fields, order] of tables) {
     const [rows] = await connection.query(`SELECT SHA2(JSON_ARRAY(${fields}), 256) AS fingerprint FROM ${table} ORDER BY ${order}`);
@@ -54,7 +56,9 @@ async function verifyChatDatabase(connection) {
     };
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
-    assert.deepEqual(await repository.capabilities(), { schemaVersion: 3, departments: true, chat: true });
+    const capabilities = await repository.capabilities();
+    assert.equal([3, 4].includes(capabilities.schemaVersion), true);
+    assert.equal(capabilities.departments, true); assert.equal(capabilities.chat, true);
     await verifyDepartmentSchema(connection);
     await verifyChatSchema(connection);
     checks.push('schema-v3-defaults-indexes-foreign-keys');

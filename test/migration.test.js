@@ -41,11 +41,24 @@ const chatForeignKeys = [
   ['cl_chat_conversations', 'assigned_to', 'cl_users'], ['cl_chat_messages', 'conversation_id', 'cl_chat_conversations']
 ].map(([tableName, columnName, referencedTable]) => ({ tableName, columnName, referencedTable, referencedColumn: 'id' }));
 
+const contactColumns = [
+  identity(), field('department_id', 'int unsigned'), field('name', 'varchar(100)', { Collation: 'utf8mb4_unicode_ci' }),
+  field('email', 'varchar(254)', { Default: '', Collation: 'utf8mb4_unicode_ci' }), field('phone', 'varchar(40)', { Default: '', Collation: 'utf8mb4_unicode_ci' }),
+  field('company', 'varchar(100)', { Default: '', Collation: 'utf8mb4_unicode_ci' }), field('kind', "enum('lead','contact','customer')", { Default: 'lead', Collation: 'utf8mb4_unicode_ci' }),
+  field('version', 'int unsigned', { Default: '1' }), field('created_by', 'int unsigned'), ascii('client_key', 32), ascii('request_hash', 64),
+  field('created_at', 'datetime'), field('updated_at', 'datetime')
+].map(row => ({ Default: null, ...row }));
+const contactIndexes = [...index('PRIMARY', ['id']), ...index('idempotency', ['created_by', 'client_key']), ...index('queue', ['department_id', 'kind', 'updated_at', 'id'], 1)];
+const contactForeignKeys = [['department_id', 'cl_departments'], ['created_by', 'cl_users']].map(([columnName, referencedTable]) => ({ columnName, referencedTable, referencedColumn: 'id', deleteRule: 'RESTRICT', updateRule: 'RESTRICT' }));
+const schema3Tables = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables];
+
 function migrationConnection({ tables = [], version = null } = {}) {
   const state = { tables: new Set(tables), version, failTable: null, departmentIndexes: [...index('PRIMARY', ['id']), ...index('name_unique', ['name'])],
     memberIndexes: [...index('PRIMARY', ['department_id', 'user_id']), ...index('user_lookup', ['user_id', 'department_id'], 1)], foreignKeys: [...foreignKeys], acquired: 1,
     departmentColumns: departmentColumns.map(row => ({ ...row })), engines: ['cl_departments', 'cl_department_members'].map(tableName => ({ tableName, engine: 'InnoDB' })),
-    chatColumns: structuredClone(chatColumns), chatIndexes: structuredClone(chatIndexes), chatForeignKeys: structuredClone(chatForeignKeys), chatEngines: chatTables.map(tableName => ({ tableName, engine: 'InnoDB' })), coreEngines: ['cl_schema', 'cl_users', 'cl_sessions'].map(tableName => ({ tableName, engine: 'InnoDB' })) };
+    chatColumns: structuredClone(chatColumns), chatIndexes: structuredClone(chatIndexes), chatForeignKeys: structuredClone(chatForeignKeys), chatEngines: chatTables.map(tableName => ({ tableName, engine: 'InnoDB' })), coreEngines: ['cl_schema', 'cl_users', 'cl_sessions'].map(tableName => ({ tableName, engine: 'InnoDB' })),
+    contactColumns: structuredClone(contactColumns), contactIndexes: structuredClone(contactIndexes), contactForeignKeys: structuredClone(contactForeignKeys),
+    contactTables: [{ tableName: 'cl_contacts', engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' }] };
   const statements = [];
   const connection = {
     execute: async sql => {
@@ -54,6 +67,8 @@ function migrationConnection({ tables = [], version = null } = {}) {
       if (sql.startsWith('SELECT version')) return [state.version === null ? [] : [{ version: state.version }]];
       if (sql.startsWith('INSERT IGNORE INTO cl_schema')) { if (state.version === null) state.version = 0; }
       if (sql.startsWith('UPDATE cl_schema')) state.version = Number(sql.match(/version = (\d+)/)[1]);
+      if (sql.includes('KEY_COLUMN_USAGE') && sql.includes("TABLE_NAME = 'cl_contacts'")) return [state.contactForeignKeys];
+      if (sql.includes('information_schema.TABLES') && sql.includes("TABLE_NAME = 'cl_contacts'")) return [state.contactTables];
       if (sql.includes('KEY_COLUMN_USAGE')) return [sql.includes("TABLE_NAME IN ('cl_chat_") ? state.chatForeignKeys : state.foreignKeys];
       if (sql.includes('information_schema.TABLES')) return [sql.includes("TABLE_NAME IN ('cl_visitors'") ? state.chatEngines : sql.includes("TABLE_NAME IN ('cl_schema'") ? state.coreEngines : state.engines];
       return [[]];
@@ -67,6 +82,8 @@ function migrationConnection({ tables = [], version = null } = {}) {
         if (name === state.failTable) throw new Error('Interrupcao simulada de DDL.');
         state.tables.add(name);
       }
+      if (sql === 'SHOW FULL COLUMNS FROM cl_contacts') return [state.contactColumns];
+      if (sql === 'SHOW INDEX FROM cl_contacts') return [state.contactIndexes];
       if (sql === 'SHOW FULL COLUMNS FROM cl_departments') return [state.departmentColumns];
       if (sql === 'SHOW COLUMNS FROM cl_department_members') return [memberColumns];
       if (sql === 'SHOW INDEX FROM cl_departments') return [state.departmentIndexes];
@@ -177,22 +194,25 @@ test('defaults, engine e collation defeituosos impedem concluir v2 parcial', asy
   assert.equal(state.version, 2);
 });
 
-test('migracao padrao instala v3 sem publicar canais nem criar identidades', async () => {
+test('migracao padrao instala v4 sem publicar canais nem criar identidades', async () => {
   const { connection, statements, state } = migrationConnection();
-  assert.deepEqual(await migrate(connection), { schemaVersion: 3 });
-  assert.equal(state.version, 3);
-  assert.equal(state.tables.size, 10);
+  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.equal(state.version, 4);
+  assert.equal(state.tables.size, 11);
   assert.deepEqual(state.departmentColumns.find(row => row.Field === 'public_chat'), publicColumn);
   assert.equal(statements.some(sql => /^(?:INSERT(?: IGNORE)? INTO|UPDATE|DELETE FROM) cl_(?:users|sessions|visitors|company)\b/.test(sql)), false);
   const mark = statements.indexOf('UPDATE cl_schema SET version = 3 WHERE id = 1');
   assert.ok(statements.findIndex(sql => sql.includes("TABLE_NAME IN ('cl_chat_")) < mark);
+  const contactMark = statements.indexOf('UPDATE cl_schema SET version = 4 WHERE id = 1');
+  assert.ok(mark < contactMark);
+  assert.ok(statements.findIndex(sql => sql.includes('REFERENTIAL_CONSTRAINTS')) < contactMark);
   assert.ok(statements.filter(sql => sql.startsWith('CREATE TABLE')).every(sql => /ENGINE=InnoDB/.test(sql)));
   assert.match(statements.at(-1), /RELEASE_LOCK/);
 });
 
 test('upgrade v2 adiciona somente entrada privada e quatro tabelas de chat', async () => {
   const { connection, statements, state } = migrationConnection({ tables: [...baseTables, 'cl_departments', 'cl_department_members'], version: 2 });
-  await migrate(connection);
+  await migrate(connection, { targetVersion: 3 });
   assert.equal(state.version, 3);
   assert.equal(statements.filter(sql => sql.startsWith('CREATE TABLE')).length, 4);
   assert.deepEqual(statements.filter(sql => sql.startsWith('ALTER')), ['ALTER TABLE cl_departments ADD COLUMN public_chat TINYINT NOT NULL DEFAULT 0']);
@@ -215,7 +235,7 @@ test('DDL v3 interrompido preserva marcador v2 e retoma sem repetir coluna publi
   assert.deepEqual(await migrate(connection, { targetVersion: 2 }), { schemaVersion: 2 });
   assert.equal(state.version, 2);
   state.failTable = null;
-  await migrate(connection);
+  await migrate(connection, { targetVersion: 3 });
   assert.equal(state.version, 3);
   assert.equal(state.tables.size, 10);
   assert.equal(statements.slice(attempts).some(sql => sql.startsWith('ALTER')), false);
@@ -252,7 +272,7 @@ test('estrutura v3 parcial defeituosa nunca e marcada pronta', async () => {
 test('schema v3 verificado e idempotente e nao aceita downgrade', async () => {
   const { connection, statements, state } = migrationConnection({ tables: [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables], version: 3 });
   state.departmentColumns.push({ ...publicColumn });
-  assert.deepEqual(await migrate(connection), { schemaVersion: 3 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 3 }), { schemaVersion: 3 });
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   await assert.rejects(migrate(connection, { targetVersion: 2 }), /Downgrade/);
   await assert.rejects(migrate(connection, { targetVersion: 1 }), /Downgrade/);
@@ -271,7 +291,7 @@ test('marcador v3 incompleto e chat antes de v2 falham antes de DDL', async () =
 });
 
 test('base marcada incompleta, versao futura e trava ocupada nao executam DDL', async () => {
-  for (const options of [{ tables: ['cl_schema'], version: 1 }, { tables: baseTables, version: 4 }]) {
+  for (const options of [{ tables: ['cl_schema'], version: 1 }, { tables: baseTables, version: 5 }]) {
     const { connection, statements } = migrationConnection(options);
     await assert.rejects(migrate(connection));
     assert.equal(statements.some(sql => sql.startsWith('CREATE')), false);
@@ -282,7 +302,102 @@ test('base marcada incompleta, versao futura e trava ocupada nao executam DDL', 
   assert.equal(statements.length, 1);
 });
 
-test('status e capacidades aceitam v1 e v2, recusando consultas dependentes em v1', async () => {
+test('upgrade v3 cria somente contatos e marca v4 apos verificar toda a estrutura', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: schema3Tables, version: 3 });
+  state.departmentColumns.push({ ...publicColumn });
+  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.equal(state.version, 4); assert.equal(state.tables.size, 11);
+  const ddl = statements.filter(sql => /^(CREATE|ALTER|DROP)/.test(sql));
+  assert.equal(ddl.length, 1); assert.match(ddl[0], /^CREATE TABLE IF NOT EXISTS cl_contacts /);
+  assert.match(ddl[0], /UNIQUE KEY cl_contacts_request \(created_by, client_key\)/);
+  assert.match(ddl[0], /INDEX cl_contacts_queue \(department_id, kind, updated_at, id\)/);
+  assert.match(ddl[0], /created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL/);
+  assert.equal(statements.some(sql => /^(?:INSERT(?: IGNORE)? INTO|UPDATE|DELETE FROM) cl_(?:users|sessions|visitors|company|departments|chat_)\b/.test(sql)), false);
+  const marked = statements.indexOf('UPDATE cl_schema SET version = 4 WHERE id = 1');
+  for (const verification of ['SHOW FULL COLUMNS FROM cl_contacts', 'SHOW INDEX FROM cl_contacts']) assert.ok(statements.indexOf(verification) < marked);
+  assert.ok(statements.findIndex(sql => sql.includes('REFERENTIAL_CONSTRAINTS')) < marked);
+  assert.match(statements.at(-1), /RELEASE_LOCK/);
+});
+
+test('upgrade v4 interrompido preserva v3 e retoma tabela de contatos parcial', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: schema3Tables, version: 3 });
+  state.departmentColumns.push({ ...publicColumn });
+  state.failTable = 'cl_contacts';
+  await assert.rejects(migrate(connection), /Interrupcao/);
+  assert.equal(state.version, 3); assert.equal(state.tables.has('cl_contacts'), false);
+  assert.equal(statements.some(sql => sql === 'UPDATE cl_schema SET version = 4 WHERE id = 1'), false);
+  // A table created before process interruption stays private until validated.
+  state.failTable = null; state.tables.add('cl_contacts');
+  const checkpoint = statements.length;
+  assert.deepEqual(await migrate(connection, { targetVersion: 3 }), { schemaVersion: 3 });
+  assert.equal(statements.slice(checkpoint).some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.equal(state.version, 4);
+});
+
+test('contatos defeituosos nao sao marcados v4 nem reparados de forma destrutiva', async () => {
+  const defects = ['column-missing', 'column-extra', 'unsigned', 'auto-increment', 'nullable', 'name-length', 'email-default', 'company-default', 'kind-enum', 'kind-enum-case', 'kind-default', 'version-default', 'created-default', 'updated-default', 'generated', 'hash-collation', 'text-collation', 'engine', 'table-collation', 'primary', 'idempotency', 'queue-order', 'queue-unique', 'index-prefix', 'extra-unique-email', 'extra-unique-phone', 'foreign', 'delete-rule', 'update-rule'];
+  for (const defect of defects) {
+    const { connection, statements, state } = migrationConnection({ tables: [...schema3Tables, 'cl_contacts'], version: 3 });
+    state.departmentColumns.push({ ...publicColumn });
+    const column = name => state.contactColumns.find(row => row.Field === name);
+    if (defect === 'column-missing') state.contactColumns.pop();
+    if (defect === 'column-extra') state.contactColumns.push(field('hidden', 'varchar(100)', { Default: null }));
+    if (defect === 'unsigned') column('department_id').Type = 'int';
+    if (defect === 'auto-increment') column('id').Extra = '';
+    if (defect === 'nullable') column('email').Null = 'YES';
+    if (defect === 'name-length') column('name').Type = 'varchar(101)';
+    if (defect === 'email-default') column('email').Default = null;
+    if (defect === 'company-default') column('company').Default = 'Empresa';
+    if (defect === 'kind-enum') column('kind').Type = "enum('lead','contact','customer','admin')";
+    if (defect === 'kind-enum-case') column('kind').Type = "enum('LEAD','contact','customer')";
+    if (defect === 'kind-default') column('kind').Default = 'customer';
+    if (defect === 'version-default') column('version').Default = '0';
+    if (defect === 'created-default') column('created_at').Default = 'CURRENT_TIMESTAMP';
+    if (defect === 'updated-default') column('updated_at').Default = 'CURRENT_TIMESTAMP';
+    if (defect === 'generated') column('updated_at').Extra = 'on update CURRENT_TIMESTAMP';
+    if (defect === 'hash-collation') column('request_hash').Collation = 'ascii_general_ci';
+    if (defect === 'text-collation') column('name').Collation = 'utf8mb4_bin';
+    if (defect === 'engine') state.contactTables[0].engine = 'MyISAM';
+    if (defect === 'table-collation') state.contactTables[0].tableCollation = 'utf8mb4_general_ci';
+    if (defect === 'primary') state.contactIndexes = state.contactIndexes.filter(row => row.Key_name !== 'PRIMARY');
+    if (defect === 'idempotency') state.contactIndexes = state.contactIndexes.filter(row => row.Key_name !== 'idempotency');
+    if (defect === 'queue-order') state.contactIndexes = [...index('PRIMARY', ['id']), ...index('idempotency', ['created_by', 'client_key']), ...index('queue', ['department_id', 'updated_at', 'kind', 'id'], 1)];
+    if (defect === 'queue-unique') state.contactIndexes.filter(row => row.Key_name === 'queue').forEach(row => { row.Non_unique = 0; });
+    if (defect === 'index-prefix') state.contactIndexes.find(row => row.Key_name === 'idempotency' && row.Column_name === 'client_key').Sub_part = 16;
+    if (defect === 'extra-unique-email') state.contactIndexes.push(...index('email_unique', ['email']));
+    if (defect === 'extra-unique-phone') state.contactIndexes.push(...index('phone_unique', ['phone']));
+    if (defect === 'foreign') state.contactForeignKeys.pop();
+    if (defect === 'delete-rule') state.contactForeignKeys[0].deleteRule = 'CASCADE';
+    if (defect === 'update-rule') state.contactForeignKeys[1].updateRule = 'CASCADE';
+    await assert.rejects(migrate(connection), /incompativ/, defect);
+    assert.equal(state.version, 3, defect);
+    assert.equal(statements.some(sql => /^(ALTER|DELETE|DROP)/.test(sql) || sql === 'UPDATE cl_schema SET version = 4 WHERE id = 1'), false, defect);
+    assert.match(statements.at(-1), /RELEASE_LOCK/);
+  }
+});
+
+test('v4 concluido e idempotente, preserva v1-v3 explicitos e recusa downgrade', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: [...schema3Tables, 'cl_contacts'], version: 4 });
+  state.departmentColumns.push({ ...publicColumn });
+  state.contactIndexes.push(...index('email_lookup', ['email'], 1));
+  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+  for (const targetVersion of [1, 2, 3]) await assert.rejects(migrate(connection, { targetVersion }), /Downgrade/);
+  assert.equal(state.version, 4);
+});
+
+test('marcador v4 incompleto ou contatos antes do chat recusam DDL', async () => {
+  for (const options of [{ tables: schema3Tables, version: 4 }, { tables: [...baseTables, 'cl_departments', 'cl_department_members', 'cl_contacts'], version: 2 }]) {
+    const { connection, statements, state } = migrationConnection(options);
+    state.departmentColumns.push({ ...publicColumn });
+    await assert.rejects(migrate(connection), /incompleta|concluido/);
+    assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+    assert.match(statements.at(-1), /RELEASE_LOCK/);
+  }
+});
+
+test('status e capacidades preservam v1-v3 e habilitam contatos em v4', async () => {
   let version = 1;
   const statements = [];
   const pool = { execute: async sql => { statements.push(sql); return sql.startsWith('SELECT version') ? [[{ version }]] : [[{ id: 1 }]]; } };
@@ -299,6 +414,9 @@ test('status e capacidades aceitam v1 e v2, recusando consultas dependentes em v
   version = 3;
   assert.equal(await repository.status(), 'installed');
   assert.deepEqual(await repository.capabilities(), { schemaVersion: 3, departments: true, chat: true });
+  version = 4;
+  assert.equal(await repository.status(), 'installed');
+  assert.deepEqual(await repository.capabilities(), { schemaVersion: 4, departments: true, chat: true, contacts: true });
   version = 0;
   await assert.rejects(repository.capabilities(), /incompativel/);
 });

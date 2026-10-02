@@ -102,7 +102,7 @@ function fixture(t, options = {}) {
   };
   const repository = {
     status: async () => 'installed', company: async () => 'Chat isolado', close: async () => {},
-    capabilities: async () => ({ schemaVersion, departments: schemaVersion >= 2, chat: schemaVersion === 3 }),
+    capabilities: async () => ({ schemaVersion, departments: schemaVersion >= 2, chat: schemaVersion >= 3, ...(schemaVersion >= 4 ? { contacts: true } : {}) }),
     session: async token => {
       const user = users.find(item => item.id === teamSessions.get(digest(token)) && item.active);
       return user ? { ...user } : null;
@@ -700,6 +700,28 @@ test('schemas antigos preservam acesso e departamentos enquanto chat retorna503'
     assert.equal((await u('GET', '/conversations/101')).statusCode, 503);
     assert.equal((await u('POST', '/conversations/101/claim', {}, 1)).statusCode, 503);
   }
+});
+
+test('schema4 preserva canais fila detalhes e atendimento visitante-equipe do chat', async t => {
+  const { request, u, v, teamHeaders } = fixture(t, { schemaVersion: 4 });
+  const me = await request('GET', '/api/auth/me', undefined, teamHeaders(1));
+  assert.equal(me.statusCode, 200);
+  assert.deepEqual(me.json().capabilities, { schemaVersion: 4, departments: true, chat: true, contacts: true });
+  assert.equal((await request('GET', '/api/chat/public/departments')).statusCode, 200);
+  assert.deepEqual((await u('GET', '/channels/10')).json(), { enabled: true });
+  const queue = await u('GET', '/conversations?status=active&assignment=unassigned', undefined, 1);
+  assert.equal(queue.statusCode, 200); assert.equal(queue.json().total, 1);
+  assert.deepEqual(queue.json().conversations.map(row => row.id), [101]);
+  assert.equal((await u('GET', '/conversations/101', undefined, 1)).json().conversation.status, 'waiting');
+  const claimed = await u('POST', '/conversations/101/claim', {}, 1);
+  assert.equal(claimed.statusCode, 200); assert.equal(claimed.json().conversation.assignedTo, 2);
+  assert.equal((await u('PUT', '/channels/10', { enabled: false })).statusCode, 200);
+  const visitor = await v('POST', '/conversations/101/messages', { text: 'Visitante com schema4', clientKey: clientKey() });
+  const team = await u('POST', '/conversations/101/messages', { text: 'Equipe com schema4', clientKey: clientKey() }, 1);
+  assert.equal(visitor.statusCode, 201); assert.equal(team.statusCode, 201);
+  const history = await u('GET', '/conversations/101/messages', undefined, 1);
+  assert.equal(history.statusCode, 200);
+  assert.deepEqual(history.json().messages.map(row => [row.sequence, row.sender, row.text]), [[1, 'visitor', 'Visitante com schema4'], [2, 'team', 'Equipe com schema4']]);
 });
 
 test('falha de persistencia e generica e cookie HTTP fica restrito ao desenvolvimento local', async t => {

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Contatos — Conversa Livre</title><link rel="stylesheet" href="/styles.css"><script src="/contacts.js" defer></script></head>
+<body><div class="shell"><aside class="sidebar"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">c</span>Conversa Livre</a><p class="sidebar-label">SEU CANAL, SEU CONTROLE</p><nav aria-label="Navegação"><a class="nav-item" href="/">Visão geral</a><a class="nav-item" href="/acesso">Acesso da equipe</a><a class="nav-item" href="/atendimento">Atendimento</a><a class="nav-item active" href="/contatos" aria-current="page">Contatos</a></nav><div class="sidebar-note"><strong>Cadastros da sua equipe</strong><p>Cada área mantém seus próprios contatos.</p></div></aside>
+  <main class="contacts-main"><header><span class="eyebrow">PESSOAS E EMPRESAS</span><span class="version">Fase 3 · v0.6.0</span></header><section class="welcome"><h1>Relacionamentos começam aqui.</h1><p id="contacts-description" class="intro">Verificando seu acesso aos contatos.</p></section><p id="contacts-feedback" class="feedback" role="status" aria-live="polite"></p>
+    <section id="contacts-login" class="card access-card" hidden><h2>Entre com sua conta da equipe</h2><p>Use seu e-mail e senha para consultar os cadastros das áreas às quais você tem acesso.</p><a class="button-link" href="/acesso">Entrar no painel</a><button id="contacts-login-retry" type="button" class="secondary-button">Já entrei, verificar acesso</button></section>
+    <section id="contacts-pending" class="card access-card" hidden><h2 id="contacts-pending-title">Prepare o cadastro de contatos</h2><p id="contacts-pending-description">O módulo aguarda preparação na hospedagem.</p><a href="/acesso">Voltar ao acesso da equipe</a><button id="contacts-pending-retry" type="button">Verificar novamente</button></section>
+    <section id="contacts-space" hidden>
+      <div class="inbox-session"><p id="contacts-identity"></p><button id="contacts-logout" type="button" class="secondary-button">Sair da conta</button></div>
+      <div class="contacts-toolbar"><button id="contacts-new" type="button">Novo cadastro</button><button id="contacts-refresh" type="button" class="secondary-button">Atualizar contatos</button></div>
+      <div class="contacts-grid">
+        <section class="card contacts-list-card" aria-labelledby="contacts-list-title"><h2 id="contacts-list-title">Seus contatos</h2><p>Leads, contatos e clientes usam o mesmo cadastro. Filtre para encontrar quem procura.</p>
+          <form id="contacts-filters" class="queue-filters" aria-label="Filtrar contatos">
+            <div class="contacts-filter-row"><div><label for="contacts-filter-kind">Classificação</label><select id="contacts-filter-kind" name="kind"><option value="all">Todos</option><option value="lead">Leads</option><option value="contact">Contatos</option><option value="customer">Clientes</option></select></div><div><label for="contacts-filter-department">Área</label><select id="contacts-filter-department" name="departmentId"><option value="">Todas as minhas áreas</option></select></div></div>
+            <label for="contacts-filter-query">Buscar cadastro</label><input id="contacts-filter-query" name="q" type="search" maxlength="100" autocomplete="off" aria-describedby="contacts-filter-note"><p id="contacts-filter-note">Busca por nome, e-mail, telefone ou empresa em todos os resultados autorizados.</p>
+            <div class="queue-filter-actions"><button id="contacts-filter-apply" type="submit">Aplicar filtros</button><button id="contacts-filter-clear" type="button" class="secondary-button">Limpar filtros</button></div>
+          </form>
+          <ul id="contacts-list" class="conversation-list"></ul><p id="contacts-empty" hidden>Nenhum cadastro encontrado com estes filtros.</p><div class="team-pagination"><button id="contacts-previous" type="button">Anterior</button><span id="contacts-page" role="status" aria-live="polite"></span><button id="contacts-next" type="button">Próxima</button></div>
+        </section>
+        <div class="contacts-editor">
+          <form id="contacts-create" class="card contacts-form" aria-labelledby="contacts-create-title"><h2 id="contacts-create-title" tabindex="-1">Novo cadastro</h2><p>Cadastre uma pessoa ou organização na área responsável. Nome e contatos informados não verificam identidade.</p><p id="contacts-no-departments" class="selection-note" hidden>Nenhuma área ativa disponível. Confira seus vínculos com o administrador.</p><p id="contacts-create-feedback" class="feedback" role="status" aria-live="polite"></p>
+            <label for="contacts-create-department">Área responsável</label><select id="contacts-create-department" name="departmentId" required></select>
+            <label for="contacts-create-name">Nome da pessoa ou organização</label><input id="contacts-create-name" name="name" required minlength="2" maxlength="100" autocomplete="off">
+            <label for="contacts-create-kind">Classificação</label><select id="contacts-create-kind" name="kind"><option value="lead">Lead</option><option value="contact">Contato</option><option value="customer">Cliente</option></select>
+            <label for="contacts-create-company">Empresa <span>(opcional)</span></label><input id="contacts-create-company" name="company" maxlength="100" autocomplete="off">
+            <label for="contacts-create-email">E-mail <span>(opcional)</span></label><input id="contacts-create-email" name="email" type="email" maxlength="254" autocomplete="off" spellcheck="false">
+            <label for="contacts-create-phone">Telefone <span>(opcional)</span></label><input id="contacts-create-phone" name="phone" type="tel" maxlength="40" autocomplete="off" aria-describedby="contacts-create-phone-note"><p id="contacts-create-phone-note" class="field-note">Use números, espaços, +, parênteses ou hífen.</p>
+            <button id="contacts-create-submit" type="submit">Salvar cadastro</button>
+          </form>
+          <section id="contacts-detail-unavailable" class="card" hidden><h2>Verifique este cadastro</h2><p id="contacts-detail-unavailable-description"></p><button id="contacts-detail-retry" type="button">Verificar cadastro novamente</button></section>
+          <form id="contacts-edit" class="card contacts-form" hidden aria-labelledby="contacts-edit-title"><h2 id="contacts-edit-title" tabindex="-1">Editar cadastro</h2><p id="contacts-edit-detail"></p><p id="contacts-edit-feedback" class="feedback" role="status" aria-live="polite"></p><p id="contacts-edit-version" class="field-note"></p>
+            <section id="contacts-conflict" class="contact-conflict" hidden aria-labelledby="contacts-conflict-title"><h3 id="contacts-conflict-title">Compare antes de salvar</h3><p id="contacts-conflict-description">O cadastro mudou. Seu rascunho continua no formulário. Consulte a versão atual e compare os campos antes de reaplicar suas alterações.</p><button id="contacts-current-reload" type="button" class="secondary-button">Consultar dados atuais</button><dl id="contacts-current-values" class="contact-current-values" hidden></dl><button id="contacts-use-version" type="button" hidden>Revisei os dados, usar versão atual</button></section>
+            <label for="contacts-edit-name">Nome da pessoa ou organização</label><input id="contacts-edit-name" name="name" required minlength="2" maxlength="100" autocomplete="off">
+            <label for="contacts-edit-kind">Classificação</label><select id="contacts-edit-kind" name="kind"><option value="lead">Lead</option><option value="contact">Contato</option><option value="customer">Cliente</option></select>
+            <label for="contacts-edit-company">Empresa <span>(opcional)</span></label><input id="contacts-edit-company" name="company" maxlength="100" autocomplete="off">
+            <label for="contacts-edit-email">E-mail <span>(opcional)</span></label><input id="contacts-edit-email" name="email" type="email" maxlength="254" autocomplete="off" spellcheck="false">
+            <label for="contacts-edit-phone">Telefone <span>(opcional)</span></label><input id="contacts-edit-phone" name="phone" type="tel" maxlength="40" autocomplete="off" aria-describedby="contacts-edit-phone-note"><p id="contacts-edit-phone-note" class="field-note">Use números, espaços, +, parênteses ou hífen. A área responsável permanece a mesma.</p>
+            <p class="field-note">Somente os campos que você alterar serão enviados. O rascunho fica nesta aba enquanto ela estiver aberta.</p><button id="contacts-edit-submit" type="submit">Salvar alterações</button>
+          </form>
+        </div>
+      </div>
+    </section>
+    <footer>Conversa Livre · cadastro manual de contatos. Ter um cadastro não representa consentimento para campanhas. Funil e oportunidades serão implementados em outra etapa.</footer>
+  </main>
+</div></body>
+</html>

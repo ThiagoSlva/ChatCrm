@@ -232,7 +232,7 @@ function inboxRenderConversation() {
   inboxElement('inbox-conversation-title').textContent = inboxSelected.visitorName;
   inboxElement('inbox-conversation-detail').textContent = `${inboxSelected.departmentName} · nome informado pelo visitante`;
   inboxElement('inbox-conversation-state').textContent = inboxMetadataConfirmed ? inboxState(inboxSelected) : 'Estado do atendimento não confirmado.';
-  inboxElement('inbox-selection-note').textContent = inboxMetadataNotice || (inboxOutsidePage ? 'Este atendimento está fora dos filtros ou desta página da fila. Continua aberto aqui com o estado atualizado.' : '');
+  inboxElement('inbox-selection-note').textContent = inboxMetadataNotice || (inboxOutsidePage ? 'Este atendimento está fora dos filtros ou desta página da fila. O detalhe permanece visível com o estado atualizado.' : '');
   const note = !inboxMetadataConfirmed ? 'Ações e envio pausados até confirmar o estado. Seu rascunho continua nesta aba.' : inboxSelected.status === 'closed' ? 'Atendimento encerrado. Você pode copiar um rascunho preservado ou confirmar o reenvio de uma resposta pendente.' : inboxOwnsConversation() ? 'Até 2.000 caracteres. Esta resposta será enviada ao visitante; notas privadas ainda não estão disponíveis.' : 'Assuma o atendimento para responder. Somente o responsável envia mensagens à pessoa.';
   inboxElement('inbox-compose-note').textContent = note + ' Ctrl+Enter ou ⌘+Enter envia; Enter cria uma nova linha.';
   inboxSetControls();

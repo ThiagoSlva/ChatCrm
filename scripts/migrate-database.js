@@ -22,6 +22,7 @@ const chatStatements = [
   'CREATE TABLE IF NOT EXISTS cl_chat_messages (conversation_id INT UNSIGNED NOT NULL, `sequence` INT UNSIGNED NOT NULL, sender ENUM(\'visitor\',\'team\') NOT NULL, author_id INT UNSIGNED NOT NULL, client_key CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, text VARCHAR(2000) NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (conversation_id, `sequence`), UNIQUE KEY cl_chat_message_key (conversation_id, sender, author_id, client_key), FOREIGN KEY (conversation_id) REFERENCES cl_chat_conversations(id) ON DELETE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
   `CREATE TABLE IF NOT EXISTS cl_chat_limits (key_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY, window_start BIGINT UNSIGNED NOT NULL DEFAULT 0, count INT UNSIGNED NOT NULL DEFAULT 0, expires_at DATETIME NOT NULL, INDEX(expires_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`
 ];
+const contactStatement = "CREATE TABLE IF NOT EXISTS cl_contacts (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, department_id INT UNSIGNED NOT NULL, name VARCHAR(100) NOT NULL, email VARCHAR(254) NOT NULL DEFAULT '', phone VARCHAR(40) NOT NULL DEFAULT '', company VARCHAR(100) NOT NULL DEFAULT '', kind ENUM('lead','contact','customer') NOT NULL DEFAULT 'lead', version INT UNSIGNED NOT NULL DEFAULT 1, created_by INT UNSIGNED NOT NULL, client_key CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, UNIQUE KEY cl_contacts_request (created_by, client_key), INDEX cl_contacts_queue (department_id, kind, updated_at, id), FOREIGN KEY (department_id) REFERENCES cl_departments(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (created_by) REFERENCES cl_users(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 const chatTables = ['cl_visitors', 'cl_chat_conversations', 'cl_chat_messages', 'cl_chat_limits'];
 const unsignedInt = /^int(?:\(\d+\))? unsigned$/;
 const dateType = /^datetime(?:\(\d+\))?$/;
@@ -107,8 +108,34 @@ async function verifyChatSchema(connection) {
   if (foreignKeys.length !== expectedKeys.length || expectedKeys.some(([table, column, referenced]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === referenced && row.referencedColumn === 'id'))) throw new Error('Vinculos do chat incompativeis.');
 }
 
-async function migrate(connection, { targetVersion = 3 } = {}) {
-  if (![1, 2, 3].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
+async function verifyContactSchema(connection) {
+  const [columns] = await connection.query('SHOW FULL COLUMNS FROM cl_contacts');
+  const expected = [
+    ['id', unsignedInt, null, 'auto_increment'], ['department_id', unsignedInt, null], ['name', /^varchar\(100\)$/, null],
+    ['email', /^varchar\(254\)$/, ''], ['phone', /^varchar\(40\)$/, ''], ['company', /^varchar\(100\)$/, ''],
+    ['kind', /^enum\('lead','contact','customer'\)$/, 'lead'], ['version', unsignedInt, '1'], ['created_by', unsignedInt, null],
+    ['client_key', /^char\(32\)$/, null], ['request_hash', /^char\(64\)$/, null],
+    ['created_at', /^datetime(?:\(0\))?$/, null], ['updated_at', /^datetime(?:\(0\))?$/, null]
+  ];
+  if (columns.length !== expected.length || !expected.every(([field, type, defaultValue, extra = '']) => columns.some(row =>
+    row.Field === field && type.test(field === 'kind' ? row.Type : row.Type.toLowerCase()) && row.Null === 'NO' &&
+    (defaultValue === null ? row.Default === null : String(row.Default) === defaultValue) && (row.Extra || '').toLowerCase() === extra))) throw new Error('Estrutura de contatos incompativel.');
+  if (columns.some(row => ['client_key', 'request_hash'].includes(row.Field) && row.Collation !== 'ascii_bin') ||
+    columns.some(row => ['name', 'email', 'phone', 'company', 'kind'].includes(row.Field) && row.Collation !== 'utf8mb4_unicode_ci')) throw new Error('Collation de contatos incompativel.');
+  const [tables] = await connection.execute("SELECT TABLE_NAME AS tableName, ENGINE AS engine, TABLE_COLLATION AS tableCollation FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cl_contacts'");
+  if (tables.length !== 1 || tables[0].tableName !== 'cl_contacts' || tables[0].engine?.toLowerCase() !== 'innodb' || tables[0].tableCollation !== 'utf8mb4_unicode_ci') throw new Error('Engine ou collation de contatos incompativel.');
+  const [indexes] = await connection.query('SHOW INDEX FROM cl_contacts');
+  if (!hasIndex(indexes.filter(row => row.Key_name === 'PRIMARY'), ['id'], true) ||
+    !hasIndex(indexes, ['created_by', 'client_key'], true) || !hasIndex(indexes, ['department_id', 'kind', 'updated_at', 'id'], false)) throw new Error('Indices de contatos incompativeis.');
+  const uniqueNames = new Set(indexes.filter(row => Number(row.Non_unique) === 0).map(row => row.Key_name));
+  if ([...uniqueNames].some(key => !hasIndex(indexes.filter(row => row.Key_name === key), key === 'PRIMARY' ? ['id'] : ['created_by', 'client_key'], true))) throw new Error('Unicidade de contatos incompativel.');
+  const [foreignKeys] = await connection.execute("SELECT k.COLUMN_NAME AS columnName, k.REFERENCED_TABLE_NAME AS referencedTable, k.REFERENCED_COLUMN_NAME AS referencedColumn, r.DELETE_RULE AS deleteRule, r.UPDATE_RULE AS updateRule FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME WHERE k.TABLE_SCHEMA = DATABASE() AND k.TABLE_NAME = 'cl_contacts' AND k.REFERENCED_TABLE_NAME IS NOT NULL");
+  const keys = [['department_id', 'cl_departments'], ['created_by', 'cl_users']];
+  if (foreignKeys.length !== keys.length || keys.some(([column, table]) => !foreignKeys.some(row => row.columnName === column && row.referencedTable === table && row.referencedColumn === 'id' && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos de contatos incompativeis.');
+}
+
+async function migrate(connection, { targetVersion = 4 } = {}) {
+  if (![1, 2, 3, 4].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
   // Keep the established lock so an older explicit v1 migrator cannot race this one.
   const [lock] = await connection.execute("SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired");
   if (Number(lock[0]?.acquired) !== 1) throw new Error('Outra migracao em andamento.');
@@ -116,7 +143,7 @@ async function migrate(connection, { targetVersion = 3 } = {}) {
     const [tables] = await connection.query('SHOW TABLES');
     const names = tables.map(row => Object.values(row)[0]);
     const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
-    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables];
+    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts'];
     if (names.some(name => !allowed.includes(name))) throw new Error('Use um banco exclusivo e vazio para o projeto.');
     if (names.length && !names.includes('cl_schema')) throw new Error('Banco sem identificacao do projeto.');
     let version = 0;
@@ -125,14 +152,16 @@ async function migrate(connection, { targetVersion = 3 } = {}) {
       // A crash between creating the marker table and inserting its row is resumable.
       if (!rows.length && names.length !== 1) throw new Error('Banco sem identificacao do projeto.');
       version = rows.length ? Number(rows[0].version) : 0;
-      if (![0, 1, 2, 3].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
+      if (![0, 1, 2, 3, 4].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
     }
     if (version > targetVersion) throw new Error('Downgrade de schema nao permitido.');
     if (version >= 1 && baseTables.some(name => !names.includes(name))) throw new Error('Estrutura base incompleta.');
     if (version === 0 && names.some(name => name.startsWith('cl_department'))) throw new Error('Estrutura sem versao base concluida.');
     if (version < 2 && names.some(name => chatTables.includes(name))) throw new Error('Estrutura sem departamentos concluidos.');
     if (version >= 2 && ['cl_departments', 'cl_department_members'].some(name => !names.includes(name))) throw new Error('Estrutura de departamentos incompleta.');
-    if (version === 3 && chatTables.some(name => !names.includes(name))) throw new Error('Estrutura do chat incompleta.');
+    if (version >= 3 && chatTables.some(name => !names.includes(name))) throw new Error('Estrutura do chat incompleta.');
+    if (version < 3 && names.includes('cl_contacts')) throw new Error('Estrutura sem chat concluido.');
+    if (version === 4 && !names.includes('cl_contacts')) throw new Error('Estrutura de contatos incompleta.');
     // MySQL DDL commits implicitly. Keep v1 intact while v2 is partial, and resume by table.
     if (version === 0) {
       await connection.query(statements[0]);
@@ -147,14 +176,19 @@ async function migrate(connection, { targetVersion = 3 } = {}) {
       await verifyDepartmentSchema(connection);
       if (version === 1) { await connection.execute('UPDATE cl_schema SET version = 2 WHERE id = 1'); version = 2; }
     }
-    if (targetVersion === 3) {
+    if (targetVersion >= 3) {
       if (version === 2) {
         const [columns] = await connection.query('SHOW FULL COLUMNS FROM cl_departments');
         if (!columns.some(row => row.Field === 'public_chat')) await connection.query('ALTER TABLE cl_departments ADD COLUMN public_chat TINYINT NOT NULL DEFAULT 0');
         for (const statement of chatStatements) await connection.query(statement);
       }
       await verifyChatSchema(connection);
-      if (version === 2) await connection.execute('UPDATE cl_schema SET version = 3 WHERE id = 1');
+      if (version === 2) { await connection.execute('UPDATE cl_schema SET version = 3 WHERE id = 1'); version = 3; }
+    }
+    if (targetVersion === 4) {
+      if (version === 3) await connection.query(contactStatement);
+      await verifyContactSchema(connection);
+      if (version === 3) await connection.execute('UPDATE cl_schema SET version = 4 WHERE id = 1');
     }
     return { schemaVersion: targetVersion };
   } finally { await connection.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
@@ -169,4 +203,4 @@ async function main() {
   finally { if (connection) await connection.end(); }
 }
 if (require.main === module) main().catch(() => { process.stderr.write('Migracao interrompida. Confira configuracao, banco exclusivo e acesso MySQL.\n'); process.exitCode = 1; });
-module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema };
+module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema };
