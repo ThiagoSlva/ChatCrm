@@ -16,6 +16,8 @@ let departmentOperators = [];
 let departmentMemberIds = new Set();
 let membersPage = 1;
 const departmentPageSize = 20;
+let chatAvailable = false;
+let departmentChannelLoaded = false;
 function show(panel, title, description) {
   panels.forEach(id => { byId(id).hidden = id !== panel; });
   byId('title').textContent = title;
@@ -46,9 +48,11 @@ async function refresh() {
       const profile = await api('/api/auth/me');
       if (generation !== departmentsGeneration) return;
       csrfToken = profile.csrfToken;
+      chatAvailable = profile.capabilities?.chat === true;
+      byId('chat-shortcut').hidden = !chatAvailable;
       byId('user-name').textContent = profile.user.name;
       byId('user-detail').textContent = `${profile.company} · ${profile.user.email} · ${profile.user.role === 'admin' ? 'Administrador' : 'Operador'}`;
-      byId('role-description').textContent = profile.user.role === 'admin' ? 'Gerencie os operadores e os departamentos da sua equipe abaixo. O chat será a próxima entrega.' : 'Você tem acesso de operador. A gestão da equipe fica com o administrador. O atendimento ainda está em desenvolvimento.';
+      byId('role-description').textContent = profile.user.role === 'admin' ? 'Gerencie os operadores e os departamentos da sua equipe abaixo.' : 'Você tem acesso de operador. A gestão da equipe fica com o administrador.';
       show('account', 'Bem-vindo à sua empresa.', 'Você entrou no Conversa Livre.');
       if (profile.user.role === 'admin') {
         byId('team').hidden = false; teamPage = 1;
@@ -60,7 +64,7 @@ async function refresh() {
         byId('departments').hidden = false;
         byId('department-create').hidden = !departmentsAdmin;
         byId('departments-title').textContent = departmentsAdmin ? 'Departamentos de atendimento' : 'Seus departamentos';
-        byId('departments-description').textContent = departmentsAdmin ? 'Organize quem pode atender em cada área. Só os operadores vinculados a departamentos ativos poderão acessar seu atendimento.' : 'Aqui aparecem apenas os departamentos ativos aos quais você está vinculado. O chat de atendimento será a próxima entrega.';
+        byId('departments-description').textContent = departmentsAdmin ? 'Organize quem pode atender em cada área. Só os operadores vinculados a departamentos ativos podem acessar seu atendimento.' : 'Aqui aparecem apenas os departamentos ativos aos quais você está vinculado.';
         try { await loadDepartments(); }
         catch (error) { if (error.status === 401) throw error; showDepartmentError(error); }
       } else byId('departments-pending').hidden = !departmentsAdmin;
@@ -178,6 +182,9 @@ function resetDepartments() {
   departmentsGeneration++;
   departmentsAdmin = false; departmentsBusy = false; departmentsPage = 1; departmentsTotal = 0;
   selectedDepartment = null; departmentOperators = []; departmentMemberIds = new Set(); membersPage = 1;
+  chatAvailable = false; departmentChannelLoaded = false;
+  byId('chat-shortcut').hidden = true; byId('department-channel').hidden = true;
+  byId('widget-code').value = ''; byId('widget-feedback').textContent = '';
   byId('departments').hidden = true;
   byId('departments-pending').hidden = true;
   byId('department-detail').hidden = true;
@@ -197,6 +204,8 @@ function setDepartmentsBusy(value) {
     byId('departments-next').disabled = departmentsPage * departmentPageSize >= departmentsTotal;
     byId('members-previous').disabled = membersPage === 1;
     byId('members-next').disabled = membersPage * departmentPageSize >= departmentOperators.length;
+    byId('department-public').disabled = !departmentChannelLoaded;
+    byId('department-channel-save').disabled = !departmentChannelLoaded;
   }
 }
 function showDepartmentError(error) {
@@ -271,6 +280,7 @@ async function loadDepartmentDetail(id) {
   byId('department-toggle').textContent = selectedDepartment.active ? 'Desativar departamento' : 'Reativar departamento';
   byId('department-members-message').textContent = '';
   renderDepartmentMembers();
+  await loadDepartmentChannel(id);
 }
 function renderDepartmentMembers() {
   byId('department-member-list').replaceChildren();
@@ -300,6 +310,27 @@ function closeDepartmentDetail() {
   byId('department-detail').hidden = true;
   byId('department-edit').reset(); byId('department-member-list').replaceChildren();
   byId('department-members-message').textContent = '';
+  departmentChannelLoaded = false; byId('department-channel').hidden = true;
+}
+async function loadDepartmentChannel(id) {
+  const generation = departmentsGeneration;
+  departmentChannelLoaded = false; byId('department-channel').hidden = !chatAvailable;
+  if (!chatAvailable) return;
+  byId('department-channel-state').textContent = 'Conferindo a entrada pública…';
+  byId('widget-feedback').textContent = '';
+  byId('public-chat-link').href = new URL('/chat', location.origin).href;
+  byId('widget-code').value = `<script src="${new URL('/widget.js', location.origin).href}" defer></script>`;
+  try {
+    const channel = await api(`/api/chat/team/channels/${id}`);
+    if (generation !== departmentsGeneration || selectedDepartment?.id !== id) return;
+    departmentChannelLoaded = true; byId('department-public').checked = channel.enabled;
+    byId('department-channel-state').textContent = channel.enabled ? 'Entrada pública habilitada. Novas conversas exigem também um departamento ativo.' : 'Entrada pública desabilitada. Este departamento não recebe novas conversas pelo site.';
+  } catch (error) {
+    if (generation !== departmentsGeneration) return;
+    if (error.status === 401) throw error;
+    byId('department-channel-state').textContent = error.status === 503 ? 'O atendimento aguarda preparação na hospedagem.' : 'Não foi possível conferir a entrada pública. Atualize o departamento para tentar novamente.';
+  }
+  if (generation === departmentsGeneration) setDepartmentsBusy(departmentsBusy);
 }
 async function departmentAction(work, options = {}) {
   if (departmentsBusy) return;
@@ -366,4 +397,14 @@ byId('departments-next').addEventListener('click', () => departmentAction(async 
 byId('members-reload').addEventListener('click', () => departmentAction(async () => {}, { reloadList: false, reloadDetail: true, success: 'Operadores e vínculos atualizados.' }));
 byId('members-previous').addEventListener('click', () => { if (departmentsBusy || membersPage <= 1) return; membersPage--; renderDepartmentMembers(); });
 byId('members-next').addEventListener('click', () => { if (departmentsBusy || membersPage * departmentPageSize >= departmentOperators.length) return; membersPage++; renderDepartmentMembers(); });
+byId('department-channel-form').addEventListener('submit', event => {
+  event.preventDefault(); if (!selectedDepartment || !departmentChannelLoaded) return;
+  const id = selectedDepartment.id; const body = { enabled: new FormData(event.currentTarget).has('enabled') };
+  departmentAction(async () => { await api(`/api/chat/team/channels/${id}`, { method: 'PUT', headers: teamHeaders(), body: JSON.stringify(body) }); }, { reloadDetail: true, success: body.enabled ? 'Entrada pública habilitada.' : 'Entrada pública desabilitada. Conversas existentes foram preservadas.' });
+});
+byId('widget-copy').addEventListener('click', async () => {
+  const input = byId('widget-code');
+  try { await navigator.clipboard.writeText(input.value); byId('widget-feedback').textContent = 'Código do botão copiado.'; }
+  catch { input.focus(); input.select(); byId('widget-feedback').textContent = 'Selecione e copie o código acima para seu site.'; }
+});
 refresh();

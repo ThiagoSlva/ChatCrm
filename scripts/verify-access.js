@@ -47,8 +47,10 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2].includes(capabilities?.schemaVersion), true);
-    assert.equal(capabilities.departments, capabilities.schemaVersion === 2);
+    assert.equal([1, 2, 3].includes(capabilities?.schemaVersion), true);
+    assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
+    if (capabilities.schemaVersion === 3) assert.equal(capabilities.chat, true);
+    else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);
     checks.push('capabilities');
     const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
     if (profile.data.user.role === 'admin') {
@@ -78,6 +80,28 @@ async function verifyAccess(origin, credentials) {
           assert.equal(typeof department.active, 'boolean');
         }
         checks.push('departments-admin-read');
+      }
+      if (capabilities.chat) {
+        const channels = await request('/api/chat/public/departments', 'GET');
+        assert.equal(channels.response.status, 200); assert.equal(Array.isArray(channels.data.departments), true);
+        assert.equal(channels.data.departments.length <= 50, true);
+        for (const channel of channels.data.departments) {
+          assert.deepEqual(Object.keys(channel).sort(), ['id', 'name']);
+          assert.equal(Number.isInteger(channel.id) && channel.id > 0 && channel.id <= 4294967295, true);
+          assert.equal(typeof channel.name, 'string');
+        }
+        checks.push('chat-public-channels-safe');
+        assert.equal((await request('/api/chat/visitor/me', 'GET')).response.status, 401);
+        checks.push('chat-visitor-anonymous-denied');
+        assert.equal((await request('/api/chat/visitor/session', 'POST', { name: 'Pessoa de teste' }, { Origin: 'https://foreign.example.test', 'Content-Type': 'application/json' })).response.status, 403);
+        checks.push('chat-visitor-foreign-origin-denied');
+        const inbox = await request('/api/chat/team/conversations?page=1&limit=20', 'GET', null, { Cookie: cookie });
+        assert.equal(inbox.response.status, 200); assert.equal(Array.isArray(inbox.data.conversations), true);
+        assert.equal(inbox.data.page, 1); assert.equal(inbox.data.limit, 20);
+        assert.equal(Number.isInteger(inbox.data.total) && inbox.data.total >= 0 && inbox.data.total <= 5000, true);
+        assert.equal(inbox.data.conversations.length <= 20, true);
+        for (const conversation of inbox.data.conversations) assert.deepEqual(Object.keys(conversation).sort(), ['assignedTo', 'departmentId', 'departmentName', 'id', 'status', 'updatedAt', 'visitorName']);
+        checks.push('chat-team-admin-read');
       }
     } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }
     assert.equal((await request('/api/auth/logout', 'POST', {}, { Cookie: cookie })).response.status, 403);

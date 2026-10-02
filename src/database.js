@@ -2,6 +2,7 @@
 
 const mysql = require('mysql2/promise');
 const { digest, equal } = require('./security');
+const { chatRepository } = require('./chat-database');
 
 function databaseOptions(env = process.env) {
   if (!env.DB_HOST || !env.DB_NAME || !env.DB_USER || !env.DB_PASSWORD) return null;
@@ -24,8 +25,8 @@ function repositoryForPool(pool) {
   async function capabilities(connection = pool) {
     const [schema] = await connection.execute('SELECT version FROM cl_schema WHERE id = 1');
     const schemaVersion = Number(schema[0]?.version);
-    if (![1, 2].includes(schemaVersion)) throw new Error('Schema incompativel.');
-    return { schemaVersion, departments: schemaVersion === 2 };
+    if (![1, 2, 3].includes(schemaVersion)) throw new Error('Schema incompativel.');
+    return { schemaVersion, departments: schemaVersion >= 2, ...(schemaVersion === 3 ? { chat: true } : {}) };
   }
   async function requireDepartments(connection = pool) {
     if (!(await capabilities(connection)).departments) throw failure(503);
@@ -56,6 +57,7 @@ function repositoryForPool(pool) {
   }
   const userFields = 'id, name, email, role, active';
   return {
+    ...chatRepository(pool, { transaction, capabilities }),
     capabilities,
     async status() {
       await capabilities();
@@ -168,6 +170,7 @@ function repositoryForPool(pool) {
       const name = Object.hasOwn(changes, 'name') ? departmentName(changes.name) : undefined;
       if (Object.hasOwn(changes, 'active') && typeof changes.active !== 'boolean') throw failure(400);
       return transaction(async connection => {
+        await connection.execute('SELECT id FROM cl_schema WHERE id = 1 FOR UPDATE');
         await requireDepartments(connection);
         await requireAdmin(connection, actorId, true);
         const [rows] = await connection.execute('SELECT id, name, active FROM cl_departments WHERE id = ? FOR UPDATE', [id]);
@@ -194,6 +197,7 @@ function repositoryForPool(pool) {
     async setDepartmentMember(actorId, departmentId, operatorId, member) {
       if (typeof member !== 'boolean') throw failure(400);
       return transaction(async connection => {
+        await connection.execute('SELECT id FROM cl_schema WHERE id = 1 FOR UPDATE');
         await requireDepartments(connection);
         await requireAdmin(connection, actorId, true);
         const [departments] = await connection.execute('SELECT id FROM cl_departments WHERE id = ? FOR UPDATE', [departmentId]);

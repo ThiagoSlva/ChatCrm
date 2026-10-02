@@ -120,7 +120,7 @@ function registerAuth(app, repository, env = process.env) {
       return { passwordChanged: true, authenticated: false };
     });
   });
-  return { authorize, throttle, hashWork, identityProperties: schema.body.properties };
+  return { authorize, throttle, hashWork, readToken, origin, secure, identityProperties: schema.body.properties };
 }
 
 module.exports = { registerAuth };

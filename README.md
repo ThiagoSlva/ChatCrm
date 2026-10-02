@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Estado atual: v0.4.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL, criação protegida do primeiro administrador, login, logout, gestão de operadores, troca da própria senha e departamentos com vínculos. As evidências de cada entrega e as verificações pendentes estão no andamento. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
+**Código v0.5.0: primeiro recorte de atendimento de texto, em homologação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, acesso da equipe, operadores, senha, departamentos e atendimento visitante/operador com histórico, fila e reenvio idempotente. O widget inicial abre a página do chat em nova aba, sem cookies de terceiros. Consulte o andamento para saber qual release foi efetivamente publicada e verificada. Outras instalações precisam configurar seu banco exclusivo, preparar o schema e habilitar explicitamente um canal. Leads, portal, campanhas e instalador completo seguem pendentes. Não use esta versão para atendimento real antes dos critérios de produção.
 
 ## Executar a base
 
@@ -14,7 +14,7 @@ npm start
 
 Abra `http://127.0.0.1:3000`. O servidor usa `HOST` e `PORT` do ambiente, com esses valores como padrão. Para testar MySQL, copie `.env.example` para `.env`, preencha as variáveis privadas e execute `npm run check:database`. O comando executa somente `SELECT 1`, sem criar tabelas ou alterar dados.
 
-Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa oferecer Node.js compatível e gerenciador de aplicações. A entrada atual é `app.js` em CommonJS. Compatibilidade com Passenger, instalação sem SSH e recursos de chat ainda precisam de homologação.
+Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa oferecer Node.js compatível e gerenciador de aplicações. A entrada local é `app.js` em CommonJS; o ambiente de testes usa `passenger.cjs`, releases isoladas e migração explícita. Instalação sem terminal e carga de atendimento ainda precisam de homologação.
 
 Para preparar o banco e criar o primeiro administrador, siga o [guia de instalação e acesso](docs/INSTALACAO-ACESSO.md). Abra `/acesso` após configurar o ambiente. Não existem credenciais padrão.
 
@@ -24,6 +24,8 @@ Administradores e operadores podem [trocar a própria senha](docs/SENHA.md), inf
 
 Administradores podem [organizar departamentos e vínculos](docs/DEPARTAMENTOS.md). Operadores veem somente suas áreas ativas. O módulo exige migração explícita v2; a aplicação mantém acesso/equipe em v1 enquanto a atualização é preparada.
 
+O [atendimento de texto](docs/CHAT-MVP.md) exige schema v3. Após migração, em `/acesso` crie um departamento, vincule os operadores e habilite sua entrada pública. A equipe abre `/atendimento`; visitantes abrem `/chat`. Copie o trecho do botão para o seu site. Departamentos internos permanecem privados por padrão. Não existe recuperação de histórico por nome ou e-mail; o visitante mantém o acesso somente enquanto seu cookie está válido.
+
 O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` exige parâmetros privados definidos para cada instalação; os exemplos publicados não expõem a conta ou os caminhos internos da hospedagem.
 
 Para retomar o desenvolvimento, leia a [memória do projeto](docs/MEMORIA-PROJETO.md), o [andamento](docs/ANDAMENTO.md) e as [orientações de contribuição](AGENTS.md).
@@ -32,7 +34,7 @@ O código original e os documentos usam [licença MIT](LICENSE). As dependência
 
 O canal será independente: não envia mensagens para números de WhatsApp. Visitantes e clientes precisam acessar o widget ou portal da empresa. O código será gratuito; hospedagem, domínio e serviços opcionais podem ter custos.
 
-Projeto planejado para um CRM e chat de código aberto, gratuito e auto-hospedado, com MySQL e instalação pelo cPanel. Node.js com TypeScript é o candidato principal após a revisão de hospedagem; a compatibilidade com um provedor real ainda precisa ser homologada. Cada empresa opera sua própria instalação e mantém os dados na sua hospedagem.
+Projeto para um CRM e chat de código aberto, gratuito e auto-hospedado, com Node.js, MySQL e instalação pelo cPanel. A base atual usa JavaScript/CommonJS e foi testada em hospedagem com Node 24/MariaDB. Cada empresa opera sua própria instalação e mantém os dados na sua hospedagem.
 
 ## Plano atual
 

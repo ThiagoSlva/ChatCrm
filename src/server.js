@@ -8,6 +8,7 @@ const { createRepository } = require('./database');
 const { registerAuth } = require('./auth');
 const { registerTeam } = require('./team');
 const { registerDepartments } = require('./departments');
+const { registerChat } = require('./chat');
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -24,7 +25,10 @@ function buildServer(options = {}) {
   const assets = [
     ['/styles.css', 'styles.css', 'text/css; charset=utf-8'],
     ['/status.js', 'status.js', 'application/javascript; charset=utf-8'],
-    ['/access.js', 'access.js', 'application/javascript; charset=utf-8']
+    ['/access.js', 'access.js', 'application/javascript; charset=utf-8'],
+    ['/chat.js', 'chat.js', 'application/javascript; charset=utf-8'],
+    ['/inbox.js', 'inbox.js', 'application/javascript; charset=utf-8'],
+    ['/widget.js', 'widget.js', 'application/javascript; charset=utf-8']
   ];
 
   app.addHook('onSend', async (request, reply, payload) => {
@@ -45,7 +49,7 @@ function buildServer(options = {}) {
     app.get(route, async (request, reply) => reply.type(contentType).send(content));
     app.get(versionedUrl, async (request, reply) => reply.type(contentType).send(content));
   }
-  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html']]) {
+  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html']]) {
     let content = fs.readFileSync(path.join(projectRoot, 'public', fileName), 'utf8');
     for (const [asset, url] of assetUrls) content = content.replaceAll(`="${asset}"`, `="${url}"`).replaceAll(`="/${asset}"`, `="${url}"`);
     app.get(route, async (request, reply) => reply.type('text/html; charset=utf-8').send(content));
@@ -54,20 +58,21 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.4.0',
+    version: '0.5.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'identity-base',
+    phase: 'text-chat-mvp',
     authenticationImplemented: true,
     operatorsImplemented: true,
     passwordChangeImplemented: true,
     departmentsImplemented: true,
     crmImplemented: false,
-    chatImplemented: false
+    chatImplemented: true
   }));
 
   const auth = registerAuth(app, repository, env);
   registerTeam(app, repository, auth);
   registerDepartments(app, repository, auth);
+  registerChat(app, repository, auth);
 
   app.setNotFoundHandler(async (request, reply) => {
     reply.code(404).send({ error: 'Rota nao encontrada.' });
