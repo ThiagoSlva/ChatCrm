@@ -1,11 +1,13 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.6.0: cadastro manual de contatos e leads publicado no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Funil, oportunidades, portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
+**v0.7.0: oportunidades com etapas e histórico em validação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Associação ao chat, portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
 
 [Contatos e leads](docs/CONTATOS-MVP.md) ficam em /contatos, com busca, filtros e edição que detecta alterações concorrentes. Exigem migração explícita v4 depois de backup privado e release compatível.
+
+[Oportunidades e histórico](docs/OPORTUNIDADES-MVP.md) ficam em /vendas, com contato autorizado, valor BRL e etapas manuais. Exigem schema5 após backup atualizado e release compatível. Consulte o andamento para confirmar publicação e verificações.
 
 ## Executar a base
 

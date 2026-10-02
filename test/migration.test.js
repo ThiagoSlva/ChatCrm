@@ -49,8 +49,21 @@ const contactColumns = [
   field('created_at', 'datetime'), field('updated_at', 'datetime')
 ].map(row => ({ Default: null, ...row }));
 const contactIndexes = [...index('PRIMARY', ['id']), ...index('idempotency', ['created_by', 'client_key']), ...index('queue', ['department_id', 'kind', 'updated_at', 'id'], 1)];
-const contactForeignKeys = [['department_id', 'cl_departments'], ['created_by', 'cl_users']].map(([columnName, referencedTable]) => ({ columnName, referencedTable, referencedColumn: 'id', deleteRule: 'RESTRICT', updateRule: 'RESTRICT' }));
+const contactForeignKeys = [['department_id', 'cl_departments'], ['created_by', 'cl_users']].map(([columnName, referencedTable]) => ({ columnName, referencedTable, referencedColumn: 'id', localSchema: 1, deleteRule: 'RESTRICT', updateRule: 'RESTRICT' }));
 const schema3Tables = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables];
+
+const opportunityTables = ['cl_opportunities', 'cl_opportunity_events'];
+const schema4Tables = [...schema3Tables, 'cl_contacts'];
+const opportunityColumns = {
+  cl_opportunities: [identity(), field('contact_id', 'int unsigned'), field('title', 'varchar(150)', { Collation: 'utf8mb4_unicode_ci' }), field('amount_cents', 'int unsigned', { Default: '0' }), field('stage', "enum('new','qualified','proposal','won','lost')", { Default: 'new', Collation: 'utf8mb4_unicode_ci' }), field('version', 'int unsigned', { Default: '1' }), field('created_by', 'int unsigned'), ascii('client_key', 32), ascii('request_hash', 64), field('created_at', 'datetime'), field('updated_at', 'datetime')],
+  cl_opportunity_events: [field('opportunity_id', 'int unsigned'), field('version', 'int unsigned'), field('actor_id', 'int unsigned'), field('title', 'varchar(150)', { Collation: 'utf8mb4_unicode_ci' }), field('amount_cents', 'int unsigned', { Default: '0' }), field('stage', "enum('new','qualified','proposal','won','lost')", { Collation: 'utf8mb4_unicode_ci' }), field('created_at', 'datetime')]
+};
+for (const table of opportunityTables) opportunityColumns[table] = opportunityColumns[table].map(row => ({ Default: null, ...row }));
+const opportunityIndexes = {
+  cl_opportunities: [...index('PRIMARY', ['id']), ...index('idempotency', ['created_by', 'client_key']), ...index('queue', ['contact_id', 'stage', 'updated_at', 'id'], 1)],
+  cl_opportunity_events: [...index('PRIMARY', ['opportunity_id', 'version']), ...index('actor_lookup', ['actor_id'], 1)]
+};
+const opportunityForeignKeys = [['cl_opportunities', 'contact_id', 'cl_contacts'], ['cl_opportunities', 'created_by', 'cl_users'], ['cl_opportunity_events', 'opportunity_id', 'cl_opportunities'], ['cl_opportunity_events', 'actor_id', 'cl_users']].map(([tableName, columnName, referencedTable]) => ({ tableName, columnName, referencedTable, referencedColumn: 'id', localSchema: 1, deleteRule: 'RESTRICT', updateRule: 'RESTRICT' }));
 
 function migrationConnection({ tables = [], version = null } = {}) {
   const state = { tables: new Set(tables), version, failTable: null, departmentIndexes: [...index('PRIMARY', ['id']), ...index('name_unique', ['name'])],
@@ -58,7 +71,7 @@ function migrationConnection({ tables = [], version = null } = {}) {
     departmentColumns: departmentColumns.map(row => ({ ...row })), engines: ['cl_departments', 'cl_department_members'].map(tableName => ({ tableName, engine: 'InnoDB' })),
     chatColumns: structuredClone(chatColumns), chatIndexes: structuredClone(chatIndexes), chatForeignKeys: structuredClone(chatForeignKeys), chatEngines: chatTables.map(tableName => ({ tableName, engine: 'InnoDB' })), coreEngines: ['cl_schema', 'cl_users', 'cl_sessions'].map(tableName => ({ tableName, engine: 'InnoDB' })),
     contactColumns: structuredClone(contactColumns), contactIndexes: structuredClone(contactIndexes), contactForeignKeys: structuredClone(contactForeignKeys),
-    contactTables: [{ tableName: 'cl_contacts', engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' }] };
+    contactTables: [{ tableName: 'cl_contacts', engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' }], opportunityColumns: structuredClone(opportunityColumns), opportunityIndexes: structuredClone(opportunityIndexes), opportunityForeignKeys: structuredClone(opportunityForeignKeys), opportunityEngines: opportunityTables.map(tableName => ({ tableName, engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' })) };
   const statements = [];
   const connection = {
     execute: async sql => {
@@ -67,6 +80,8 @@ function migrationConnection({ tables = [], version = null } = {}) {
       if (sql.startsWith('SELECT version')) return [state.version === null ? [] : [{ version: state.version }]];
       if (sql.startsWith('INSERT IGNORE INTO cl_schema')) { if (state.version === null) state.version = 0; }
       if (sql.startsWith('UPDATE cl_schema')) state.version = Number(sql.match(/version = (\d+)/)[1]);
+      if (sql.includes('KEY_COLUMN_USAGE') && sql.includes("TABLE_NAME IN ('cl_opportunities'")) return [state.opportunityForeignKeys];
+      if (sql.includes('information_schema.TABLES') && sql.includes("TABLE_NAME IN ('cl_opportunities'")) return [state.opportunityEngines];
       if (sql.includes('KEY_COLUMN_USAGE') && sql.includes("TABLE_NAME = 'cl_contacts'")) return [state.contactForeignKeys];
       if (sql.includes('information_schema.TABLES') && sql.includes("TABLE_NAME = 'cl_contacts'")) return [state.contactTables];
       if (sql.includes('KEY_COLUMN_USAGE')) return [sql.includes("TABLE_NAME IN ('cl_chat_") ? state.chatForeignKeys : state.foreignKeys];
@@ -88,6 +103,8 @@ function migrationConnection({ tables = [], version = null } = {}) {
       if (sql === 'SHOW COLUMNS FROM cl_department_members') return [memberColumns];
       if (sql === 'SHOW INDEX FROM cl_departments') return [state.departmentIndexes];
       if (sql === 'SHOW INDEX FROM cl_department_members') return [state.memberIndexes];
+      if (sql.startsWith('SHOW FULL COLUMNS FROM cl_') && state.opportunityColumns[sql.slice('SHOW FULL COLUMNS FROM '.length)]) return [state.opportunityColumns[sql.slice('SHOW FULL COLUMNS FROM '.length)]];
+      if (sql.startsWith('SHOW INDEX FROM cl_') && state.opportunityIndexes[sql.slice('SHOW INDEX FROM '.length)]) return [state.opportunityIndexes[sql.slice('SHOW INDEX FROM '.length)]];
       if (sql.startsWith('SHOW FULL COLUMNS FROM cl_')) {
         const table = sql.slice('SHOW FULL COLUMNS FROM '.length);
         if (state.chatColumns[table]) return [state.chatColumns[table]];
@@ -105,7 +122,7 @@ function migrationConnection({ tables = [], version = null } = {}) {
 
 test('migracao recusa banco de outro site antes de executar DDL e libera trava', async () => {
   const { connection, statements } = migrationConnection({ tables: ['wordpress_posts'] });
-  await assert.rejects(migrate(connection), /exclusivo/);
+  await assert.rejects(migrate(connection, { targetVersion: 4 }), /exclusivo/);
   assert.equal(statements.some(sql => sql.startsWith('CREATE')), false);
   assert.match(statements.at(-1), /RELEASE_LOCK/);
 });
@@ -194,11 +211,11 @@ test('defaults, engine e collation defeituosos impedem concluir v2 parcial', asy
   assert.equal(state.version, 2);
 });
 
-test('migracao padrao instala v4 sem publicar canais nem criar identidades', async () => {
+test('migracao padrao instala v5 sem publicar canais nem criar identidades', async () => {
   const { connection, statements, state } = migrationConnection();
-  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
-  assert.equal(state.version, 4);
-  assert.equal(state.tables.size, 11);
+  assert.deepEqual(await migrate(connection), { schemaVersion: 5 });
+  assert.equal(state.version, 5);
+  assert.equal(state.tables.size, 13);
   assert.deepEqual(state.departmentColumns.find(row => row.Field === 'public_chat'), publicColumn);
   assert.equal(statements.some(sql => /^(?:INSERT(?: IGNORE)? INTO|UPDATE|DELETE FROM) cl_(?:users|sessions|visitors|company)\b/.test(sql)), false);
   const mark = statements.indexOf('UPDATE cl_schema SET version = 3 WHERE id = 1');
@@ -206,6 +223,9 @@ test('migracao padrao instala v4 sem publicar canais nem criar identidades', asy
   const contactMark = statements.indexOf('UPDATE cl_schema SET version = 4 WHERE id = 1');
   assert.ok(mark < contactMark);
   assert.ok(statements.findIndex(sql => sql.includes('REFERENTIAL_CONSTRAINTS')) < contactMark);
+  const opportunityMark = statements.indexOf('UPDATE cl_schema SET version = 5 WHERE id = 1');
+  assert.ok(contactMark < opportunityMark);
+  assert.ok(statements.findIndex(sql => sql.includes("k.TABLE_NAME IN ('cl_opportunities'")) < opportunityMark);
   assert.ok(statements.filter(sql => sql.startsWith('CREATE TABLE')).every(sql => /ENGINE=InnoDB/.test(sql)));
   assert.match(statements.at(-1), /RELEASE_LOCK/);
 });
@@ -223,7 +243,7 @@ test('upgrade v2 adiciona somente entrada privada e quatro tabelas de chat', asy
 test('DDL v3 interrompido preserva marcador v2 e retoma sem repetir coluna publica', async () => {
   const { connection, statements, state } = migrationConnection({ tables: [...baseTables, 'cl_departments', 'cl_department_members'], version: 2 });
   state.failTable = 'cl_chat_messages';
-  await assert.rejects(migrate(connection), /Interrupcao/);
+  await assert.rejects(migrate(connection, { targetVersion: 4 }), /Interrupcao/);
   assert.equal(state.version, 2);
   assert.equal(state.tables.has('cl_visitors'), true);
   assert.equal(state.tables.has('cl_chat_conversations'), true);
@@ -262,7 +282,7 @@ test('estrutura v3 parcial defeituosa nunca e marcada pronta', async () => {
     if (defect === 'created-default') state.chatColumns.cl_visitors.find(row => row.Field === 'created_at').Default = null;
     if (defect === 'sequence-default') state.chatColumns.cl_chat_conversations.find(row => row.Field === 'last_sequence').Default = '1';
     if (defect === 'status-default') state.chatColumns.cl_chat_conversations.find(row => row.Field === 'status').Default = 'open';
-    await assert.rejects(migrate(connection), /incompativ/, defect);
+    await assert.rejects(migrate(connection, { targetVersion: 4 }), /incompativ/, defect);
     assert.equal(state.version, 2, defect);
     assert.equal(statements.some(sql => sql === 'UPDATE cl_schema SET version = 3 WHERE id = 1'), false, defect);
     assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -285,27 +305,27 @@ test('marcador v3 incompleto e chat antes de v2 falham antes de DDL', async () =
     { tables: [...baseTables, 'cl_departments', 'cl_visitors'], version: 1 }
   ]) {
     const { connection, statements } = migrationConnection(options);
-    await assert.rejects(migrate(connection), /incompleta|concluidos/);
+    await assert.rejects(migrate(connection, { targetVersion: 4 }), /incompleta|concluidos/);
     assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT)/.test(sql)), false);
   }
 });
 
 test('base marcada incompleta, versao futura e trava ocupada nao executam DDL', async () => {
-  for (const options of [{ tables: ['cl_schema'], version: 1 }, { tables: baseTables, version: 5 }]) {
+  for (const options of [{ tables: ['cl_schema'], version: 1 }, { tables: baseTables, version: 6 }]) {
     const { connection, statements } = migrationConnection(options);
-    await assert.rejects(migrate(connection));
+    await assert.rejects(migrate(connection, { targetVersion: 4 }));
     assert.equal(statements.some(sql => sql.startsWith('CREATE')), false);
   }
   const { connection, statements, state } = migrationConnection();
   state.acquired = 0;
-  await assert.rejects(migrate(connection), /andamento/);
+  await assert.rejects(migrate(connection, { targetVersion: 4 }), /andamento/);
   assert.equal(statements.length, 1);
 });
 
 test('upgrade v3 cria somente contatos e marca v4 apos verificar toda a estrutura', async () => {
   const { connection, statements, state } = migrationConnection({ tables: schema3Tables, version: 3 });
   state.departmentColumns.push({ ...publicColumn });
-  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 4 }), { schemaVersion: 4 });
   assert.equal(state.version, 4); assert.equal(state.tables.size, 11);
   const ddl = statements.filter(sql => /^(CREATE|ALTER|DROP)/.test(sql));
   assert.equal(ddl.length, 1); assert.match(ddl[0], /^CREATE TABLE IF NOT EXISTS cl_contacts /);
@@ -323,7 +343,7 @@ test('upgrade v4 interrompido preserva v3 e retoma tabela de contatos parcial', 
   const { connection, statements, state } = migrationConnection({ tables: schema3Tables, version: 3 });
   state.departmentColumns.push({ ...publicColumn });
   state.failTable = 'cl_contacts';
-  await assert.rejects(migrate(connection), /Interrupcao/);
+  await assert.rejects(migrate(connection, { targetVersion: 4 }), /Interrupcao/);
   assert.equal(state.version, 3); assert.equal(state.tables.has('cl_contacts'), false);
   assert.equal(statements.some(sql => sql === 'UPDATE cl_schema SET version = 4 WHERE id = 1'), false);
   // A table created before process interruption stays private until validated.
@@ -331,12 +351,12 @@ test('upgrade v4 interrompido preserva v3 e retoma tabela de contatos parcial', 
   const checkpoint = statements.length;
   assert.deepEqual(await migrate(connection, { targetVersion: 3 }), { schemaVersion: 3 });
   assert.equal(statements.slice(checkpoint).some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
-  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 4 }), { schemaVersion: 4 });
   assert.equal(state.version, 4);
 });
 
 test('contatos defeituosos nao sao marcados v4 nem reparados de forma destrutiva', async () => {
-  const defects = ['column-missing', 'column-extra', 'unsigned', 'auto-increment', 'nullable', 'name-length', 'email-default', 'company-default', 'kind-enum', 'kind-enum-case', 'kind-default', 'version-default', 'created-default', 'updated-default', 'generated', 'hash-collation', 'text-collation', 'engine', 'table-collation', 'primary', 'idempotency', 'queue-order', 'queue-unique', 'index-prefix', 'extra-unique-email', 'extra-unique-phone', 'foreign', 'delete-rule', 'update-rule'];
+  const defects = ['column-missing', 'column-extra', 'unsigned', 'auto-increment', 'nullable', 'name-length', 'email-default', 'company-default', 'kind-enum', 'kind-enum-case', 'kind-default', 'version-default', 'created-default', 'updated-default', 'generated', 'hash-collation', 'text-collation', 'engine', 'table-collation', 'primary', 'idempotency', 'queue-order', 'queue-unique', 'index-prefix', 'extra-unique-email', 'extra-unique-phone', 'foreign', 'foreign-schema', 'delete-rule', 'update-rule'];
   for (const defect of defects) {
     const { connection, statements, state } = migrationConnection({ tables: [...schema3Tables, 'cl_contacts'], version: 3 });
     state.departmentColumns.push({ ...publicColumn });
@@ -368,9 +388,10 @@ test('contatos defeituosos nao sao marcados v4 nem reparados de forma destrutiva
     if (defect === 'extra-unique-email') state.contactIndexes.push(...index('email_unique', ['email']));
     if (defect === 'extra-unique-phone') state.contactIndexes.push(...index('phone_unique', ['phone']));
     if (defect === 'foreign') state.contactForeignKeys.pop();
+    if (defect === 'foreign-schema') state.contactForeignKeys[0].localSchema = 0;
     if (defect === 'delete-rule') state.contactForeignKeys[0].deleteRule = 'CASCADE';
     if (defect === 'update-rule') state.contactForeignKeys[1].updateRule = 'CASCADE';
-    await assert.rejects(migrate(connection), /incompativ/, defect);
+    await assert.rejects(migrate(connection, { targetVersion: 4 }), /incompativ/, defect);
     assert.equal(state.version, 3, defect);
     assert.equal(statements.some(sql => /^(ALTER|DELETE|DROP)/.test(sql) || sql === 'UPDATE cl_schema SET version = 4 WHERE id = 1'), false, defect);
     assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -381,7 +402,7 @@ test('v4 concluido e idempotente, preserva v1-v3 explicitos e recusa downgrade',
   const { connection, statements, state } = migrationConnection({ tables: [...schema3Tables, 'cl_contacts'], version: 4 });
   state.departmentColumns.push({ ...publicColumn });
   state.contactIndexes.push(...index('email_lookup', ['email'], 1));
-  assert.deepEqual(await migrate(connection), { schemaVersion: 4 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 4 }), { schemaVersion: 4 });
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   for (const targetVersion of [1, 2, 3]) await assert.rejects(migrate(connection, { targetVersion }), /Downgrade/);
   assert.equal(state.version, 4);
@@ -391,13 +412,124 @@ test('marcador v4 incompleto ou contatos antes do chat recusam DDL', async () =>
   for (const options of [{ tables: schema3Tables, version: 4 }, { tables: [...baseTables, 'cl_departments', 'cl_department_members', 'cl_contacts'], version: 2 }]) {
     const { connection, statements, state } = migrationConnection(options);
     state.departmentColumns.push({ ...publicColumn });
-    await assert.rejects(migrate(connection), /incompleta|concluido/);
+    await assert.rejects(migrate(connection, { targetVersion: 4 }), /incompleta|concluido/);
     assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
     assert.match(statements.at(-1), /RELEASE_LOCK/);
   }
 });
 
-test('status e capacidades preservam v1-v3 e habilitam contatos em v4', async () => {
+test('upgrade v4 prepara apenas oportunidade e historico antes de marcar v5', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: schema4Tables, version: 4 });
+  state.departmentColumns.push({ ...publicColumn });
+  assert.deepEqual(await migrate(connection), { schemaVersion: 5 });
+  assert.equal(state.version, 5); assert.equal(state.tables.size, 13);
+  const ddl = statements.filter(sql => /^(CREATE|ALTER|DROP)/.test(sql));
+  assert.equal(ddl.length, 2);
+  assert.match(ddl[0], /^CREATE TABLE IF NOT EXISTS cl_opportunities /); assert.match(ddl[1], /^CREATE TABLE IF NOT EXISTS cl_opportunity_events /);
+  assert.match(ddl[0], /INDEX cl_opportunities_queue \(contact_id, stage, updated_at, id\)/);
+  assert.match(ddl[1], /PRIMARY KEY \(opportunity_id, version\)/);
+  assert.match(ddl[1], /stage ENUM\('new','qualified','proposal','won','lost'\) NOT NULL, created_at DATETIME NOT NULL/);
+  const marked = statements.indexOf('UPDATE cl_schema SET version = 5 WHERE id = 1');
+  assert.ok(statements.indexOf('SHOW FULL COLUMNS FROM cl_contacts') < statements.indexOf(ddl[0]));
+  assert.ok(statements.indexOf('SHOW INDEX FROM cl_opportunity_events') < marked);
+  assert.ok(statements.findIndex(sql => sql.includes("k.TABLE_NAME IN ('cl_opportunities'")) < marked);
+  assert.equal(statements.some(sql => /^(ALTER|DROP|DELETE)|^UPDATE cl_(?!schema\b)|^INSERT(?: IGNORE)? INTO cl_(?!schema\b)/.test(sql)), false);
+  assert.match(statements.at(-1), /RELEASE_LOCK/);
+});
+
+test('v5 interrompido preserva v4 e historico ausente e retomado sem downgrade', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: schema4Tables, version: 4 });
+  state.departmentColumns.push({ ...publicColumn }); state.failTable = 'cl_opportunity_events';
+  await assert.rejects(migrate(connection), /Interrupcao/);
+  assert.equal(state.version, 4); assert.equal(state.tables.has('cl_opportunities'), true); assert.equal(state.tables.has('cl_opportunity_events'), false);
+  assert.equal(statements.some(sql => sql === 'UPDATE cl_schema SET version = 5 WHERE id = 1'), false);
+  const checkpoint = statements.length;
+  assert.deepEqual(await migrate(connection, { targetVersion: 4 }), { schemaVersion: 4 });
+  assert.equal(statements.slice(checkpoint).some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+  state.failTable = null;
+  assert.deepEqual(await migrate(connection), { schemaVersion: 5 });
+  assert.equal(state.tables.size, 13);
+});
+
+test('schemas parciais de oportunidade e evento nunca sao marcados v5', async () => {
+  const defects = ['column', 'extra-column', 'unsigned', 'title', 'nullable', 'amount-default', 'stage-enum', 'stage-case', 'stage-default', 'version-default', 'created-default', 'updated-extra', 'auto-increment', 'hash-collation', 'title-collation', 'event-stage-default', 'event-version-default', 'event-amount-default', 'event-created-default', 'event-null', 'event-title', 'engine', 'event-engine', 'table-collation', 'primary', 'idempotency', 'queue-order', 'queue-unique', 'index-prefix', 'extra-unique-contact', 'event-primary', 'event-key-order', 'event-extra-unique', 'foreign', 'foreign-schema', 'delete-rule', 'update-rule', 'referenced-table'];
+  for (const defect of defects) {
+    const { connection, statements, state } = migrationConnection({ tables: [...schema4Tables, ...opportunityTables], version: 4 });
+    state.departmentColumns.push({ ...publicColumn });
+    const opp = name => state.opportunityColumns.cl_opportunities.find(row => row.Field === name);
+    const event = name => state.opportunityColumns.cl_opportunity_events.find(row => row.Field === name);
+    if (defect === 'column') state.opportunityColumns.cl_opportunities.pop();
+    if (defect === 'extra-column') state.opportunityColumns.cl_opportunity_events.push(field('hidden', 'int unsigned', { Default: null }));
+    if (defect === 'unsigned') opp('contact_id').Type = 'int';
+    if (defect === 'title') opp('title').Type = 'varchar(151)';
+    if (defect === 'nullable') opp('amount_cents').Null = 'YES';
+    if (defect === 'amount-default') opp('amount_cents').Default = '1';
+    if (defect === 'stage-enum') opp('stage').Type = "enum('new','qualified','proposal','won')";
+    if (defect === 'stage-case') opp('stage').Type = "enum('NEW','qualified','proposal','won','lost')";
+    if (defect === 'stage-default') opp('stage').Default = 'won';
+    if (defect === 'version-default') opp('version').Default = '0';
+    if (defect === 'created-default') opp('created_at').Default = 'CURRENT_TIMESTAMP';
+    if (defect === 'updated-extra') opp('updated_at').Extra = 'on update CURRENT_TIMESTAMP';
+    if (defect === 'auto-increment') opp('id').Extra = '';
+    if (defect === 'hash-collation') opp('client_key').Collation = 'ascii_general_ci';
+    if (defect === 'title-collation') opp('title').Collation = 'utf8mb4_general_ci';
+    if (defect === 'event-stage-default') event('stage').Default = 'new';
+    if (defect === 'event-version-default') event('version').Default = '1';
+    if (defect === 'event-amount-default') event('amount_cents').Default = null;
+    if (defect === 'event-created-default') event('created_at').Default = 'CURRENT_TIMESTAMP';
+    if (defect === 'event-null') event('actor_id').Null = 'YES';
+    if (defect === 'event-title') event('title').Type = 'varchar(100)';
+    if (defect === 'engine') state.opportunityEngines[0].engine = 'MyISAM';
+    if (defect === 'event-engine') state.opportunityEngines[1].engine = 'MyISAM';
+    if (defect === 'table-collation') state.opportunityEngines[1].tableCollation = 'utf8mb4_bin';
+    if (defect === 'primary') state.opportunityIndexes.cl_opportunities = state.opportunityIndexes.cl_opportunities.filter(row => row.Key_name !== 'PRIMARY');
+    if (defect === 'idempotency') state.opportunityIndexes.cl_opportunities = state.opportunityIndexes.cl_opportunities.filter(row => row.Key_name !== 'idempotency');
+    if (defect === 'queue-order') state.opportunityIndexes.cl_opportunities = [...index('PRIMARY', ['id']), ...index('idempotency', ['created_by', 'client_key']), ...index('queue', ['contact_id', 'updated_at', 'stage', 'id'], 1)];
+    if (defect === 'queue-unique') state.opportunityIndexes.cl_opportunities.filter(row => row.Key_name === 'queue').forEach(row => { row.Non_unique = 0; });
+    if (defect === 'index-prefix') state.opportunityIndexes.cl_opportunities.find(row => row.Column_name === 'client_key').Sub_part = 16;
+    if (defect === 'extra-unique-contact') state.opportunityIndexes.cl_opportunities.push(...index('one_per_contact', ['contact_id']));
+    if (defect === 'event-primary') state.opportunityIndexes.cl_opportunity_events = index('actor_lookup', ['actor_id'], 1);
+    if (defect === 'event-key-order') state.opportunityIndexes.cl_opportunity_events = index('PRIMARY', ['version', 'opportunity_id']);
+    if (defect === 'event-extra-unique') state.opportunityIndexes.cl_opportunity_events.push(...index('single_version', ['version']));
+    if (defect === 'foreign') state.opportunityForeignKeys.pop();
+    if (defect === 'foreign-schema') state.opportunityForeignKeys[3].localSchema = 0;
+    if (defect === 'delete-rule') state.opportunityForeignKeys[0].deleteRule = 'CASCADE';
+    if (defect === 'update-rule') state.opportunityForeignKeys[3].updateRule = 'CASCADE';
+    if (defect === 'referenced-table') state.opportunityForeignKeys[0].referencedTable = 'cl_users';
+    await assert.rejects(migrate(connection), /incompativ/, defect);
+    assert.equal(state.version, 4, defect);
+    assert.equal(statements.some(sql => /^(ALTER|DROP|DELETE)/.test(sql) || sql === 'UPDATE cl_schema SET version = 5 WHERE id = 1'), false, defect);
+    assert.match(statements.at(-1), /RELEASE_LOCK/);
+  }
+});
+
+test('v5 valida contatos anteriores antes de preparar novas tabelas', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: schema4Tables, version: 4 });
+  state.departmentColumns.push({ ...publicColumn }); state.contactColumns.find(row => row.Field === 'request_hash').Collation = 'ascii_general_ci';
+  await assert.rejects(migrate(connection), /incompativ/);
+  assert.equal(state.version, 4); assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+});
+
+test('v5 completo e idempotente e recusa downgrade para todos targets anteriores', async () => {
+  const { connection, statements, state } = migrationConnection({ tables: [...schema4Tables, ...opportunityTables], version: 5 });
+  state.departmentColumns.push({ ...publicColumn }); state.opportunityIndexes.cl_opportunity_events.push(...index('title_lookup', ['title'], 1));
+  assert.deepEqual(await migrate(connection), { schemaVersion: 5 });
+  assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+  for (const targetVersion of [1, 2, 3, 4]) await assert.rejects(migrate(connection, { targetVersion }), /Downgrade/);
+  assert.equal(state.version, 5);
+});
+
+test('marker5 incompleto e oportunidade antes de contatos recusam DDL', async () => {
+  for (const options of [{ tables: [...schema4Tables, 'cl_opportunities'], version: 5 }, { tables: [...schema3Tables, ...opportunityTables], version: 3 }]) {
+    const { connection, statements, state } = migrationConnection(options);
+    state.departmentColumns.push({ ...publicColumn });
+    await assert.rejects(migrate(connection), /incompleta|concluidos/);
+    assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
+    assert.match(statements.at(-1), /RELEASE_LOCK/);
+  }
+});
+
+test('status e capacidades preservam v1-v4 e habilitam oportunidades em v5', async () => {
   let version = 1;
   const statements = [];
   const pool = { execute: async sql => { statements.push(sql); return sql.startsWith('SELECT version') ? [[{ version }]] : [[{ id: 1 }]]; } };
@@ -417,6 +549,9 @@ test('status e capacidades preservam v1-v3 e habilitam contatos em v4', async ()
   version = 4;
   assert.equal(await repository.status(), 'installed');
   assert.deepEqual(await repository.capabilities(), { schemaVersion: 4, departments: true, chat: true, contacts: true });
+  version = 5;
+  assert.equal(await repository.status(), 'installed');
+  assert.deepEqual(await repository.capabilities(), { schemaVersion: 5, departments: true, chat: true, contacts: true, opportunities: true });
   version = 0;
   await assert.rejects(repository.capabilities(), /incompativel/);
 });

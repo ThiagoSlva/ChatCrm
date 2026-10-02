@@ -24,10 +24,17 @@ async function preservationFingerprint(connection) {
   ];
   const [schema] = await connection.execute('SELECT version FROM cl_schema WHERE id = 1');
   if (Number(schema[0]?.version) >= 4) tables.push(['cl_contacts', 'id, department_id, name, email, phone, company, kind, version, created_by, client_key, request_hash, created_at, updated_at', 'id']);
+  if (Number(schema[0]?.version) >= 5) tables.push(
+    ['cl_opportunities', 'id, contact_id, title, amount_cents, stage, version, created_by, client_key, request_hash, created_at, updated_at', 'id'],
+    ['cl_opportunity_events', 'opportunity_id, version, actor_id, title, amount_cents, stage, created_at', 'opportunity_id, version']
+  );
   const fingerprints = [];
   for (const [table, fields, order] of tables) {
     const [rows] = await connection.query(`SELECT SHA2(JSON_ARRAY(${fields}), 256) AS fingerprint FROM ${table} ORDER BY ${order}`);
-    fingerprints.push([table, rows.map(row => row.fingerprint)]);
+    const [ddl] = await connection.query('SHOW CREATE TABLE ' + table);
+    // Compare logical schema; InnoDB may consume AUTO_INCREMENT numbers on rollback.
+    const definition = String(Object.values(ddl[0])[1]).replace(/\bAUTO_INCREMENT=\d+\b/gi, '').replace(/\s+/g, ' ').trim();
+    fingerprints.push([table, rows.map(row => row.fingerprint), digest(definition)]);
   }
   return digest(JSON.stringify(fingerprints));
 }
@@ -57,8 +64,10 @@ async function verifyChatDatabase(connection) {
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
     const capabilities = await repository.capabilities();
-    assert.equal([3, 4].includes(capabilities.schemaVersion), true);
+    assert.equal([3, 4, 5].includes(capabilities.schemaVersion), true);
     assert.equal(capabilities.departments, true); assert.equal(capabilities.chat, true);
+    if (capabilities.schemaVersion >= 4) assert.equal(capabilities.contacts, true);
+    if (capabilities.schemaVersion >= 5) assert.equal(capabilities.opportunities, true);
     await verifyDepartmentSchema(connection);
     await verifyChatSchema(connection);
     checks.push('schema-v3-defaults-indexes-foreign-keys');

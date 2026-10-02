@@ -47,11 +47,12 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2, 3, 4].includes(capabilities?.schemaVersion), true);
+    assert.equal([1, 2, 3, 4, 5].includes(capabilities?.schemaVersion), true);
     assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
     if (capabilities.schemaVersion >= 3) assert.equal(capabilities.chat, true);
     else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);
     assert.equal(capabilities.contacts === true, capabilities.schemaVersion >= 4);
+    assert.equal(capabilities.opportunities === true, capabilities.schemaVersion >= 5);
     checks.push('capabilities');
     const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
     if (profile.data.user.role === 'admin') {
@@ -158,6 +159,42 @@ async function verifyAccess(origin, credentials) {
           assert.equal((await request('/api/crm/contacts/4294967295', 'GET', null, { Cookie: cookie })).response.status, 404);
           checks.push('contacts-absent-detail-denied');
         }
+      }
+
+      if (capabilities.opportunities) {
+        assert.equal((await request('/api/crm/opportunities', 'GET')).response.status, 401);
+        checks.push('opportunities-anonymous-denied');
+        const list = await request('/api/crm/opportunities?page=1&limit=20', 'GET', null, { Cookie: cookie });
+        assert.equal(list.response.status, 200); assert.equal(Array.isArray(list.data.opportunities), true);
+        assert.equal(Number.isInteger(list.data.total) && list.data.total >= 0 && list.data.total <= 5000, true);
+        assert.equal(list.data.page, 1); assert.equal(list.data.limit, 20); assert.equal(list.data.opportunities.length <= 20, true);
+        const safeFields = ['amountCents','contactId','contactName','createdAt','currency','departmentId','departmentName','id','stage','title','updatedAt','version'];
+        for (const row of list.data.opportunities) {
+          assert.deepEqual(Object.keys(row).sort(), safeFields);
+          assert.equal(['new','qualified','proposal','won','lost'].includes(row.stage), true);
+          assert.equal(Number.isInteger(row.amountCents) && row.amountCents >= 0 && row.amountCents <= 999999999, true); assert.equal(row.currency, 'BRL');
+        }
+        checks.push('opportunities-team-read-safe-fields');
+        const filtered = await request('/api/crm/opportunities?stage=new&q=Verification%25_!%5C', 'GET', null, { Cookie: cookie });
+        assert.equal(filtered.response.status, 200); assert.equal(Array.isArray(filtered.data.opportunities), true);
+        assert.equal(filtered.data.opportunities.every(row => row.stage === 'new'), true);
+        checks.push('opportunities-filters-literal-read');
+        for (const query of ['stage=invalid','stage=new&stage=lost','q=a&q=b','q=%00','extra=1','contactId=0']) {
+          assert.equal((await request('/api/crm/opportunities?' + query, 'GET', null, { Cookie: cookie })).response.status, 400);
+        }
+        checks.push('opportunities-invalid-filters-denied');
+        const id = list.data.opportunities[0]?.id || 4294967295;
+        const detail = await request('/api/crm/opportunities/' + id, 'GET', null, { Cookie: cookie });
+        assert.equal(detail.response.status, list.data.opportunities.length ? 200 : 404);
+        if (list.data.opportunities.length) assert.deepEqual(Object.keys(detail.data.opportunity).sort(), safeFields);
+        checks.push(list.data.opportunities.length ? 'opportunities-authorized-detail' : 'opportunities-absent-detail-denied');
+        const events = await request('/api/crm/opportunities/' + id + '/events?page=1&limit=20', 'GET', null, { Cookie: cookie });
+        assert.equal(events.response.status, list.data.opportunities.length ? 200 : 404);
+        if (list.data.opportunities.length) {
+          assert.equal(Array.isArray(events.data.events), true);
+          for (const row of events.data.events) assert.deepEqual(Object.keys(row).sort(), ['actorName','amountCents','createdAt','stage','title','version']);
+        }
+        checks.push(list.data.opportunities.length ? 'opportunities-history-authorized-read' : 'opportunities-history-absent-denied');
       }
     } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }
     assert.equal((await request('/api/auth/logout', 'POST', {}, { Cookie: cookie })).response.status, 403);

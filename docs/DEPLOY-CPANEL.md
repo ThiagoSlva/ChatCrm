@@ -52,3 +52,6 @@ A v0.5.1 mantém schema v3 e bootstrap existente. Não executar migração nem a
 
 
 v0.6.0 adiciona contatos e schema v4. Publique e valide compatibilidade de acesso/departamentos/chat em v3 antes de executar DDL; contatos deve informar preparação pendente. Crie backup privado atualizado das dez tabelas e preserve release v0.6 compatível. Migre explicitamente, confirme preservação e execute verify-contacts-database.js, chat e HTTPS, conferindo o hash. Depois de v4, v0.5 não aceita o schema: não diminuir marcador nem apagar tabelas. [Recorte, contrato e comandos de contatos](CONTATOS-MVP.md). O cron e o bootstrap não mudam.
+
+
+v0.7.0 adiciona oportunidades e histórico no schema v5. Publique a aplicação compatível e valide acesso/contatos/chat em v4; apenas vendas deve aguardar preparação. Faça backup privado atualizado das onze tabelas e preserve release v0.7 compatível antes de migrar explicitamente. Confirme preservação dos registros e canais e execute verificadores SQL/HTTPS. v0.6 não aceita5: não reduzir marcador, apagar tabelas ou recuperar código anterior incompatível. Cron e bootstrap permanecem iguais. [Contrato e procedimento](OPORTUNIDADES-MVP.md).
