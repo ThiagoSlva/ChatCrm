@@ -102,6 +102,32 @@ async function verifyAccess(origin, credentials) {
         assert.equal(inbox.data.conversations.length <= 20, true);
         for (const conversation of inbox.data.conversations) assert.deepEqual(Object.keys(conversation).sort(), ['assignedTo', 'departmentId', 'departmentName', 'id', 'status', 'updatedAt', 'visitorName']);
         checks.push('chat-team-admin-read');
+        const filtered = await request('/api/chat/team/conversations?page=1&limit=20&status=active&assignment=me&q=Verification%25_!%5C', 'GET', null, { Cookie: cookie });
+        assert.equal(filtered.response.status, 200);
+        assert.equal(Array.isArray(filtered.data.conversations), true);
+        assert.equal(Number.isInteger(filtered.data.total) && filtered.data.total >= 0, true);
+        assert.equal(filtered.data.page, 1); assert.equal(filtered.data.limit, 20);
+        for (const conversation of filtered.data.conversations) {
+          assert.equal(['waiting', 'open'].includes(conversation.status), true);
+          assert.equal(conversation.assignedTo, profile.data.user.id);
+        }
+        checks.push('chat-filters-https-read');
+        for (const query of ['status=invalid', 'assignment=invalid', 'status=open&status=closed', 'q=a&q=b', 'q=%00', 'extra=1']) {
+          assert.equal((await request('/api/chat/team/conversations?' + query, 'GET', null, { Cookie: cookie })).response.status, 400);
+        }
+        checks.push('chat-filters-invalid-denied');
+        assert.equal((await request('/api/chat/team/conversations/4294967295', 'GET')).response.status, 401);
+        checks.push('chat-detail-anonymous-denied');
+        if (inbox.data.conversations.length) {
+          const detail = await request('/api/chat/team/conversations/' + inbox.data.conversations[0].id, 'GET', null, { Cookie: cookie });
+          assert.equal(detail.response.status, 200);
+          assert.deepEqual(Object.keys(detail.data.conversation).sort(), ['assignedTo', 'departmentId', 'departmentName', 'id', 'status', 'updatedAt', 'visitorName']);
+          assert.equal(detail.data.conversation.id, inbox.data.conversations[0].id);
+          checks.push('chat-detail-authorized-read');
+        } else {
+          assert.equal((await request('/api/chat/team/conversations/4294967295', 'GET', null, { Cookie: cookie })).response.status, 404);
+          checks.push('chat-detail-absent-denied');
+        }
       }
     } else { assert.equal(team.response.status, 403); checks.push('team-operator-denied'); }
     assert.equal((await request('/api/auth/logout', 'POST', {}, { Cookie: cookie })).response.status, 403);

@@ -147,10 +147,19 @@ function fixture(t, options = {}) {
     sendVisitorMessage: async (token, id, data) => serial(() => {
       const identity = visitor(token); return send(ownConversation(token, id), 'visitor', identity.id, data);
     }),
-    listChatConversations: async (actorId, token, page, limit) => {
-      calls.push(['listChatConversations', actorId, token]); team(actorId, token);
-      const all = conversations.filter(item => teamConversation(actorId, token, item.id)).sort((a, b) => b.id - a.id).map(safeConversation);
+    listChatConversations: async (actorId, token, page, limit, filters = {}) => {
+      const { status = 'all', assignment = 'any', q = '' } = filters;
+      calls.push(['listChatConversations', actorId, token, page, limit, { status, assignment, q }]); team(actorId, token);
+      const all = conversations.filter(item => teamConversation(actorId, token, item.id)).sort((a, b) => b.id - a.id).map(safeConversation)
+        .filter(item => status === 'all' || (status === 'active' ? item.status !== 'closed' : item.status === status))
+        .filter(item => assignment === 'any' || (assignment === 'me' ? item.assignedTo === actorId : item.assignedTo === null))
+        .filter(item => [item.visitorName, item.departmentName].some(name => name.normalize('NFC').toLowerCase().includes(q.toLowerCase())));
       return { conversations: all.slice((page - 1) * limit, page * limit), total: all.length, page, limit };
+    },
+    teamConversation: async (actorId, token, id) => {
+      calls.push(['teamConversation', actorId, token, id]);
+      const conversation = teamConversation(actorId, token, id);
+      return conversation ? { conversation: safeConversation(conversation) } : null;
     },
     teamMessages: async (actorId, token, id, after, limit) => {
       calls.push(['teamMessages', actorId, token]); return history(teamConversation(actorId, token, id), after, limit);
@@ -243,7 +252,7 @@ test('visitante anonimo e cookie malformado nao acessam conversas ou mensagens',
 test('equipe anonima e sessao publica nao acessam rotas privadas do chat', async t => {
   const { request, visitorHeaders } = fixture(t);
   for (const [method, url, payload] of [
-    ['GET', '/channels/10'], ['PUT', '/channels/10', { enabled: false }], ['GET', '/conversations'],
+    ['GET', '/channels/10'], ['PUT', '/channels/10', { enabled: false }], ['GET', '/conversations'], ['GET', '/conversations/101'],
     ['GET', '/conversations/101/messages'], ['POST', '/conversations/101/messages', { text: 'Forjado', clientKey: clientKey() }],
     ['POST', '/conversations/101/claim', {}], ['POST', '/conversations/101/release', {}], ['POST', '/conversations/101/close', {}]
   ]) {
@@ -327,6 +336,141 @@ test('fila de equipe e historico respeitam vinculo atual e recebem token da sess
   assert.equal((await u('GET', '/conversations/101/messages', undefined, 1)).statusCode, 404);
   assert.deepEqual((await u('GET', '/conversations', undefined, 1)).json().conversations, []);
   assert.equal((await u('POST', '/conversations/101/claim', {}, 1)).statusCode, 404);
+});
+
+test('fila sem filtros preserva contrato anterior e repassa valores normalizados com token', async t => {
+  const { u, calls, teamTokens } = fixture(t);
+  const response = await u('GET', '/conversations', undefined, 1);
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json().conversations.map(row => row.id), [105, 101]);
+  assert.deepEqual({ ...response.json(), conversations: [] }, { conversations: [], total: 2, page: 1, limit: 20 });
+  assert.deepEqual(calls.at(-1), ['listChatConversations', 2, teamTokens[1], 1, 20, { status: 'all', assignment: 'any', q: '' }]);
+  const emptySearch = await u('GET', '/conversations?status=all&assignment=any&q=', undefined, 1);
+  assert.deepEqual(emptySearch.json(), response.json());
+});
+
+test('status e responsavel combinam filtros dentro da area autorizada antes de paginar', async t => {
+  const { u } = fixture(t);
+  assert.equal((await u('POST', '/conversations/101/claim', {}, 1)).statusCode, 200);
+  const cases = [
+    ['', 0, [105, 104, 102, 101]], ['status=active', 0, [102, 101]],
+    ['status=waiting', 0, [102]], ['status=open', 0, [101]], ['status=closed', 0, [105, 104]],
+    ['assignment=me', 1, [105, 101]], ['status=closed&assignment=me', 1, [105]],
+    ['status=active&assignment=me', 1, [101]], ['assignment=unassigned', 0, [104, 102]],
+    ['status=active&assignment=unassigned', 0, [102]], ['status=waiting&assignment=me', 1, []],
+    ['status=active&assignment=unassigned', 1, []], ['assignment=me', 2, []]
+  ];
+  for (const [query, actor, expected] of cases) {
+    const response = await u('GET', '/conversations?' + query, undefined, actor);
+    assert.equal(response.statusCode, 200, query);
+    assert.deepEqual(response.json().conversations.map(row => row.id), expected, query);
+    assert.equal(response.json().total, expected.length, query);
+  }
+  const first = await u('GET', '/conversations?assignment=me&page=1&limit=1', undefined, 1);
+  const second = await u('GET', '/conversations?assignment=me&page=2&limit=1', undefined, 1);
+  const beyond = await u('GET', '/conversations?assignment=me&page=3&limit=1', undefined, 1);
+  assert.deepEqual(first.json().conversations.map(row => row.id), [105]);
+  assert.deepEqual(second.json().conversations.map(row => row.id), [101]);
+  assert.deepEqual(beyond.json(), { conversations: [], total: 2, page: 3, limit: 1 });
+});
+
+test('busca normaliza NFC e trata porcento underline exclamacao e barra como texto literal', async t => {
+  const { u, visitors, departments, calls } = fixture(t);
+  [...visitors.values()][0].name = 'José 100%_!\\ literal';
+  departments[1].name = 'Suporte especial %_!\\';
+  const search = (q, actor = 1) => u('GET', '/conversations?q=' + encodeURIComponent(q), undefined, actor);
+  for (const q of ['%', '_', '!', '\\', '%_!\\']) {
+    const response = await search(q);
+    assert.equal(response.statusCode, 200, q);
+    assert.deepEqual(response.json().conversations.map(row => row.id), [105, 101], q);
+    assert.equal(response.json().total, 2);
+  }
+  const unicode = await search('  Jose\u0301  ');
+  assert.deepEqual(unicode.json().conversations.map(row => row.id), [105, 101]);
+  assert.equal(calls.at(-1)[5].q, 'José');
+  const area = await search('Suporte especial %_!\\', 0);
+  assert.deepEqual(area.json().conversations.map(row => row.id), [102]);
+  assert.equal((await search('Suporte', 1)).json().total, 0);
+  for (const q of ["' OR 1=1 --", '100%_!\\ desconhecido', '<script>alert(1)</script>', '123', 'x'.repeat(100)]) {
+    const response = await search(q, 0);
+    assert.equal(response.statusCode, 200, q);
+    assert.deepEqual(response.json().conversations, []);
+    assert.equal(response.json().total, 0);
+  }
+  const combined = await u('GET', '/conversations?status=closed&assignment=me&q=' + encodeURIComponent('%_!\\'), undefined, 1);
+  assert.deepEqual(combined.json().conversations.map(row => row.id), [105]);
+  assert.equal(combined.json().total, 1);
+});
+
+test('filtros invalidos extras duplicados e controles sao recusados antes de consultar fila', async t => {
+  const { u, calls } = fixture(t);
+  const queries = [
+    'status=unknown', 'status=ACTIVE', 'status=', 'assignment=other', 'assignment=ME', 'assignment=',
+    'q=' + encodeURIComponent('x'.repeat(101)), 'q=' + encodeURIComponent(' ' + 'x'.repeat(100)),
+    ...['\u0000', '\u0001', '\n', '\r', '\t', '\u007f'].map(char => 'q=' + encodeURIComponent('nome' + char)),
+    'status=all&status=closed', 'assignment=any&assignment=me', 'q=um&q=dois',
+    'page=1&page=2', 'limit=1&limit=2', 'q[]=um', 'status[]=all', 'assignment[]=me',
+    'q=Vendas&departmentId=20', 'status=all&userId=1', 'assignment=me&token=forged'
+  ];
+  for (const query of queries) assert.equal((await u('GET', '/conversations?' + query, undefined, 1)).statusCode, 400, query);
+  assert.equal(calls.some(call => call[0] === 'listChatConversations'), false);
+});
+
+test('detalhe seguro permanece autorizado quando assumir retira conversa da fila sem responsavel', async t => {
+  const { u, calls, teamTokens, departments } = fixture(t);
+  const before = await u('GET', '/conversations?status=active&assignment=unassigned', undefined, 1);
+  assert.deepEqual(before.json().conversations.map(row => row.id), [101]);
+  assert.equal((await u('POST', '/conversations/101/claim', {}, 1)).statusCode, 200);
+  const after = await u('GET', '/conversations?status=active&assignment=unassigned', undefined, 1);
+  assert.deepEqual(after.json(), { conversations: [], total: 0, page: 1, limit: 20 });
+  departments[0].enabled = false;
+  const detail = await u('GET', '/conversations/101', undefined, 1);
+  assert.equal(detail.statusCode, 200);
+  assert.deepEqual(detail.json(), { conversation: {
+    id: 101, departmentId: 10, departmentName: 'Vendas', visitorName: 'Visitante 1',
+    status: 'open', assignedTo: 2, updatedAt: '2026-10-02T00:00:00.000Z'
+  } });
+  assert.deepEqual(calls.at(-1), ['teamConversation', 2, teamTokens[1], 101]);
+  for (const privateField of ['visitorId', 'email', 'password', 'token', 'clientKey', 'last_sequence']) assert.equal(detail.body.includes(privateField), false);
+  assert.equal((await u('POST', '/conversations/101/messages', { text: 'Ainda posso responder', clientKey: clientKey() }, 1)).statusCode, 201);
+  assert.equal((await u('GET', '/conversations/104')).statusCode, 200);
+  for (const id of [102, 103, 104, 999]) assert.equal((await u('GET', '/conversations/' + id, undefined, 1)).statusCode, 404);
+});
+
+test('detalhe e contagem filtrada perdem acesso com vinculo removido e area desativada na mesma sessao', async t => {
+  const { u, memberships, departments } = fixture(t);
+  assert.equal((await u('GET', '/conversations/105', undefined, 1)).statusCode, 200);
+  memberships.delete('10:2');
+  assert.equal((await u('GET', '/conversations/105', undefined, 1)).statusCode, 404);
+  assert.deepEqual((await u('GET', '/conversations?status=closed&assignment=me&q=Visitante', undefined, 1)).json(), { conversations: [], total: 0, page: 1, limit: 20 });
+  memberships.add('10:2');
+  assert.equal((await u('GET', '/conversations/105', undefined, 1)).statusCode, 200);
+  departments[0].active = false;
+  assert.equal((await u('GET', '/conversations/105', undefined, 1)).statusCode, 404);
+  assert.equal((await u('GET', '/conversations/105')).statusCode, 404);
+  assert.equal((await u('GET', '/conversations?assignment=me', undefined, 1)).json().total, 0);
+  departments[0].active = true;
+  assert.equal((await u('GET', '/conversations/105', undefined, 1)).statusCode, 200);
+});
+
+test('leituras de detalhe e fila revalidam sessao ator vinculo e area depois da autenticacao', async t => {
+  for (const revoke of ['session', 'inactive', 'membership', 'department']) {
+    for (const route of ['/conversations/101', '/conversations?status=active&assignment=unassigned&q=Visitante']) {
+      const { u, repository, teamTokens, teamSessions, users, memberships, departments } = fixture(t);
+      const original = repository.session;
+      repository.session = async token => {
+        const identity = await original(token);
+        if (revoke === 'session') teamSessions.delete(digest(teamTokens[1]));
+        else if (revoke === 'inactive') users[1].active = false;
+        else if (revoke === 'membership') memberships.delete('10:2');
+        else departments[0].active = false;
+        return identity;
+      };
+      const response = await u('GET', route, undefined, 1);
+      assert.equal(response.statusCode, ['session', 'inactive'].includes(revoke) ? 401 : (route.includes('/101') ? 404 : 200), revoke + route);
+      if (response.statusCode === 200) assert.deepEqual(response.json(), { conversations: [], total: 0, page: 1, limit: 20 });
+    }
+  }
 });
 
 test('duas assuncoes tem um vencedor e somente responsavel responde', async t => {
@@ -467,6 +611,7 @@ test('IDs cursores e paginacao tem limites e nao aceitam filtros de outra identi
   for (const id of ['0', '-1', '1.5', '4294967296', 'abc', '1%20OR%201=1']) {
     assert.equal((await v('GET', '/conversations/' + id + '/messages')).statusCode, 400);
     assert.equal((await u('POST', '/conversations/' + id + '/claim', {}, 1)).statusCode, 400);
+    assert.equal((await u('GET', '/conversations/' + id, undefined, 1)).statusCode, 400);
     assert.equal((await u('GET', '/channels/' + id)).statusCode, 400);
   }
   for (const query of ['after=-1', 'after=1.5', 'after=4294967296', 'limit=0', 'limit=51', 'visitorId=2', 'userId=1', 'after=0%20OR%201=1']) {
@@ -542,7 +687,7 @@ test('sessoes novas por endereco nao confiam em cabecalho proxy arbitrario', asy
 test('schemas antigos preservam acesso e departamentos enquanto chat retorna503', async t => {
   for (const schemaVersion of [1, 2]) {
     const { request, u, v, repository, teamHeaders } = fixture(t, { schemaVersion });
-    for (const method of ['listPublicChatDepartments', 'chatChannel', 'setChatChannel', 'createVisitor', 'visitorSession', 'listVisitorConversations', 'createVisitorConversation', 'visitorMessages', 'sendVisitorMessage', 'listChatConversations', 'teamMessages', 'sendTeamMessage', 'changeChatConversation']) {
+    for (const method of ['listPublicChatDepartments', 'chatChannel', 'setChatChannel', 'createVisitor', 'visitorSession', 'listVisitorConversations', 'createVisitorConversation', 'visitorMessages', 'sendVisitorMessage', 'listChatConversations', 'teamConversation', 'teamMessages', 'sendTeamMessage', 'changeChatConversation']) {
       repository[method] = () => { throw new Error('Chat persistence called before migration'); };
     }
     assert.equal((await request('GET', '/api/auth/me', undefined, teamHeaders())).statusCode, 200);
@@ -552,6 +697,7 @@ test('schemas antigos preservam acesso e departamentos enquanto chat retorna503'
     assert.equal((await request('POST', visitorBase + '/session', { name: 'Teste' }, { origin })).statusCode, 503);
     assert.equal((await v('GET', '/conversations')).statusCode, 503);
     assert.equal((await u('GET', '/conversations')).statusCode, 503);
+    assert.equal((await u('GET', '/conversations/101')).statusCode, 503);
     assert.equal((await u('POST', '/conversations/101/claim', {}, 1)).statusCode, 503);
   }
 });

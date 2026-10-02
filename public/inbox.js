@@ -8,6 +8,10 @@ let inboxBusy = false;
 let inboxGeneration = 0;
 let inboxPage = 1;
 let inboxTotal = 0;
+let inboxFilters = { status: 'active', assignment: 'any', q: '' };
+let inboxMetadataConfirmed = false;
+let inboxMetadataNotice = '';
+let inboxOutsidePage = false;
 let inboxTimer = null;
 let inboxController = null;
 let inboxPolling = false;
@@ -41,31 +45,75 @@ function inboxHistory(id) {
   if (!inboxHistories.has(id)) inboxHistories.set(id, { cursor: 0, messages: new Map() });
   return inboxHistories.get(id);
 }
-function inboxOwnsConversation() { return inboxSelected?.status === 'open' && inboxSelected.assignedTo === inboxProfile?.user.id; }
+function inboxOwnsConversation() { return inboxMetadataConfirmed && inboxSelected?.status === 'open' && inboxSelected.assignedTo === inboxProfile?.user.id; }
+function inboxWriteFilters() {
+  inboxElement('inbox-filter-status').value = inboxFilters.status;
+  inboxElement('inbox-filter-assignment').value = inboxFilters.assignment;
+  inboxElement('inbox-filter-query').value = inboxFilters.q;
+}
+function inboxQueueUrl() {
+  const query = new URLSearchParams({ page: String(inboxPage), limit: '20', status: inboxFilters.status, assignment: inboxFilters.assignment });
+  if (inboxFilters.q) query.set('q', inboxFilters.q);
+  return '/api/chat/team/conversations?' + query.toString();
+}
+function inboxMarkUnconfirmed(message = 'Verificando o estado deste atendimento…') {
+  inboxMetadataConfirmed = false; inboxMetadataNotice = message;
+  if (inboxSelected) inboxRenderConversation();
+}
+function inboxRevokeSelected(id) {
+  inboxHistories.delete(id);
+  if (inboxSelected?.id !== id) return;
+  inboxDraft(id).text = inboxElement('inbox-text').value;
+  inboxSelected = null; inboxMetadataConfirmed = false; inboxMetadataNotice = ''; inboxOutsidePage = false;
+  inboxMessageNodes.clear(); inboxElement('inbox-messages').replaceChildren(); inboxElement('inbox-text').value = '';
+  for (const suffix of ['conversation-title', 'conversation-detail', 'conversation-state', 'selection-note', 'message-feedback']) inboxElement('inbox-' + suffix).textContent = '';
+  inboxElement('inbox-conversation').hidden = true; inboxElement('inbox-placeholder').hidden = false;
+  inboxElement('inbox-conversation-' + id)?.closest('li')?.remove();
+  inboxSetControls();
+}
+async function inboxLoadMetadata() {
+  if (!inboxSelected) return;
+  const generation = inboxGeneration; const id = inboxSelected.id;
+  inboxMarkUnconfirmed();
+  let result;
+  try { result = await inboxApi('/api/chat/team/conversations/' + id); }
+  catch (error) {
+    if (generation === inboxGeneration && inboxSelected?.id === id) {
+      if (error.status === 403 || error.status === 404) inboxRevokeSelected(id);
+      else inboxMarkUnconfirmed('Não foi possível confirmar o estado. Atualize a fila para revalidar; histórico e rascunho foram preservados.');
+    }
+    throw error;
+  }
+  if (generation !== inboxGeneration || inboxSelected?.id !== id) return;
+  inboxSelected = result.conversation; inboxMetadataConfirmed = true; inboxMetadataNotice = '';
+  inboxRenderConversation();
+}
 function inboxSetControls() {
-  for (const id of ['inbox-logout', 'inbox-login-retry', 'inbox-pending-retry', 'inbox-reload']) inboxElement(id).disabled = inboxBusy;
+  for (const id of ['inbox-logout', 'inbox-login-retry', 'inbox-pending-retry', 'inbox-reload', 'inbox-filter-apply', 'inbox-filter-clear']) inboxElement(id).disabled = inboxBusy;
   inboxElement('inbox-conversation-list').querySelectorAll('button').forEach(button => { button.disabled = inboxBusy; });
   inboxElement('inbox-previous').disabled = inboxBusy || inboxPage === 1;
   inboxElement('inbox-next').disabled = inboxBusy || inboxPage * 20 >= inboxTotal;
-  const open = inboxSelected?.status === 'open';
+  const open = inboxMetadataConfirmed && inboxSelected?.status === 'open';
   const owner = inboxOwnsConversation();
   const admin = inboxProfile?.user.role === 'admin';
   const pending = inboxSelected && inboxDraft().pending;
-  inboxElement('inbox-claim').disabled = inboxBusy || !inboxSelected || inboxSelected.status === 'closed' || (open && !owner);
+  inboxElement('inbox-claim').disabled = inboxBusy || !inboxMetadataConfirmed || !inboxSelected || inboxSelected.status === 'closed' || (open && !owner);
   inboxElement('inbox-claim').textContent = owner ? 'Atendimento assumido por você' : 'Assumir atendimento';
   inboxElement('inbox-release').disabled = inboxBusy || !open || (!owner && !admin);
-  inboxElement('inbox-close').disabled = inboxBusy || !inboxSelected || inboxSelected.status === 'closed' || (!owner && !admin);
+  inboxElement('inbox-close').disabled = inboxBusy || !inboxMetadataConfirmed || !inboxSelected || inboxSelected.status === 'closed' || (!owner && !admin);
   inboxElement('inbox-text').readOnly = !owner || Boolean(pending);
-  inboxElement('inbox-send').disabled = inboxBusy || (!owner && !pending);
+  inboxElement('inbox-send').disabled = inboxBusy || !inboxMetadataConfirmed || (!owner && !pending);
   inboxElement('inbox-send').textContent = pending ? 'Reenviar mesma resposta' : 'Enviar resposta';
   inboxElement('inbox-space').setAttribute('aria-busy', String(inboxBusy));
 }
 function inboxClearIdentityData() {
   inboxProfile = null; inboxCsrf = null; inboxSelected = null; inboxPage = 1; inboxTotal = 0;
+  inboxFilters = { status: 'active', assignment: 'any', q: '' }; inboxWriteFilters();
+  inboxMetadataConfirmed = false; inboxMetadataNotice = ''; inboxOutsidePage = false;
   inboxQueueAttemptAt = 0; inboxMessagesAttemptAt = 0;
   inboxHistories.clear(); inboxDrafts.clear(); inboxMessageNodes.clear();
   inboxElement('inbox-conversation-list').replaceChildren(); inboxElement('inbox-messages').replaceChildren(); inboxElement('inbox-text').value = ''; inboxElement('inbox-identity').textContent = '';
-  inboxElement('inbox-conversation-title').textContent = ''; inboxElement('inbox-conversation-detail').textContent = ''; inboxElement('inbox-conversation-state').textContent = ''; inboxElement('inbox-message-feedback').textContent = '';
+  inboxElement('inbox-conversation-title').textContent = ''; inboxElement('inbox-conversation-detail').textContent = ''; inboxElement('inbox-conversation-state').textContent = ''; inboxElement('inbox-selection-note').textContent = ''; inboxElement('inbox-message-feedback').textContent = '';
   inboxElement('inbox-space').hidden = true; inboxElement('inbox-conversation').hidden = true; inboxElement('inbox-placeholder').hidden = false;
 }
 function inboxForget() {
@@ -83,7 +131,7 @@ function inboxSchedule(delay) {
   }, true), delay === undefined ? next : delay);
 }
 function inboxShowPending(message, connectionFailure = false) {
-  inboxSuspended = true;
+  inboxSuspended = true; inboxMarkUnconfirmed();
   inboxElement('inbox-space').hidden = true; inboxElement('inbox-pending').hidden = false;
   inboxElement('inbox-feedback').textContent = '';
   inboxElement('inbox-description').textContent = connectionFailure ? 'Não foi possível verificar seu acesso. Tente novamente abaixo.' : 'O atendimento ainda precisa ser preparado na hospedagem.';
@@ -107,6 +155,7 @@ async function inboxRun(work, automatic = false, focusId = null) {
       inboxShowPending(error.status ? error.message : 'A conexão falhou. Use Verificar novamente para tentar outra vez.', true);
     } else {
       if (inboxElement('inbox-feedback').textContent === 'Verificando seu acesso…') inboxElement('inbox-feedback').textContent = '';
+      if (inboxSelected && !inboxMetadataConfirmed) inboxMarkUnconfirmed('Não foi possível confirmar o estado. Atualize a fila para revalidar; histórico e rascunho foram preservados.');
       const feedback = inboxSelected ? 'inbox-message-feedback' : 'inbox-feedback';
       inboxElement(feedback).textContent = error.status ? error.message : 'A conexão falhou. A resposta foi preservada; reenviar o mesmo texto evita duplicação.';
     }
@@ -121,7 +170,7 @@ async function inboxRun(work, automatic = false, focusId = null) {
 async function inboxInitialize({ preserve = Boolean(inboxProfile) } = {}) {
   if (inboxBusy) return;
   const previousId = preserve ? inboxProfile?.user.id : null;
-  if (preserve) { inboxGeneration++; clearTimeout(inboxTimer); inboxController?.abort(); }
+  if (preserve) { inboxGeneration++; clearTimeout(inboxTimer); inboxController?.abort(); inboxMarkUnconfirmed(); }
   else inboxForget();
   inboxElement('inbox-space').hidden = true; inboxElement('inbox-login').hidden = true; inboxElement('inbox-pending').hidden = true; inboxElement('inbox-feedback').textContent = 'Verificando seu acesso…';
   await inboxRun(async () => {
@@ -139,10 +188,11 @@ async function inboxInitialize({ preserve = Boolean(inboxProfile) } = {}) {
 async function inboxLoadQueue() {
   inboxQueueAttemptAt = Date.now();
   const generation = inboxGeneration;
-  let data = await inboxApi(`/api/chat/team/conversations?page=${inboxPage}&limit=20`);
+  if (inboxSelected) inboxMarkUnconfirmed();
+  let data = await inboxApi(inboxQueueUrl());
   if (generation !== inboxGeneration) return;
   const last = Math.max(1, Math.ceil(data.total / data.limit));
-  if (data.page > last) { inboxPage = last; data = await inboxApi(`/api/chat/team/conversations?page=${inboxPage}&limit=20`); if (generation !== inboxGeneration) return; }
+  if (data.page > last) { inboxPage = last; data = await inboxApi(inboxQueueUrl()); if (generation !== inboxGeneration) return; }
   inboxPage = data.page; inboxTotal = data.total;
   inboxElement('inbox-conversation-list').replaceChildren(); inboxElement('inbox-empty').hidden = data.total !== 0;
   inboxElement('inbox-page').textContent = `Página ${data.page} de ${Math.max(1, Math.ceil(data.total / data.limit))} · ${data.total} ${data.total === 1 ? 'atendimento' : 'atendimentos'}`;
@@ -155,20 +205,12 @@ async function inboxLoadQueue() {
     button.addEventListener('click', () => inboxRun(async () => { await inboxSelect(conversation); }, false, 'inbox-conversation-title'));
     item.append(button); inboxElement('inbox-conversation-list').append(item);
   }
-  let selectionRetained = true;
   if (inboxSelected) {
-    const current = data.conversations.find(conversation => conversation.id === inboxSelected.id);
-    if (current) { inboxSelected = current; inboxRenderConversation(); }
-    else {
-      selectionRetained = false;
-      inboxDraft().text = inboxElement('inbox-text').value;
-      inboxSelected = null; inboxMessageNodes.clear(); inboxElement('inbox-messages').replaceChildren();
-      inboxElement('inbox-conversation').hidden = true; inboxElement('inbox-placeholder').hidden = false;
-      inboxElement('inbox-feedback').textContent = 'O atendimento saiu desta página da fila. Se você abrir a conversa novamente, o rascunho e o envio pendente serão recuperados nesta aba.';
-    }
+    inboxOutsidePage = !data.conversations.some(conversation => conversation.id === inboxSelected.id);
+    await inboxLoadMetadata();
   }
   inboxSetControls();
-  return selectionRetained;
+  return true;
 }
 function inboxState(conversation) {
   if (conversation.status === 'waiting') return 'Na fila';
@@ -177,23 +219,29 @@ function inboxState(conversation) {
 }
 async function inboxSelect(conversation) {
   if (inboxSelected) inboxDraft().text = inboxElement('inbox-text').value;
-  inboxSelected = conversation; inboxMessageNodes = new Map(); inboxElement('inbox-messages').replaceChildren();
+  inboxSelected = conversation; inboxMetadataConfirmed = false; inboxMetadataNotice = 'Verificando o estado deste atendimento…'; inboxOutsidePage = false;
+  inboxMessageNodes = new Map(); inboxElement('inbox-messages').replaceChildren();
   inboxElement('inbox-text').value = inboxDraft().text;
   inboxElement('inbox-message-feedback').textContent = inboxDraft().pending ? 'Há uma resposta aguardando confirmação. Reenvie o mesmo texto para confirmar sem duplicar.' : '';
   inboxElement('inbox-messages').setAttribute('aria-live', 'off'); inboxRenderConversation(); inboxRenderMessages(true);
-  try { await inboxLoadMessages(); } finally { inboxElement('inbox-messages').setAttribute('aria-live', 'polite'); }
+  try { await inboxLoadMetadata(); if (inboxSelected) await inboxLoadMessages(); } finally { inboxElement('inbox-messages').setAttribute('aria-live', 'polite'); }
 }
 function inboxRenderConversation() {
   if (!inboxSelected) return;
   inboxElement('inbox-placeholder').hidden = true; inboxElement('inbox-conversation').hidden = false;
   inboxElement('inbox-conversation-title').textContent = inboxSelected.visitorName;
   inboxElement('inbox-conversation-detail').textContent = `${inboxSelected.departmentName} · nome informado pelo visitante`;
-  inboxElement('inbox-conversation-state').textContent = inboxState(inboxSelected);
-  inboxElement('inbox-compose-note').textContent = inboxSelected.status === 'closed' ? 'Atendimento encerrado. Você pode copiar um rascunho preservado ou confirmar o reenvio de uma resposta pendente.' : inboxOwnsConversation() ? 'Até 2.000 caracteres. Esta resposta será enviada ao visitante; notas privadas ainda não estão disponíveis.' : 'Assuma o atendimento para responder. Somente o responsável envia mensagens à pessoa.';
+  inboxElement('inbox-conversation-state').textContent = inboxMetadataConfirmed ? inboxState(inboxSelected) : 'Estado do atendimento não confirmado.';
+  inboxElement('inbox-selection-note').textContent = inboxMetadataNotice || (inboxOutsidePage ? 'Este atendimento está fora dos filtros ou desta página da fila. Continua aberto aqui com o estado atualizado.' : '');
+  const note = !inboxMetadataConfirmed ? 'Ações e envio pausados até confirmar o estado. Seu rascunho continua nesta aba.' : inboxSelected.status === 'closed' ? 'Atendimento encerrado. Você pode copiar um rascunho preservado ou confirmar o reenvio de uma resposta pendente.' : inboxOwnsConversation() ? 'Até 2.000 caracteres. Esta resposta será enviada ao visitante; notas privadas ainda não estão disponíveis.' : 'Assuma o atendimento para responder. Somente o responsável envia mensagens à pessoa.';
+  inboxElement('inbox-compose-note').textContent = note + ' Ctrl+Enter ou ⌘+Enter envia; Enter cria uma nova linha.';
   inboxSetControls();
 }
 async function inboxLoadMessages() {
+  if (!inboxSelected) return;
   inboxMessagesAttemptAt = Date.now();
+  if (!inboxMetadataConfirmed) await inboxLoadMetadata();
+  if (!inboxSelected) return;
   const generation = inboxGeneration; const id = inboxSelected.id; const history = inboxHistory(id);
   for (let page = 0; page < 10; page++) {
     let data;
@@ -201,8 +249,7 @@ async function inboxLoadMessages() {
     catch (error) {
       if (error.status === 404 || error.status === 403) {
         // A removed membership must not leave another area's history on screen.
-        inboxHistories.delete(id); inboxMessageNodes.clear(); inboxElement('inbox-messages').replaceChildren();
-        inboxSelected = null; inboxElement('inbox-conversation').hidden = true; inboxElement('inbox-placeholder').hidden = false;
+        inboxRevokeSelected(id);
       }
       throw error;
     }
@@ -231,7 +278,7 @@ function inboxRenderMessages(forceScroll = false) {
   if (forceScroll || nearEnd) log.scrollTop = log.scrollHeight;
 }
 inboxElement('inbox-compose').addEventListener('submit', event => {
-  event.preventDefault(); if (!inboxSelected || inboxBusy || (!inboxOwnsConversation() && !inboxDraft().pending)) return;
+  event.preventDefault(); if (!inboxSelected || inboxBusy || !inboxMetadataConfirmed || (!inboxOwnsConversation() && !inboxDraft().pending)) return;
   const id = inboxSelected.id; const data = new FormData(event.currentTarget); const draft = inboxDraft(id); const text = String(data.get('text') || '').trim();
   if (!draft.pending && !text) { inboxElement('inbox-message-feedback').textContent = 'Escreva uma resposta antes de enviar.'; return; }
   if (!draft.pending) { const bytes = crypto.getRandomValues(new Uint8Array(16)); draft.pending = { text, clientKey: [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('') }; draft.text = text; inboxElement('inbox-text').value = text; }
@@ -243,16 +290,21 @@ inboxElement('inbox-compose').addEventListener('submit', event => {
     catch (error) { if (error.status === 400 || error.status === 413) draft.pending = null; throw error; }
     inboxHistory(id).messages.set(result.message.sequence, result.message); draft.pending = null; draft.text = ''; inboxElement('inbox-text').value = '';
     inboxRenderMessages(); inboxElement('inbox-message-feedback').textContent = 'Resposta enviada.';
-    inboxPage = 1; await inboxLoadQueue(); if (inboxSelected?.id === id) await inboxLoadMessages();
+    await inboxLoadQueue(); if (inboxSelected?.id === id) await inboxLoadMessages();
   });
 });
 inboxElement('inbox-text').addEventListener('input', () => { if (inboxSelected && !inboxDraft().pending) inboxDraft().text = inboxElement('inbox-text').value; });
+inboxElement('inbox-text').addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey || event.repeat || event.isComposing) return;
+  event.preventDefault();
+  if (!inboxElement('inbox-send').disabled) inboxElement('inbox-compose').requestSubmit(inboxElement('inbox-send'));
+});
 for (const action of ['claim', 'release', 'close']) inboxElement('inbox-' + action).addEventListener('click', () => {
-  if (!inboxSelected) return; const id = inboxSelected.id;
+  if (!inboxSelected || inboxBusy || !inboxMetadataConfirmed || inboxElement('inbox-' + action).disabled) return; const id = inboxSelected.id;
   inboxRun(async () => {
     const result = await inboxApi(`/api/chat/team/conversations/${id}/${action}`, { method: 'POST', headers: inboxHeaders(), body: '{}' });
     inboxSelected = result.conversation; inboxRenderConversation(); inboxElement('inbox-message-feedback').textContent = ({ claim: 'Atendimento assumido. Você pode responder.', release: 'Atendimento devolvido à fila.', close: 'Atendimento encerrado. Histórico preservado.' })[action];
-    inboxPage = 1; await inboxLoadQueue(); if (inboxSelected?.id === id) await inboxLoadMessages();
+    await inboxLoadQueue(); if (inboxSelected?.id === id) await inboxLoadMessages();
   });
 });
 inboxElement('inbox-logout').addEventListener('click', () => inboxRun(async () => {
@@ -260,11 +312,34 @@ inboxElement('inbox-logout').addEventListener('click', () => inboxRun(async () =
   inboxForget(); inboxElement('inbox-login').hidden = false; inboxElement('inbox-feedback').textContent = 'Sessão encerrada. Entre novamente para acessar o atendimento.';
   inboxElement('inbox-description').textContent = 'Entre com sua conta da equipe para acessar o atendimento.';
 }));
+inboxElement('inbox-filters').addEventListener('submit', event => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  if (inboxBusy) { inboxElement('inbox-feedback').textContent = 'Aguarde a atualização e aplique os filtros novamente.'; return; }
+  const q = String(data.get('q') || '').normalize('NFC').trim();
+  if (q.length > 100 || /[\u0000-\u001f\u007f]/u.test(q)) {
+    inboxElement('inbox-feedback').textContent = 'Use até 100 caracteres na busca, sem caracteres de controle.'; inboxElement('inbox-filter-query').focus(); return;
+  }
+  const filters = { status: String(data.get('status') || 'active'), assignment: String(data.get('assignment') || 'any'), q };
+  inboxRun(async () => {
+    inboxFilters = filters; inboxPage = 1;
+    await inboxLoadQueue(); if (inboxSelected) await inboxLoadMessages();
+    inboxElement('inbox-feedback').textContent = 'Filtros aplicados.';
+  });
+});
+inboxElement('inbox-filter-clear').addEventListener('click', () => {
+  if (inboxBusy) return;
+  inboxRun(async () => {
+    inboxFilters = { status: 'active', assignment: 'any', q: '' }; inboxWriteFilters(); inboxPage = 1;
+    await inboxLoadQueue(); if (inboxSelected) await inboxLoadMessages();
+    inboxElement('inbox-feedback').textContent = 'Filtros limpos. Exibindo atendimentos ativos.';
+  });
+});
 inboxElement('inbox-reload').addEventListener('click', () => inboxRun(async () => { const selectionRetained = await inboxLoadQueue(); if (inboxSelected) await inboxLoadMessages(); if (selectionRetained) inboxElement('inbox-feedback').textContent = 'Fila atualizada.'; }));
 inboxElement('inbox-previous').addEventListener('click', () => inboxRun(async () => { inboxPage--; await inboxLoadQueue(); }));
 inboxElement('inbox-next').addEventListener('click', () => inboxRun(async () => { inboxPage++; await inboxLoadQueue(); }));
 inboxElement('inbox-login-retry').addEventListener('click', inboxInitialize); inboxElement('inbox-pending-retry').addEventListener('click', inboxInitialize);
 document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(inboxTimer); if (inboxPolling) inboxController?.abort(); } else inboxSchedule(0); });
-window.addEventListener('pagehide', () => { inboxDisposed = true; inboxGeneration++; clearTimeout(inboxTimer); inboxController?.abort(); inboxBusy = false; });
+window.addEventListener('pagehide', () => { inboxMarkUnconfirmed(); inboxDisposed = true; inboxGeneration++; clearTimeout(inboxTimer); inboxController?.abort(); inboxBusy = false; });
 window.addEventListener('pageshow', event => { if (event.persisted) { inboxDisposed = false; inboxInitialize({ preserve: true }); } });
 inboxInitialize();

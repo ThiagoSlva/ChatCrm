@@ -14,6 +14,17 @@ function chatRepository(pool, { transaction, capabilities }) {
   function tokenHash(token) { if (!/^[a-f0-9]{64}$/.test(token || '')) throw fail(401); return digest(token); }
   function validatePage(page, limit) { if (!Number.isInteger(page) || page < 1 || page > 10000 || !Number.isInteger(limit) || limit < 1 || limit > 50) throw fail(400); }
   function validateHistory(after, limit) { if (!Number.isInteger(after) || after < 0 || after > 4294967295) throw fail(400); validatePage(1, limit); }
+  function queueFilters(options) {
+    if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => !['status', 'assignment', 'q'].includes(key))) throw fail(400);
+    const status = Object.hasOwn(options, 'status') ? options.status : 'all';
+    const assignment = Object.hasOwn(options, 'assignment') ? options.assignment : 'any';
+    const rawQuery = Object.hasOwn(options, 'q') ? options.q : '';
+    if (!['all', 'active', 'waiting', 'open', 'closed'].includes(status) || !['any', 'me', 'unassigned'].includes(assignment) ||
+      typeof rawQuery !== 'string' || rawQuery.length > 100 || /[\u0000-\u001f\u007f]/.test(rawQuery)) throw fail(400);
+    const q = rawQuery.trim().normalize('NFC');
+    if (q.length > 100) throw fail(400);
+    return { status, assignment, q };
+  }
   function content({ text, clientKey }) {
     if (typeof text !== 'string' || !/^[a-f0-9]{32}$/.test(clientKey || '')) throw fail(400);
     const trimmed = text.trim();
@@ -189,14 +200,36 @@ function chatRepository(pool, { transaction, capabilities }) {
         return send(connection, row, { ...user, sender: 'visitor' }, input);
       });
     },
-    async listChatConversations(actorId, teamToken, page, limit) {
+    async listChatConversations(actorId, teamToken, page, limit, options = {}) {
       validatePage(page, limit);
+      const filters = queueFilters(options);
       return coordinated(async connection => {
         const user = await actor(connection, actorId, teamToken);
-        const scope = `${conversationFrom} WHERE d.active = 1 AND (? = 'admin' OR EXISTS (SELECT 1 FROM cl_department_members m WHERE m.department_id = c.department_id AND m.user_id = ?))`;
-        const [counts] = await connection.execute(`SELECT COUNT(*) AS total ${scope}`, [user.role, user.id]);
-        const [rows] = await connection.execute(`SELECT ${conversationFields} ${scope} ORDER BY c.updated_at DESC, c.id DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`, [user.role, user.id]);
+        const conditions = ['d.active = 1', "(? = 'admin' OR EXISTS (SELECT 1 FROM cl_department_members m WHERE m.department_id = c.department_id AND m.user_id = ?))"];
+        const values = [user.role, user.id];
+        if (filters.status === 'active') conditions.push("c.status IN ('waiting', 'open')");
+        else if (filters.status !== 'all') { conditions.push('c.status = ?'); values.push(filters.status); }
+        if (filters.assignment === 'me') { conditions.push('c.assigned_to = ?'); values.push(user.id); }
+        else if (filters.assignment === 'unassigned') conditions.push('c.assigned_to IS NULL');
+        if (filters.q) {
+          // Prepared parameters avoid SQL-string parsing; ! leaves backslash literal
+          // and escapes wildcards independently of NO_BACKSLASH_ESCAPES.
+          const pattern = '%' + filters.q.replace(/[!%_]/g, character => '!' + character) + '%';
+          conditions.push("(v.name LIKE ? ESCAPE '!' OR d.name LIKE ? ESCAPE '!')");
+          values.push(pattern, pattern);
+        }
+        const scope = `${conversationFrom} WHERE ${conditions.join(' AND ')}`;
+        const [counts] = await connection.execute(`SELECT COUNT(*) AS total ${scope}`, values);
+        const [rows] = await connection.execute(`SELECT ${conversationFields} ${scope} ORDER BY c.updated_at DESC, c.id DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`, values);
         return { conversations: rows.map(safeConversation), total: Number(counts[0].total), page, limit };
+      });
+    },
+    async teamConversation(actorId, teamToken, conversationId) {
+      return coordinated(async connection => {
+        const user = await actor(connection, actorId, teamToken);
+        const row = await conversation(connection, conversationId);
+        if (!row || !await allowedDepartment(connection, user, row.departmentId)) return null;
+        return { conversation: await safeConversationById(connection, conversationId) };
       });
     },
     async teamMessages(actorId, teamToken, conversationId, after, limit) {

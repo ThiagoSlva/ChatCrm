@@ -253,6 +253,12 @@ visitorElement('visitor-compose').addEventListener('submit', event => {
   });
 });
 visitorElement('visitor-text').addEventListener('input', () => { if (visitorSelected && !visitorDraft().pending) visitorDraft().text = visitorElement('visitor-text').value; });
+visitorElement('visitor-compose-note').textContent = 'Até 2.000 caracteres. Ctrl+Enter ou ⌘+Enter envia; Enter cria uma nova linha.';
+visitorElement('visitor-text').addEventListener('keydown', event => {
+  if (event.key !== 'Enter' || !(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey || event.repeat || event.isComposing) return;
+  event.preventDefault();
+  if (!visitorElement('visitor-send').disabled) visitorElement('visitor-compose').requestSubmit(visitorElement('visitor-send'));
+});
 visitorElement('visitor-logout').addEventListener('click', () => visitorRun(async () => {
   await visitorApi('/api/chat/visitor/logout', { method: 'POST', headers: visitorHeaders(), body: '{}' });
   visitorForget(); visitorElement('visitor-start').hidden = false; visitorElement('visitor-feedback').textContent = 'Sessão encerrada. Para começar outra, apresente-se novamente.'; visitorElement('visitor-name').focus(); visitorSetControls();

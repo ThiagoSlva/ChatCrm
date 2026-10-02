@@ -8,6 +8,11 @@ function registerChat(app, repository, auth) {
   const idParams = { params: object({ id }) };
   const historyQuery = object({ after: { type: 'integer', minimum: 0, maximum: 4294967295, default: 0 }, limit: { type: 'integer', minimum: 1, maximum: 50, default: 50 } }, []);
   const pageQuery = object({ page: { type: 'integer', minimum: 1, maximum: 10000, default: 1 }, limit: { type: 'integer', minimum: 1, maximum: 50, default: 20 } }, []);
+  const queueQuery = object({ ...pageQuery.properties,
+    status: { type: 'string', enum: ['all', 'active', 'waiting', 'open', 'closed'], default: 'all' },
+    assignment: { type: 'string', enum: ['any', 'me', 'unassigned'], default: 'any' },
+    q: { type: 'string', maxLength: 100, pattern: '^[^\\u0000-\\u001f\\u007f]*$', default: '' }
+  }, []);
   const emptyBody = object({});
   const messageBody = object({ text: { type: 'string', minLength: 1, maxLength: 4000, pattern: '^[^\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]+$' }, clientKey: { type: 'string', pattern: '^[a-f0-9]{32}$' } });
   const cookieName = auth.secure ? '__Host-cl_visitor' : 'cl_visitor';
@@ -25,6 +30,12 @@ function registerChat(app, repository, auth) {
   };
   const deny = (reply, code, error) => reply.code(code).send({ error });
   const missing = reply => deny(reply, 404, 'Atendimento ou departamento nao disponivel.');
+  async function strictQueueQuery(request, reply) {
+    for (const key of ['page', 'limit', 'status', 'assignment', 'q']) {
+      if (Object.hasOwn(request.query, key) && typeof request.query[key] !== 'string') return deny(reply, 400, 'Filtros invalidos.');
+    }
+    if (typeof request.query.q === 'string' && request.query.q.length > 100) return deny(reply, 400, 'Busca muito longa.');
+  }
   async function ready(reply) {
     if (!auth.origin || !repository?.capabilities || !(await repository.capabilities()).chat) {
       deny(reply, 503, 'Atendimento aguarda preparacao da instalacao.'); return false;
@@ -120,9 +131,17 @@ function registerChat(app, repository, auth) {
     const session = await team(request, reply, { admin: true, write: true }); if (!session) return;
     return await repository.setChatChannel(session.user.id, session.token, request.params.id, request.body.enabled) || missing(reply);
   });
-  app.get('/api/chat/team/conversations', { schema: { querystring: pageQuery } }, async (request, reply) => {
+  app.get('/api/chat/team/conversations', { preValidation: strictQueueQuery, schema: { querystring: queueQuery } }, async (request, reply) => {
     const session = await team(request, reply); if (!session) return;
-    return repository.listChatConversations(session.user.id, session.token, request.query.page, request.query.limit);
+    const q = request.query.q.trim().normalize('NFC');
+    if (q.length > 100) return deny(reply, 400, 'Busca muito longa.');
+    return repository.listChatConversations(session.user.id, session.token, request.query.page, request.query.limit, {
+      status: request.query.status, assignment: request.query.assignment, q
+    });
+  });
+  app.get('/api/chat/team/conversations/:id', { schema: idParams }, async (request, reply) => {
+    const session = await team(request, reply); if (!session) return;
+    return await repository.teamConversation(session.user.id, session.token, request.params.id) || missing(reply);
   });
   app.get('/api/chat/team/conversations/:id/messages', { schema: { ...idParams, querystring: historyQuery } }, async (request, reply) => {
     const session = await team(request, reply); if (!session) return;

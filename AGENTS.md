@@ -10,6 +10,8 @@ Criar um chat e CRM independente, gratuito, de código aberto e auto-hospedado, 
 
 O usuário autorizou continuar implementando e melhorando o projeto com autonomia, incluindo ideias úteis como fluxos de chatbot, publicar o código no GitHub e fazer deploys no ambiente de testes. Transforme “perfeito” em melhorias concretas, critérios verificáveis e prioridades. Desenvolva a base funcional antes de módulos opcionais. Respeite pedidos posteriores e evite trabalho repetitivo sem benefício.
 
+Em 02/10/2026, o usuário reiterou que devemos identificar pontos de melhoria e implementar recursos úteis presentes em outros aplicativos e ausentes aqui. Essa orientação deve permanecer na memória: avaliar benefício e dependências, escolher uma entrega coesa, implementar e validar com autonomia no escopo autorizado. Priorizar atendimento/CRM funcional; registrar novas ideias no backlog sem copiar código, marca ou prometer que todo recurso será implementado imediatamente.
+
 Em 01/10/2026, após a solicitação concreta para criar `<DATABASE_USER>` com acesso somente a `<DATABASE_NAME>`, o usuário respondeu: “está autorizado a fazer qualquer mudança necessária ok”. Isso autoriza concluir esse acesso dedicado, gerar/guardar sua configuração privada, executar migrações e instalar/testar o sistema no ambiente deste projeto, além das melhorias necessárias ao projeto. Não interpretar como autorização para modificar outros sites, divulgar segredos, comprar serviços ou contornar limites/regras de segurança. Não repetir a confirmação já recebida para esse mesmo acesso e escopo.
 
 ## Execução
@@ -26,3 +28,5 @@ Em 01/10/2026, após a solicitação concreta para criar `<DATABASE_USER>` com a
 ## Retomadas automáticas
 
 Prossiga da última entrega registrada, sem recomeçar o projeto. Respeite os limites da conta; não compre créditos nem use redefinições de limites automaticamente. Se uma execução for interrompida, a próxima deve examinar os arquivos e o Git para continuar com segurança. Relate entregas relevantes e bloqueios acionáveis, sem mensagens repetidas de estado inalterado.
+
+Para alterações de frontend, aplicar a skill do projeto `docs/skills/chatcrm-frontend-quality/SKILL.md`, conforme pedido reiterado em 02/10/2026. Revisar interface real, teclado e largura móvel, distinguindo resultados verificados de pendências; não chamar perfeição de garantia.

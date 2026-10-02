@@ -35,6 +35,7 @@ async function verifyChatDatabase(connection) {
   const suffix = secret().slice(0, 16);
   const emails = ['admin', 'operator-a', 'operator-b'].map(name => `${name}-${suffix}@example.test`);
   const departmentNames = [`Chat A ${suffix}`, `Chat B ${suffix}`];
+  const visitorNames = [`José ${suffix} %_!\\`, `Visitante B ${suffix}`];
   const teamTokens = [secret(), secret(), secret()];
   const visitorTokens = [secret(), secret()];
   const passwordHash = await hashPassword(secret());
@@ -80,7 +81,7 @@ async function verifyChatDatabase(connection) {
     checks.push('public-entry-default-private-admin-token-required');
 
     const visitors = [];
-    for (let i = 0; i < visitorTokens.length; i++) visitors.push(await repository.createVisitor(visitorTokens[i], `Visitante ${i}`, digest(`synthetic-ip:${suffix}:${i}`)));
+    for (let i = 0; i < visitorTokens.length; i++) visitors.push(await repository.createVisitor(visitorTokens[i], visitorNames[i], digest(`synthetic-ip:${suffix}:${i}`)));
     assert.deepEqual(Object.keys(visitors[0]).sort(), ['id', 'name']);
     assert.deepEqual(await repository.visitorSession(visitorTokens[0]), visitors[0]);
     const [stored] = await connection.execute('SELECT token_hash, TIMESTAMPDIFF(SECOND, UTC_TIMESTAMP(), expires_at) AS remaining FROM cl_visitors WHERE id = ?', [visitors[0].id]);
@@ -163,7 +164,7 @@ async function verifyChatDatabase(connection) {
     await repository.setChatChannel(ids[0], teamTokens[0], departments[0].id, false);
     assert.equal((await repository.sendVisitorMessage(visitorTokens[0], conversations[0].id, message('Conversa existente'))).created, true);
     const extraToken = secret();
-    await repository.createVisitor(extraToken, 'Visitante novo', digest(`synthetic-ip:${suffix}:new`));
+    await repository.createVisitor(extraToken, `Visitante novo ${suffix}`, digest(`synthetic-ip:${suffix}:new`));
     await denied(() => repository.createVisitorConversation(extraToken, departments[0].id), 404);
     await repository.updateDepartment(ids[0], departments[0].id, { active: false });
     assert.ok((await repository.visitorMessages(visitorTokens[0], conversations[0].id, 0, 50)).messages.length > 0);
@@ -213,13 +214,84 @@ async function verifyChatDatabase(connection) {
     assert.equal((await repository.sendTeamMessage(ids[1], teamTokens[1], conversations[0].id, teamMessage)).created, false);
     checks.push('closed-denies-new-messages-allows-current-access-identical-replay');
 
+    // Query suffix confines administrator assertions to these synthetic departments.
+    // Operators have memberships only in synthetic areas, so wildcard probes cannot
+    // be satisfied by unrelated customer records already present in the database.
+    await repository.changeChatConversation(ids[2], teamTokens[2], conversations[1].id, 'claim');
+    await repository.setChatChannel(ids[0], teamTokens[0], departments[0].id, true);
+    const waiting = await repository.createVisitorConversation(extraToken, departments[0].id);
+    assert.equal(waiting.created, true);
+    const queueIds = [conversations[0].id, conversations[1].id, waiting.conversation.id];
+    const queue = (actorIndex, filters = {}, page = 1, limit = 20) => repository.listChatConversations(ids[actorIndex], teamTokens[actorIndex], page, limit, filters);
+    const assertQueue = async (actorIndex, filters, expected) => {
+      const result = await queue(actorIndex, filters);
+      assert.deepEqual(result.conversations.map(row => row.id).sort((a, b) => a - b), [...expected].sort((a, b) => a - b));
+      assert.equal(result.total, expected.length);
+      assert.equal(result.page, 1); assert.equal(result.limit, 20);
+      for (const row of result.conversations) assert.deepEqual(Object.keys(row).sort(), ['assignedTo', 'departmentId', 'departmentName', 'id', 'status', 'updatedAt', 'visitorName']);
+      return result;
+    };
+    await assertQueue(0, { q: suffix }, queueIds);
+    await assertQueue(0, { status: 'active', q: suffix }, [conversations[1].id, waiting.conversation.id]);
+    await assertQueue(0, { status: 'waiting', q: suffix }, [waiting.conversation.id]);
+    await assertQueue(0, { status: 'open', q: suffix }, [conversations[1].id]);
+    await assertQueue(0, { status: 'closed', q: suffix }, [conversations[0].id]);
+    await assertQueue(2, { assignment: 'me' }, [conversations[0].id, conversations[1].id]);
+    await assertQueue(2, { status: 'closed', assignment: 'me' }, [conversations[0].id]);
+    await assertQueue(2, { status: 'active', assignment: 'me' }, [conversations[1].id]);
+    await assertQueue(2, { status: 'active', assignment: 'unassigned' }, [waiting.conversation.id]);
+    await assertQueue(1, { assignment: 'me' }, []);
+    await assertQueue(1, {}, [conversations[0].id, waiting.conversation.id]);
+    const firstFiltered = await queue(2, { assignment: 'me' }, 1, 1);
+    const secondFiltered = await queue(2, { assignment: 'me' }, 2, 1);
+    assert.deepEqual(firstFiltered.conversations.map(row => row.id), [conversations[1].id]);
+    assert.deepEqual(secondFiltered.conversations.map(row => row.id), [conversations[0].id]);
+    assert.equal(firstFiltered.total, 2); assert.equal(secondFiltered.total, 2);
+    assert.deepEqual(await queue(2, { assignment: 'me' }, 3, 1), { conversations: [], total: 2, page: 3, limit: 1 });
+    await assertQueue(0, { q: departmentNames[0] }, [conversations[0].id, waiting.conversation.id]);
+    for (const q of ['%', '_', '!', '\\', '%_!\\', '  Jose\u0301 ' + suffix + '  ']) await assertQueue(1, { q }, [conversations[0].id]);
+    await assertQueue(1, { status: 'closed', assignment: 'any', q: '%_!\\' }, [conversations[0].id]);
+    for (const q of ["' OR 1=1 --", 'x'.repeat(100)]) await assertQueue(1, { q }, []);
+    for (const filters of [{ status: 'unknown' }, { assignment: 'other' }, { q: 123 }, { q: 'nome\n' }, { q: ' ' + 'x'.repeat(100) }, { departmentId: departments[1].id }]) {
+      await denied(() => queue(1, filters), 400);
+    }
+    checks.push('queue-status-assignment-literal-search-authorized-total-pagination');
+
+    await repository.setChatChannel(ids[0], teamTokens[0], departments[0].id, false);
+    const detail = await repository.teamConversation(ids[1], teamTokens[1], conversations[0].id);
+    assert.deepEqual(Object.keys(detail), ['conversation']);
+    assert.deepEqual(Object.keys(detail.conversation).sort(), ['assignedTo', 'departmentId', 'departmentName', 'id', 'status', 'updatedAt', 'visitorName']);
+    assert.equal(detail.conversation.id, conversations[0].id); assert.equal(detail.conversation.status, 'closed');
+    assert.equal(detail.conversation.assignedTo, ids[2]); assert.equal(detail.conversation.visitorName, visitorNames[0]);
+    assert.equal(await repository.teamConversation(ids[1], teamTokens[1], conversations[1].id), null);
+    await denied(() => repository.teamConversation(ids[1], secret(), conversations[0].id), 401);
+    await repository.setDepartmentMember(ids[0], departments[0].id, ids[1], false);
+    assert.equal(await repository.teamConversation(ids[1], teamTokens[1], conversations[0].id), null);
+    await assertQueue(1, { status: 'closed', q: suffix }, []);
+    await repository.setDepartmentMember(ids[0], departments[0].id, ids[1], true);
+    assert.ok(await repository.teamConversation(ids[1], teamTokens[1], conversations[0].id));
+    await repository.updateDepartment(ids[0], departments[0].id, { active: false });
+    assert.equal(await repository.teamConversation(ids[1], teamTokens[1], conversations[0].id), null);
+    assert.equal(await repository.teamConversation(ids[0], teamTokens[0], conversations[0].id), null);
+    await assertQueue(1, { q: suffix }, []);
+    await repository.updateDepartment(ids[0], departments[0].id, { active: true });
+    assert.ok(await repository.teamConversation(ids[1], teamTokens[1], conversations[0].id));
+    // Claim removes the item from unassigned without changing current access.
+    await assertQueue(1, { status: 'active', assignment: 'unassigned' }, [waiting.conversation.id]);
+    await repository.changeChatConversation(ids[1], teamTokens[1], waiting.conversation.id, 'claim');
+    await assertQueue(1, { status: 'active', assignment: 'unassigned' }, []);
+    assert.equal((await repository.teamConversation(ids[1], teamTokens[1], waiting.conversation.id)).conversation.assignedTo, ids[1]);
+    checks.push('safe-conversation-detail-current-access-outside-queue-filter');
+
     await repository.revokeVisitor(visitorTokens[0]);
     assert.equal(await repository.visitorSession(visitorTokens[0]), null);
     await denied(() => repository.visitorMessages(visitorTokens[0], conversations[0].id, 0, 50), 401);
     await denied(() => repository.sendVisitorMessage(visitorTokens[0], conversations[0].id, visitorMessage), 401);
     await repository.revoke(teamTokens[1]);
+    await denied(() => repository.teamConversation(ids[1], teamTokens[1], conversations[0].id), 401);
     await denied(() => repository.sendTeamMessage(ids[1], teamTokens[1], conversations[0].id, teamMessage), 401);
     await repository.setOperatorActive(ids[2], false);
+    await denied(() => repository.teamConversation(ids[2], teamTokens[2], conversations[0].id), 401);
     await denied(() => repository.listChatConversations(ids[2], teamTokens[2], 1, 20), 401);
     checks.push('revoked-visitor-team-and-inactive-operator-denied');
   } finally { await connection.rollback(); }

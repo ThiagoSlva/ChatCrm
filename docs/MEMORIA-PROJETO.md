@@ -10,6 +10,8 @@ Sistema aberto e gratuito para cada empresa hospedar seu próprio atendimento e 
 
 O usuário autorizou evolução contínua sem precisar repetir “continue”, inclusive propor e implementar melhorias coerentes como chatbot e editor de fluxos. Prioridade: entregar funções reais, qualidade, segurança e instalação acessível. A automação não remove limites de uso e não garante perfeição.
 
+Em 02/10/2026, reiterou: continuar encontrando pontos para melhorar e implementar funções úteis que outros aplicativos oferecem e faltam aqui. Autonomia confirmada para pesquisar referências, transformar ideias em entregas concretas, testar e publicar no escopo existente. Manter esse critério nas retomadas: benefício para operador/cliente, dependências da base e evidências de qualidade. Não ficar apenas sugerindo recursos ou pedir novamente autorização genérica; também não acumular mudanças artificiais ou copiar soluções licenciadas de terceiros.
+
 ## Pesquisa e arquitetura
 
 Foram analisados e baixados localmente os clientes oficiais Telegram Web A e K. São GPL, dependem da rede Telegram e não incluem servidor independente. Não foram incorporados ao nosso código MIT. `referencias/manifesto.json` registra origens e commits; os clones ficam ignorados no Git.
@@ -75,3 +77,11 @@ Releases anteriores permanecem em `releases/`. Antes de recuperar, suspenda apen
 5. Leads, funil e histórico; depois portal, campanhas consentidas e filas.
 6. Instalador cPanel, backup/restauração, limites de recursos, acessibilidade e testes de fluxos completos.
 7. Chatbot com regras e editor de fluxos, transferência para humano e extensões úteis, com critérios e testes.
+
+## 02/10/2026 — continuidade de melhorias e v0.5.1 em validação
+
+Orientação reiterada do usuário registrada em AGENTS.md e em BACKLOG-MELHORIAS.md: buscar funções úteis, escolher benefício/dependências e implementar com autonomia, testes e publicação. Entrega selecionada: produtividade da fila (busca literal, filtros por situação/responsável, detalhe preservado fora da fila e atalhos de envio), conforme PRODUTIVIDADE-ATENDIMENTO.md. Mantém schema v3 e canais opt-in. Resultado de publicação será registrado após homologação; não tratar como deploy concluído neste ponto.
+
+O usuário exigiu uso de skill no frontend em 02/10/2026. Skill específica e compartilhável criada em docs/skills/chatcrm-frontend-quality/SKILL.md com skill-creator: revisão visual, mobile/teclado, estados reais e preservação de rascunhos/chaves/permissões. Aplicar nas próximas alterações de interface. Computer-use foi lida para revisar o navegador; APIs nativas não estão habilitadas, e a interface é inspecionada pelo navegador autorizado. A suíte local v0.5.1 passou 92/92 em 25,39 s. Revisão independente adicional e QA DOM final dos agentes foram interrompidas por limite de uso; não reiniciá-los nem contornar o limite. Root deve conferir os diffs e registrar o alcance da evidência antes de publicar.
+
+Validação local v0.5.1: 92/92 testes HTTP/migração/acesso passaram em 25,39 s; cinco ensaios DOM sintéticos passaram (seleção fora do filtro, pesquisa/página, falha de metadata, revogação e atalho/composição). Não são screenshots autenticados nem concorrência SQL real. Aplicada skill do projeto para labels, foco, filtros e correção da navegação móvel escondida. O validador auxiliar da skill não executou por ausência de PyYAML nos runtimes disponíveis; frontmatter/nome/instruções foram conferidos diretamente, sem instalar dependências. Deploy e SQL/HTTPS ainda precisam ser confirmados.
