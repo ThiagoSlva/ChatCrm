@@ -75,3 +75,12 @@ O fingerprint compara registros e DDL lógico das quinze tabelas antes/depois, t
 Critérios verificáveis: versão inicial0 e no-op sem linha; primeira associação/evento1; troca, remoção e reassociação sem ABA; conflito de versão antes de no-op; contato da mesma área; responsável/estado atuais incluindo administrador; paginação e campos seguros; nomes atuais; revogação/expiração/desativação; falha de evento revertendo criação e edição; limite por conversa e preservação integral após rollback. O ensaio do limite por conversa usa 100 eventos sintéticos revertidos; não comprova saturação real de 50000 eventos globais.
 
 Este ensaio de uma conexão não comprova concorrência entre conexões, processos ou carga. O verificador anterior `verify-crm-concurrency.js` é exclusivo de schema5 e recusa schema6; não o execute depois desta migração. Seu resultado anterior continua válido para o recorte já homologado de oportunidades, sem ampliar a prova à associação. Validar depois HTTP/CSRF, respostas incertas, teclado, largura móvel e fluxo autenticado, registrando resultados reais na memória do projeto. Implementação e testes locais não equivalem a homologação no servidor.
+
+
+## Interface e homologação v0.8
+
+Em /atendimento, o contexto fica recolhido até consulta manual. Busque contatos da mesma área, escolha entre todas as páginas e confira a alteração preparada; salvar exige confirmação humana. Consultar/adotar uma versão após erro não salva nem reaplica o pedido. Ao recolher/trocar conversa, o pedido incerto fica somente na memória da aba e exige revalidação ao retornar; troca de conta/revogação elimina esse contexto. Sem armazenamento permanente no navegador ou polling adicional.
+
+Contato indisponível não comprova revogação da conversa: a interface limpa CRM e revalida metadata antes de ocultar chat. Falha na revalidação bloqueia alterações e preserva seleção/rascunho. Associação503 mantém atendimento disponível. Nomes atuais no histórico não comprovam identidade.
+
+Em02/10/2026:161 testes locais/CI/cron,31 ensaios DOM sintéticos,13checks MariaDB de associação com rollback e39HTTPS passaram. Visual autenticado foi revisado em fixture local sintética, desktop1280/móvel390; no domínio publicou-se a entrada sem sessão. Evidências e limites completos em [ANDAMENTO.md](ANDAMENTO.md). Concorrência real deste módulo, duas pessoas HTTPS e restauração seguem pendentes.

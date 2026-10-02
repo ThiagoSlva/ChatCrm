@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.8.0: associação manual entre atendimento e contato em homologação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
+**v0.8.0: associação manual entre atendimento e contato publicada no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
