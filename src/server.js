@@ -7,6 +7,7 @@ const Fastify = require('fastify');
 const { createRepository } = require('./database');
 const { registerAuth } = require('./auth');
 const { registerTeam } = require('./team');
+const { registerDepartments } = require('./departments');
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -53,25 +54,27 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.3.0',
+    version: '0.4.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
     phase: 'identity-base',
     authenticationImplemented: true,
     operatorsImplemented: true,
     passwordChangeImplemented: true,
+    departmentsImplemented: true,
     crmImplemented: false,
     chatImplemented: false
   }));
 
   const auth = registerAuth(app, repository, env);
   registerTeam(app, repository, auth);
+  registerDepartments(app, repository, auth);
 
   app.setNotFoundHandler(async (request, reply) => {
     reply.code(404).send({ error: 'Rota nao encontrada.' });
   });
 
   app.setErrorHandler(async (error, request, reply) => {
-    reply.code(error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : 500);
+    reply.code((error.statusCode >= 400 && error.statusCode < 500) || error.statusCode === 503 ? error.statusCode : 500);
     reply.send({ error: 'Nao foi possivel concluir a requisicao.' });
   });
 

@@ -90,7 +90,8 @@ function registerAuth(app, repository, env = process.env) {
     const token = readToken(request);
     const user = repository && token && await repository.session(token);
     if (!user) return deny(reply, 401, 'Entre para acessar o painel.');
-    return { user, company: await repository.company(), csrfToken: digest('csrf:' + token) };
+    return { user, company: await repository.company(), csrfToken: digest('csrf:' + token),
+      capabilities: repository.capabilities ? await repository.capabilities() : { departments: false } };
   });
   app.post('/api/auth/logout', async (request, reply) => {
     if (!allowed(request, reply)) return;

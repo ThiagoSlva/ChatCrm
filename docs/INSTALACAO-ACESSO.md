@@ -1,6 +1,6 @@
-# Instalação e acesso — v0.3.0
+# Instalação e acesso — v0.4.0
 
-Esta entrega inclui instalação, autenticação, gestão de operadores e troca da própria senha. Chat, recuperação de senha esquecida e CRM ainda estão em desenvolvimento. Os testes automatizados usam persistência simulada; os verificadores explícitos homologam os fluxos com MariaDB real e HTTPS na hospedagem de testes. Essa evidência cobre os módulos registrados no andamento, sem homologar o CRM completo ou outros provedores.
+Esta entrega inclui instalação, autenticação, gestão de operadores, troca da própria senha e departamentos. Chat, recuperação de senha esquecida e CRM ainda estão em desenvolvimento. Os testes automatizados usam persistência simulada; os verificadores explícitos homologam os fluxos com MariaDB real e HTTPS na hospedagem de testes. Essa evidência cobre os módulos registrados no andamento, sem homologar o CRM completo ou outros provedores.
 
 ## Configuração privada
 
@@ -34,7 +34,7 @@ npm run migrate:database
 npm start
 ```
 
-A migração v1 cria `cl_schema`, `cl_company`, `cl_users` e `cl_sessions`. Recusa tabelas de outro sistema e versões desconhecidas. DDL não é revertido por uma transação no MySQL: uma instalação interrompida preserva o marcador v0 e pode retomar. O marcador só muda para v1 após terminar a criação da estrutura. Não há comandos DROP, TRUNCATE ou migração automática no processo web.
+A migração cria a base v1 (`cl_schema`, `cl_company`, `cl_users` e `cl_sessions`) e acrescenta `cl_departments` e `cl_department_members` para v2. Recusa tabelas de outro sistema e versões desconhecidas. DDL não é revertido por uma transação no MySQL: uma instalação interrompida preserva o marcador v0 ou v1 conforme a etapa e pode retomar. O marcador só muda após terminar e verificar a estrutura correspondente. Não há comandos DROP, TRUNCATE ou migração automática no processo web. Instalações existentes precisam de backup privado e aplicação compatível antes de executar; leia [departamentos e atualização v2](DEPARTAMENTOS.md). A versão v0.4 funciona também em v1, mantendo somente departamentos bloqueados até a migração.
 
 No ambiente de releases deste projeto, o arquivo privado fica em `<APP_ROOT>/.env`. O bootstrap já carrega esse arquivo, preservado entre deploys. Ative o ambiente Node e execute explicitamente com a configuração privada:
 

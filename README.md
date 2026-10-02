@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Estado atual: v0.3.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL v1, criação protegida do primeiro administrador, login, logout, gestão de operadores e troca da própria senha. Instalação, autenticação e operadores já foram homologados em MariaDB 11.8.6 e HTTPS; as evidências de cada entrega estão no andamento. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
+**Estado atual: v0.4.0, fase 1 em andamento. Conversa Livre é um nome provisório.** A base inclui diagnóstico, migração MySQL, criação protegida do primeiro administrador, login, logout, gestão de operadores, troca da própria senha e departamentos com vínculos. As evidências de cada entrega e as verificações pendentes estão no andamento. Outras instalações precisam configurar seu banco exclusivo e variáveis privadas. Chat, leads, campanhas e o instalador completo ainda estão em desenvolvimento. Não use esta versão para atendimento real.
 
 ## Executar a base
 
@@ -21,6 +21,8 @@ Para preparar o banco e criar o primeiro administrador, siga o [guia de instala�
 Administradores podem [cadastrar, desativar e reativar operadores](docs/OPERADORES.md) em `/acesso`. Desativar revoga as sessões; operadores não acessam a gestão da equipe.
 
 Administradores e operadores podem [trocar a própria senha](docs/SENHA.md), informando a atual. A troca encerra todas as sessões e exige novo login.
+
+Administradores podem [organizar departamentos e vínculos](docs/DEPARTAMENTOS.md). Operadores veem somente suas áreas ativas. O módulo exige migração explícita v2; a aplicação mantém acesso/equipe em v1 enquanto a atualização é preparada.
 
 O ambiente dedicado `testeschat.cloudyx.xyz` usa um [fluxo de deploy com releases](docs/DEPLOY-CPANEL.md). A configuração `.cpanel.yml` exige parâmetros privados definidos para cada instalação; os exemplos publicados não expõem a conta ou os caminhos internos da hospedagem.
 
