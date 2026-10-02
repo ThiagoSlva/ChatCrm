@@ -23,7 +23,7 @@ let contactsCreateDraft = { values: contactsEmptyValues(), pending: null };
 const contactsDrafts = new Map();
 
 function contactsError(status) {
-  return ({ 400: 'Confira os campos e os limites informados antes de tentar novamente.', 401: 'Sua sessão encerrou. Entre novamente no acesso da equipe.', 403: 'Esta ação não está autorizada para sua conta.', 404: 'O cadastro ou a área está inacessível. Confira seus vínculos com o administrador.', 409: 'O cadastro mudou ou os dados do pedido conflitaram. Revise antes de salvar novamente.', 413: 'Os dados excederam o limite da instalação. Edite os campos e tente novamente.', 429: 'O limite de cadastros desta instalação foi atingido. Consulte o administrador.', 503: 'O cadastro de contatos aguarda preparação na hospedagem.' })[status] || 'Não foi possível confirmar a operação. O rascunho foi preservado; tente novamente.';
+  return ({ 400: 'Confira os campos e os limites informados antes de tentar novamente.', 401: 'Entre com sua conta da equipe para consultar os cadastros.', 403: 'Esta ação não está autorizada para sua conta.', 404: 'O cadastro ou a área está inacessível. Confira seus vínculos com o administrador.', 409: 'O cadastro mudou ou os dados do pedido conflitaram. Revise antes de salvar novamente.', 413: 'Os dados excederam o limite da instalação. Edite os campos e tente novamente.', 429: 'O limite de cadastros desta instalação foi atingido. Consulte o administrador.', 503: 'O cadastro de contatos aguarda preparação na hospedagem.' })[status] || 'Não foi possível confirmar a operação. O rascunho foi preservado; tente novamente.';
 }
 async function contactsApi(url, options = {}) {
   const generation = contactsGeneration; const controller = contactsController;
