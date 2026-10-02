@@ -7,6 +7,7 @@ Em 02/10/2026, o usuário reiterou autorização para identificar funções úte
 | Entregue v0.5.1 | Busca/filtros da fila, detalhe preservado e atalhos | Localizar conversas e seguir respondendo após assumir fora do filtro; acesso atualizado, paginação coerente, reenvio sem duplicar |
 | Entregue v0.6 | Cadastros de contatos/leads | Área ativa, busca literal, classificação, reenvio seguro e edição com versão; homologação registrada no andamento |
 | Entregue v0.7 | Oportunidades e etapas com histórico | Contato separado, BRL, reenvio seguro, versões e snapshots atômicos; homologação registrada no andamento |
+| Verificado v0.7 | Concorrência SQL de oportunidades | Duas conexões, mesmo ator, replay/CAS e histórico; fixtures próprias removidas e treze tabelas preservadas. Carga/contatos/múltiplos processos continuam pendentes |
 | Próxima base | Associação entre atendimento e contato | Escolha manual autorizada em área ativa, histórico e versões; sem fundir visitantes por nome/e-mail ou ampliar acesso ao histórico |
 | Próxima base | Portal do cliente | Identidade verificada e recuperação segura; nunca recuperar histórico apenas por nome/e-mail informado |
 | Próxima base | Campanhas consentidas no canal próprio | Consentimento registrado, descadastro, fila limitada e auditoria; somente destinatários sintéticos na homologação |

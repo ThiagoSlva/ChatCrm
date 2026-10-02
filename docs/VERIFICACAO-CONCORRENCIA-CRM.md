@@ -35,7 +35,7 @@ Antes da limpeza, o script libera as barreiras e aguarda todas as operações la
 
 Os fingerprints dos registros e do DDL lógico das treze tabelas são comparados antes e depois. Somente o contador `AUTO_INCREMENT` é ignorado: ele pode avançar mesmo quando os dados temporários foram removidos. Não restaure esse contador nem altere tabelas para igualar fingerprints.
 
-Sucesso deve produzir JSON genérico com `ok: true` e a lista `checks`. Registre data UTC, commit executado, hash servido, schema, checks, limpeza e preservação na memória do projeto após conferir a saída. Até essa execução, não registre concorrência como aprovada.
+Sucesso deve produzir JSON genérico com `ok: true` e a lista `checks`. Registre data UTC, commit executado, hash servido, schema, checks, limpeza e preservação na memória do projeto após conferir a saída. O ensaio de 02/10/2026 passou oito checks no commit1205c079c652112349fac8fab519930c3d7fbdba às17:05:26.119Z, com limpeza e fingerprints preservados. Consulte o andamento para CI, deploy, backup e limites; o resultado não dispensa as condições acima para outra instalação.
 
 Se houver erro, interrupção ou limpeza recusada, preserve a evidência privada e confira resíduos antes de repetir. O encerramento do processo pode deixar fixtures confirmadas. A recuperação exige examinar a propriedade e as dependências; não reutilize o procedimento como ferramenta de exclusão.
 
