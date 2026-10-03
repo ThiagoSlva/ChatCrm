@@ -64,3 +64,6 @@ v0.8.0 adiciona associação manual atendimento/contato e histórico no schema6.
 
 
 v0.9.0 implementa o portal do cliente e suporta schema7; frontend revisado localmente em navegador real. A ativação do portal ainda exige homologação: publicar/validar release compatível6 com portal503, criar backup privado fresco das quinze tabelas e só então executar DDL7/verificador transacional/HTTPS. v0.8 não aceita7; não diminuir marcador nem apagar tabelas. Cron/bootstrap/configuração permanecem iguais. [Contrato e sequência](PORTAL-MVP.md).
+
+
+Primeira etapa v0.9 confirmada: aplicação publicada, CI Node22/24 aprovada, /health200 e assets com hash conferidos. Portal permanece503; não houve migração7. A revisão real do frontend local e página pública foi concluída. Acesso ao cPanel ainda é necessário para regressão autenticada, backup15 fresco, DDL7 e verificadores; não executar migração sem essa sequência. Consulte ANDAMENTO.md para commit e evidências.
