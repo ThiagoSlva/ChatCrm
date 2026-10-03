@@ -67,3 +67,6 @@ v0.9.0 implementa o portal do cliente e suporta schema7; frontend revisado local
 
 
 Ambiente de testes atualizado em03/10/2026: regressão autenticada em6, backup15 privado fresco com integridade, DDL7, verificação SQL do portal/preservação17, regressões anteriores e HTTPS da equipe concluídos. Diagnóstico real installed/schema7 sem módulos pendentes; portal anônimo401, /portal200 e assets conferidos. Não repetir a migração nas retomadas. Fluxo cliente/operador juntos por HTTPS e restauração ainda pendentes. Consulte ANDAMENTO.md para commit e evidências. Cron e bootstrap permanecem iguais.
+
+
+O [verificador HTTPS do portal](VERIFICACAO-HTTPS-PORTAL.md) é manual, exige backup17/schema7/base operacional vazia e opt-in para fixtures temporárias. Não incluir no cron ou startup; não repetir migração. Journal e dump permanecem privados. Execute após conferir a release, e registre preservação/resultado.

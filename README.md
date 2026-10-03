@@ -72,3 +72,6 @@ A [análise inicial do Telegram](docs/VIABILIDADE-CRM.md) permanece como referê
 As cópias locais usam histórico reduzido para estudo. Os códigos e suas licenças foram preservados. Os clientes do Telegram não foram compilados ou autenticados. Somente o manifesto das referências é publicado neste repositório; as cópias GPL ficam excluídas pelo `.gitignore`.
 
 Os aplicativos baixados são clientes da rede Telegram. Não incluem o servidor do Telegram nem permitem, por si só, criar uma rede de mensagens independente.
+
+
+[Verificação manual cliente/operador por HTTPS](docs/VERIFICACAO-HTTPS-PORTAL.md): ferramenta com sessões sintéticas preparadas, backup17 obrigatório e limpeza por propriedade. Não faz parte do deploy; consulte o andamento para execução e limites.

@@ -69,3 +69,6 @@ Revisão local do verificador: as operações transacionais na única conexão e
 
 
 Ativação hospedada concluída em03/10/2026: backup15 privado atualizado com checksum precedeu migração7; diagnóstico installed sem módulos pendentes, verificador SQL17 do portal e seis regressões anteriores passaram com rollback. A preservação privada foi reconferida depois das regressões. verify-access.js validou login/perfil/permissões/logout da equipe e negação do portal anônimo por HTTPS. APIs do portal passaram de503 para401 sem sessão; login público carregou. Isto não é ensaio de duas partes autenticadas por HTTPS. Não repetir DDL em cada retomada nem publicar backup/credenciais.
+
+
+[Ensaio cliente/operador por HTTPS](VERIFICACAO-HTTPS-PORTAL.md) disponível como operação manual separada, com opt-in, backup17, base vazia, journal e limpeza por propriedade. Usa sessões previamente preparadas e não comprova login/cadastro/recuperação HTTP. Veja ANDAMENTO.md para distinguir ferramenta revisada de execução hospedada.
