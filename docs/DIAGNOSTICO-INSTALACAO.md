@@ -22,7 +22,7 @@ node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/chec
 - Presença de empresa e administrador ativo, sem retornar nomes, e-mails, senhas ou hashes. Uma instalação nova exige SETUP_TOKEN privado de pelo menos 32 caracteres.
 - Alteração observada do marcador durante a leitura. Isso não garante uma fotografia atômica durante DDL concorrente; repita após a migração terminar.
 
-As consultas são SELECT/SHOW, com timeout de cinco segundos por leitura. A conexão é encerrada ao final. As projeções que mencionam password_hash usam LIMIT 0 e não recuperam hashes. O adaptador recusa escrita e leituras com trava/exportação de arquivo. Não chama o migrador nem cria ou repara contas.
+As consultas são SELECT/SHOW. Cada leitura, incluindo a preparação, e o encerramento têm prazo de cinco segundos. Se o prazo expira, o diagnóstico encerra sua própria conexão e informa database-timeout; não fica aguardando QUIT atrás da consulta sem resposta. A CLI grava o relatório antes de sair. O prazo é por operação, não cinco segundos para o diagnóstico inteiro. As projeções que mencionam password_hash usam LIMIT 0 e não recuperam hashes. O adaptador recusa escrita e leituras com trava/exportação de arquivo. Não chama o migrador nem cria ou repara contas.
 
 ## Como interpretar
 
@@ -32,6 +32,7 @@ O relatório padrão orienta a próxima ação. --json gera um objeto com códig
 | --- | --- |
 | runtime-unsupported / url-invalid | Corrigir Node ou origem pública |
 | database-config-missing / database-config-invalid | Completar configuração privada |
+| database-timeout | Conferir disponibilidade e repetir; a conexão própria foi encerrada |
 | database-unreachable | Conferir conexão, permissões de leitura e disponibilidade |
 | database-unprepared | Seguir preparação explícita do banco |
 | database-not-exclusive | Usar banco dedicado; não apagar tabelas de outro sistema |
@@ -49,3 +50,6 @@ Saída 0 significa que as verificações de leitura passaram (setup-ready ou ins
 Em schema6, installed pode coexistir com modulesPending: ["portal"]: os módulos anteriores estão registrados, mas o portal exige migração7. SETUP_TOKEN presente após instalar produz remove-setup-token; remova esse segredo conforme o guia de primeiro acesso, sem alterar a senha do administrador.
 
 Este é um passo do instalador simples. Não configura o gerenciador e não roda automaticamente no cron ou na inicialização. Não comprova HTTPS/cookies, proxy, carga, backup ou restauração. Não testa privilégios CREATE/ALTER fazendo DDL. Os testes locais usam conexão modelada; execução manual em MariaDB real deve ser registrada separadamente. Não publique configuração privada para solicitar ajuda.
+
+
+A regressão de timeout usa o driver mysql2 real com servidor de protocolo sintético em loopback, incluindo preparação sem resposta e execução da CLI. Isso comprova o controle de prazo do cliente; não é uma instalação ou homologação do MariaDB real.

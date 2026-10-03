@@ -27,13 +27,33 @@ function validOrigin(env) {
   } catch { return false; }
 }
 
-function readOnly(connection) {
+function withDeadline(work, timeoutMs, onTimeout) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const error = new Error('Diagnostic deadline exceeded');
+      error.code = 'DIAGNOSTIC_TIMEOUT';
+      try { onTimeout(); } catch { /* Closing must not hide the deadline. */ }
+      reject(error);
+    }, timeoutMs);
+    Promise.resolve().then(work).then(
+      value => { clearTimeout(timer); resolve(value); },
+      error => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+function readOnly(connection, { timeoutMs = 5000, onTimeout = () => connection.destroy() } = {}) {
   const read = method => (sql, values) => {
     if (typeof sql !== 'string' || !/^(SELECT|SHOW)\b/i.test(sql.trim()) ||
       /\b(FOR UPDATE|INTO OUTFILE|INTO DUMPFILE|LOCK IN SHARE MODE)\b/i.test(sql)) {
       throw new Error('Diagnostic only accepts read queries');
     }
-    return connection[method]({ sql, timeout: 5000 }, values);
+    // Driver execute timeout begins after statement preparation. Bound the entire operation.
+    return withDeadline(() => connection[method]({ sql, timeout: timeoutMs }, values), timeoutMs, onTimeout)
+      .catch(error => {
+        if (error.code === 'PROTOCOL_SEQUENCE_TIMEOUT') onTimeout();
+        throw error;
+      });
   };
   return { query: read('query'), execute: read('execute') };
 }
@@ -48,7 +68,7 @@ async function validateSchema(connection, version) {
 // Manual only. Never run this against the hosted database from npm test or deploy.
 async function inspectInstallation({ env = process.env, nodeVersion = process.versions.node,
   connect = options => require('mysql2/promise').createConnection(options),
-  validate = validateSchema } = {}) {
+  validate = validateSchema, timeoutMs = 5000 } = {}) {
   const report = (code, extras = {}) => ({ ok: false, code, ...extras });
   if (!/^(22|24)\.\d+\.\d+$/.test(nodeVersion)) return report('runtime-unsupported');
   if (!validOrigin(env)) return report('url-invalid');
@@ -58,9 +78,11 @@ async function inspectInstallation({ env = process.env, nodeVersion = process.ve
 
   let connection;
   let phase = 'connection';
+  let destroyed = false;
+  const destroy = () => { if (!destroyed && connection) { destroyed = true; connection.destroy(); } };
   try {
     connection = await connect(options);
-    const read = readOnly(connection);
+    const read = readOnly(connection, { timeoutMs, onTimeout: destroy });
     const [tableRows] = await read.query('SHOW TABLES');
     const names = tableRows.map(row => Object.values(row)[0]);
     if (!names.length) return report('database-unprepared');
@@ -96,10 +118,17 @@ async function inspectInstallation({ env = process.env, nodeVersion = process.ve
     return { ok: true, code: setup ? 'setup-ready' : 'installed', schemaVersion: version,
       modulesAvailable: moduleNames.slice(0, version), modulesPending: moduleNames.slice(version),
       warnings: !setup && env.SETUP_TOKEN ? ['remove-setup-token'] : [] };
-  } catch {
+  } catch (error) {
+    if (['DIAGNOSTIC_TIMEOUT', 'PROTOCOL_SEQUENCE_TIMEOUT'].includes(error.code)) return report('database-timeout');
     return report(phase === 'connection' ? 'database-unreachable' : 'schema-invalid');
   } finally {
-    if (connection) { try { await connection.end(); } catch { /* Never echo driver errors or configuration. */ } }
+    if (connection && !destroyed) {
+      try { await withDeadline(() => connection.end(), timeoutMs, destroy); }
+      catch (error) {
+        destroy();
+        if (error.code === 'DIAGNOSTIC_TIMEOUT') return report('database-timeout');
+      }
+    }
   }
 }
 
@@ -108,6 +137,7 @@ const messages = {
   'url-invalid': 'Configure APP_URL com a origem HTTPS, sem caminho, credenciais ou parametros. HTTP local somente fora de production.',
   'database-config-missing': 'Preencha DB_HOST, DB_NAME, DB_USER e DB_PASSWORD na configuracao privada.',
   'database-config-invalid': 'DB_PORT deve ser uma porta valida entre 1 e 65535.',
+  'database-timeout': 'Uma leitura ou encerramento excedeu o tempo limite. A conexao propria foi encerrada; confira disponibilidade e repita.',
   'database-unreachable': 'Nao foi possivel ler o banco. Confira conexao, permissoes e disponibilidade.',
   'database-unprepared': 'Banco ainda nao preparado. Siga o guia de instalacao e migracao explicita.',
   'database-not-exclusive': 'O banco contem tabelas de outro projeto. Selecione um banco exclusivo; nenhum dado foi alterado.',
@@ -139,8 +169,9 @@ async function main() {
   }
   require('../src/server').loadEnvironment();
   const result = await inspectInstallation();
-  process.stdout.write(args.includes('--json') ? JSON.stringify(result) + '\n' : formatReport(result));
-  process.exitCode = result.ok ? 0 : 1;
+  // The manual CLI owns its process; flush output then release any stalled driver handles.
+  process.stdout.write(args.includes('--json') ? JSON.stringify(result) + '\n' : formatReport(result),
+    () => process.exit(result.ok ? 0 : 1));
 }
 module.exports = { inspectInstallation, readOnly, formatReport };
 if (require.main === module) main().catch(() => {
