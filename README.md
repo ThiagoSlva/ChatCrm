@@ -27,6 +27,8 @@ npm start
 
 Abra `http://127.0.0.1:3000`. O servidor usa `HOST` e `PORT` do ambiente, com esses valores como padrão. Para testar MySQL, copie `.env.example` para `.env`, preencha as variáveis privadas e execute `npm run check:database`. O comando executa somente `SELECT 1`, sem criar tabelas ou alterar dados.
 
+Para conferir configuração, estrutura e módulos pendentes, execute `npm run check:installation`. O [diagnóstico de instalação](docs/DIAGNOSTICO-INSTALACAO.md) usa somente leitura, não migra nem cria administradores e não exibe credenciais.
+
 Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa oferecer Node.js compatível e gerenciador de aplicações. A entrada local é `app.js` em CommonJS; o ambiente de testes usa `passenger.cjs`, releases isoladas e migração explícita. Instalação sem terminal e carga de atendimento ainda precisam de homologação.
 
 Para preparar o banco e criar o primeiro administrador, siga o [guia de instalação e acesso](docs/INSTALACAO-ACESSO.md). Abra `/acesso` após configurar o ambiente. Não existem credenciais padrão.

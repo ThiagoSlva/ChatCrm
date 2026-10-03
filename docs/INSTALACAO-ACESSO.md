@@ -76,3 +76,6 @@ No ambiente de testes, o administrador inicial é `admin@example.test`, com empr
 - MySQL exige configuração privada explícita; falhas retornam mensagens genéricas. `/health` confirma o servidor e a versão do código, sem afirmar que o banco está configurado. `/api/installation` retorna somente o estado da instalação.
 
 Referências operacionais: [commits implícitos no MySQL](https://dev.mysql.com/doc/refman/8.4/en/implicit-commit.html), [travas de migração](https://dev.mysql.com/doc/refman/8.4/en/locking-functions.html). Migração não substitui backup e restauração testada.
+
+
+O [diagnóstico manual de instalação](DIAGNOSTICO-INSTALACAO.md) verifica configuração, estrutura registrada, empresa/administrador e módulos pendentes sem criar ou alterar dados. Use-o antes do primeiro acesso ou de uma atualização; conexão válida por si só não comprova instalação pronta.

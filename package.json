@@ -13,7 +13,8 @@
     "test": "node scripts/run-tests.js",
     "check:database": "node scripts/check-database.js",
     "migrate:database": "node scripts/migrate-database.js",
-    "verify:access": "node scripts/verify-access.js"
+    "verify:access": "node scripts/verify-access.js",
+    "check:installation": "node scripts/check-installation.js"
   },
   "dependencies": {
     "fastify": "5.12.5",

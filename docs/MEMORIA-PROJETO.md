@@ -254,3 +254,25 @@ Leitura anônima HTTPS em2026-10-03T07:48:47.479Z: três rotas portal503 com no-
 Página pública real HTTPS revisada em1280 e390px no Edge154: aviso O portal aguarda preparação pela empresa, sem overflow horizontal, três alvos44px, área privada oculta e nenhum erroJS. Evidências ignoradas portal-published-*-v090.png,portal-published-v090-check.json e portal-published-browser-v090.json. Não confundir essa tela com portal autenticado hospedado; somente fixture local comprovou os oito fluxos descritos acima.
 
 Sem DDL7, backup15 fresco ou SQL real novo nesta rodada; o portal continua indisponível até preparação. Próximo passo: recuperar a ferramenta/sessão do cPanel, executar regressão autenticada de v0.9 em6, fazer backup privado fresco das quinze tabelas, migrar explicitamente7 e conferir preservação/SQL17/regressões/HTTPS autenticado. Depois seguir campanhas consentidas e instalador simples. Não diminuir marcador ou recuperar v0.8 após7; CRM completo permanece false. Fixture adicional3220 e contextos do navegador encerrados; preview sintética3219 permanece para consulta local.
+
+
+## 03/10/2026 — integridade do backup pré-portal preparada localmente
+
+Retomada confirmou /health200/v0.9.0 no commit0be11aa2c733dab7c870ea5598a66be3db136cbc; portal continua503 e canais públicos vazios. O inventário CUA voltou a expirar por timeout com reset do kernel, sem acesso ao cPanel. Nenhuma alteração na hospedagem.
+
+Corrigido o helper operacional privado preparado para o backup anterior ao schema7: agora o manifesto exige schema6, tamanho exato e SHA-256 do arquivo, recalculado por leitura em stream na criação, reutilização e conferência após migração. A verificação anterior aceitava qualquer arquivo não vazio com permissões corretas; corrupção com o mesmo tamanho passaria despercebida. Arquivos regulares, caminhos resolvidos, permissões e fingerprint dos registros continuam conferidos. Manifesto antigo sem metadados de integridade é recusado sem sobrescrever arquivos.
+
+Validação local13/13 em140.7724ms e sintaxe aprovada. Bytes e leitura de arquivos sintéticos foram reais; permissões POSIX600 foram modeladas porque a máquina local usa NTFS. Cenários cobrem corrupção do mesmo tamanho, truncamento, metadados ausentes/inválidos, registros alterados, permissões, caminho externo/alias, diretórios, erro de leitura e arquivo ausente. Importar o helper para testes não abre conexão ou executa o dump. Helper, testes e evidências permanecem ignorados no Git.
+
+Esta preparação não comprova restauração nem equivale a backup real executado. Código do produto permanece igual; suíte integrada anterior197/197 não foi repetida. Registros desta rodada são locais, sem nova publicação ou deploy. Próximo passo continua recuperar cPanel, validar regressão autenticada em6, executar backup15 fresco com integridade, migrar7 e validar SQL17/preservação/HTTPS autenticado antes de campanhas e instalador.
+
+
+## 03/10/2026 — diagnóstico manual de instalação
+
+Implementado npm run check:installation, com saída orientada ou --json, sem DDL/DML, criação de conta ou exposição da configuração privada. Usa databaseOptions, origem compatível com autenticação, leitura de tabelas/marcador/engines InnoDB e validadores existentes da versão registrada. Distingue banco vazio, estrutura incompleta, migração parcial, schema futuro, segredo inicial ausente e instalação sem empresa/administrador ativo. Em6, informa portal pendente mesmo com os módulos anteriores instalados. Não executa no cron ou startup.
+
+Validado localmente214/214 testes em36.1705895s, incluindo17 novos cenários de configuração/estado, adapter somente leitura, engines, erro/conexão encerrada, ausência de segredos e CLI. Testes novos usam conexão modelada e subprocessos sem DB; não comprovam MariaDB real. Validadores estruturais continuam cobertos pelos testes de migração. Nenhuma interface, API, schema ou credencial mudou; versão funcional0.9 permanece.
+
+[Guia do diagnóstico](DIAGNOSTICO-INSTALACAO.md) documenta comandos, códigos e limites: não comprova HTTPS, cron, carga, privilégiosDDL, backup ou restauração. Biblioteca e ferramentas de frontend não foram alteradas. O helper privado de integridade preparado na rodada anterior permanece ignorado.
+
+Pré-publicação: main/health0be11aa/v0.9 confirmado, portal503 e controle CUA novamente timeout24.7s/kernelreset. Entrega revisada pronta para publicação no repositório autorizado; confirmar CI e hash servido após atualizar main. O novo comando ainda não foi executado no banco hospedado. Próximo passo hospedado continua regressão autenticada6, backup15 fresco, migração7, SQL17/preservação/HTTPS; campanhas e instalador completo seguem depois. Não tratar diagnóstico como instalador completo ou portal ativado.
