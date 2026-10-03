@@ -9,9 +9,9 @@ Em 02/10/2026, o usuário reiterou autorização para identificar funções úte
 | Entregue v0.7 | Oportunidades e etapas com histórico | Contato separado, BRL, reenvio seguro, versões e snapshots atômicos; homologação registrada no andamento |
 | Verificado v0.7 | Concorrência SQL de oportunidades | Duas conexões, mesmo ator, replay/CAS e histórico; fixtures próprias removidas e treze tabelas preservadas. Carga/contatos/múltiplos processos continuam pendentes |
 | Entregue v0.8 | Associação entre atendimento e contato | Escolha manual autorizada em área ativa, histórico e versões; sem fundir visitantes por nome/e-mail ou ampliar acesso ao histórico |
-| Implementado v0.9; ativação pendente | Portal do cliente | Conta própria e recuperação segura; não verifica e-mail/identidade civil. Backup15, migração7 e homologação hospedada pendentes |
+| Ativado v0.9; verificado em MariaDB real | Portal do cliente | Backup15, migração7, SQL17/preservação e HTTPS da equipe aprovados. Cliente/operador juntos por HTTPS e concorrência do portal pendentes; não verifica e-mail/identidade civil |
 | Próxima base | Campanhas consentidas no canal próprio | Consentimento registrado, descadastro, fila limitada e auditoria; somente destinatários sintéticos na homologação |
-| Parcial: diagnóstico manual implementado | Diagnóstico de instalação | Configuração, schema, empresa/administrador e módulos pendentes; somente leitura. MariaDB real ainda não executado; guia e testes no andamento |
+| Parcial: diagnóstico manual implementado | Diagnóstico de instalação | Configuração, schema, empresa/administrador e módulos pendentes; somente leitura. Executado em MariaDB real nas versões6/7; guia, limites e testes no andamento |
 | Próxima base | Instalador cPanel e recuperação | Diagnóstico claro, instalação repetível, backup e restauração ensaiada, preservação da configuração privada |
 | Produtividade | Respostas rápidas com variáveis limitadas | Inserção editável de textos autorizados, sem envio automático; versões, escopo e tratamento seguro de variáveis |
 | Produtividade | Notas internas e etiquetas | Contexto entre operadores; notas nunca chegam à API do visitante ou campanha |

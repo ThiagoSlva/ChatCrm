@@ -53,3 +53,6 @@ Este é um passo do instalador simples. Não configura o gerenciador e não roda
 
 
 A regressão de timeout usa o driver mysql2 real com servidor de protocolo sintético em loopback, incluindo preparação sem resposta e execução da CLI. Isso comprova o controle de prazo do cliente; não é uma instalação ou homologação do MariaDB real.
+
+
+Execução hospedada registrada em03/10/2026: antes da migração, installed/schema6 com portal pendente; depois, installed/schema7 com todos os módulos disponíveis e sem avisos. Isso comprova este diagnóstico na instalação de testes, não privilégios globais, carga ou restauração. A verificação de HTTPS e os ensaios transacionais foram executados separadamente; veja ANDAMENTO.md.

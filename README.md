@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.9.0 publicada no ambiente de testes, com o portal aguardando preparação do banco. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. A ativação e homologação do portal, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
+**v0.9.0 publicada no ambiente de testes, com o portal ativado em schema7. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. O portal passou pela verificação transacional em MariaDB real; ensaio cliente/operador juntos por HTTPS, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
@@ -13,7 +13,7 @@ O [contexto do contato no atendimento](docs/ASSOCIACAO-ATENDIMENTO.md) permite v
 
 A [verificação manual de concorrência SQL](docs/VERIFICACAO-CONCORRENCIA-CRM.md) cobre oportunidades em duas conexões físicas. Exige banco de testes vazio, backup privado atual e opção explícita para fixtures temporariamente confirmadas; não faz parte do cron ou de npm test. Consulte o andamento para evidências.
 
-O [portal v0.9](docs/PORTAL-MVP.md) está implementado, revisado em navegador local e publicado com compatibilidade para o banco atual. Ainda responde preparação pendente: backup atualizado, migração explícita schema7 e homologação MySQL/HTTPS autenticada exigem acesso ao cPanel.
+O [portal v0.9](docs/PORTAL-MVP.md) está ativado no ambiente de testes após backup privado atualizado e migração explícita schema7. Verificador SQL do portal, regressões dos módulos anteriores e acesso da equipe por HTTPS passaram. Login público e assets foram conferidos; fluxo autenticado cliente/operador juntos por HTTPS e recuperação do backup continuam pendentes.
 
 ## Executar a base
 

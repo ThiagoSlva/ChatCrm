@@ -1,5 +1,7 @@
 # Andamento e ponto de retomada
 
+Estado atual em03/10/2026: v0.9/schema7 ativado, portal verificado em MariaDB real e regressões/HTTPS da equipe aprovadas. Próximo: ensaio cliente/operador juntos por HTTPS com dados sintéticos e preservação, depois campanhas consentidas e instalador. Consulte o registro mais recente ao final; os registros anteriores são históricos.
+
 ## 01/10/2026 — Base publicada e primeiro deploy
 
 Concluído: pesquisa do Telegram; plano de produto e arquitetura; direção visual; base Node 0.0.1; testes; MIT; publicação em `ThiagoSlva/ChatCrm`; domínio de testes; app CloudLinux Node 24; clone do GitHub no cPanel; primeiro deploy com releases; endpoint HTTP 200 com hash; cron de atualização a cada dois minutos.
@@ -308,3 +310,27 @@ Corrigido com prazo externo de cinco segundos para cada leitura completa (inclus
 Validação final220/220 em41.4388045s; seis regressões novas. Três ensaios usam o driver real e servidor de protocolo sintético (consulta sem resposta, preparação sem resposta e CLI com prazo padrão de cinco segundos); três cobrem timeout nativo, encerramento pendente e resultado tardio com objetos modelados. Não são MariaDB real nem homologação hospedada. Sintaxe/diff--check aprovados. [Guia atualizado](DIAGNOSTICO-INSTALACAO.md). Não houve alteração de frontend, API, schema, credenciais, cron ou bootstrap.
 
 Antes da publicação, health200/v0.9/d761b4c, portal503 e canais públicos vazios; CUA voltou a expirar por timeout23.2s/kernelreset. Correção pronta para publicação revisada; confirmar CI Node22/24 e hash servido. Evidências privadas diagnostic-timeout-reproduction.json e installation-timeout-final-integrated.txt permanecem ignoradas. Backup15 atualizado, diagnóstico/regressão em MariaDB6, DDL7, SQL17 e HTTPS autenticado continuam pendentes de controle autorizado do cPanel. Não contornar autenticação nem interpretar timeout da ferramenta como prova de sessão expirada.
+
+
+Publicação confirmada: commit079c3df4e11667fa2ad32c5cc771d34cca700f3d em main, [CI37124242256](https://github.com/ThiagoSlva/ChatCrm/actions/runs/37124242256) aprovada em Node22/24 e /health200/v0.9 com hash exato. Leitura HTTPS anônima em2026-10-03T12:54:32.039Z confirmou instalação installed, portal503 e canais públicos vazios. Não foi possível ler log privado do cron; não afirmar contagem/duração/horário de testes ou ativação hospedados. O diagnóstico novo não foi executado no MariaDB real.
+
+Evidência local ignorada installation-timeout-published-check.json. Git main local alinhado; apenas o artefato anterior %SystemDrive%/ foi preservado fora do commit. Este fechamento é um checkpoint local da memória; incorporar com a próxima entrega útil, sem gerar outro deploy apenas para registrar o hash. A correção funcional já está publicada e confirmada. CUA continua indisponível; próximo passo segue recuperar controle autorizado, diagnóstico/regressão em6, backup15 fresco, migração7, SQL17/preservação e HTTPS autenticado. Nenhuma credencial, domínio, cron, bootstrap ou dado hospedado foi alterado nesta rodada.
+
+
+## 03/10/2026 — portal ativado em MariaDB/cPanel
+
+Controle autorizado do navegador voltou a responder. Antes da migração, o diagnóstico manual confirmou installed/schema6 e portal pendente; verify-access.js passou por HTTPS com login, perfil, cookies, permissões e logout da equipe. A release compatível0.9 servia o commit079c3df4e11667fa2ad32c5cc771d34cca700f3d.
+
+Backup privado fresco das quinze tabelas criado e revalidado antes do DDL:19.113 bytes, SHA-256 recalculado em stream, arquivos600/diretório700 e fingerprint dos registros conferidos. Dump, manifesto, configuração e helper continuam privados fora das releases e do Git. Integridade do arquivo não comprova restauração; ensaio de recuperação segue pendente.
+
+Migração explícita concluída para schema7, acrescentando somente as duas tabelas do portal. Diagnóstico manual executado no MariaDB real confirmou installed/schema7, portal disponível e nenhum módulo pendente. Conferência privada antes/depois dos testes confirmou os registros das tabelas anteriores preservados, inclusive usuários, hashes, sessões, áreas, vínculos e contatos; canais existentes não foram tornados públicos e não restaram contas/sessões sintéticas do portal.
+
+verify-portal-database.js passou em2026-10-03T13:43:58.399Z: estrutura/índices/FKs, vínculo com visitante original, expiração do visitante após cadastro, isolamento de duas contas, DTOs mínimos, autoria/replay/paginação, acesso em áreas privadas/inativas, cinco sessões, logout, limites persistidos, recuperação com falha revertida e CAS, revogação e sessão expirada. Transação externa revertida ao final; fingerprint dos registros e DDL lógico das dezessete tabelas preservado. Sequências AUTO_INCREMENT podem avançar com rollback.
+
+Regressões reais sequenciais de equipe, departamentos, chat, contatos, oportunidades e associação atendimento/contato também passaram, com fixtures revertidas. Após isso, preservação privada e verify-access.js por HTTPS passaram novamente em2026-10-03T13:45:13.089Z. Não executar o verificador antigo de concorrência de oportunidades: ele é exclusivo de schema5.
+
+Conferência pública em2026-10-03T13:46:21.212Z: /health200/v0.9.0 com hash079c3df4e11667fa2ad32c5cc771d34cca700f3d, /portal200 e três assets com hash200, /api/portal/me e /api/portal/conversations401 sem sessão, instalação installed e canais públicos vazios. Tela pública real exibiu login/cadastro/recuperação, sem aviso de preparação pendente; screenshot local ignorado portal-schema7-public.jpg. Esta captura não comprova a área autenticada do cliente.
+
+Nenhuma credencial, permissão da conta, cron, bootstrap ou outro site mudou. Não foram criados canais públicos permanentes ou destinatários reais. A suíte funcional permanece220/220 verificada na entrega anterior; não repetida localmente porque esta entrega altera apenas documentação e ativa o schema já revisado. Publicar este marco com o fechamento local preservado da correção de timeout, conferir CI e hash após o cron.
+
+Próximo passo: ensaio cliente/operador juntos por HTTPS com fixtures sintéticas próprias, preservação e limpeza verificáveis, antes de declarar homologação completa do portal. Permanecem concorrência entre conexões do portal, carga/proxy, retenção e restauração. Depois seguir campanhas consentidas no canal próprio e instalador simples. crmImplemented:false permanece correto; melhorias opcionais seguem o backlog e a skill obrigatória de frontend.

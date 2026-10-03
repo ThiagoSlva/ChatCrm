@@ -1,6 +1,6 @@
 # Portal do cliente — recorte v0.9
 
-**Implementação e revisão visual locais concluídas; homologação MySQL/HTTPS pendente.** Consulte [o andamento](ANDAMENTO.md) para confirmar deploy e schema efetivamente servido. O código local passou 197 testes, mais oito ensaios em navegador real com dados sintéticos. Isso não comprova MariaDB real ou atendimento de produção.
+**Ativado em schema7 no ambiente de testes em03/10/2026; verificador transacional do portal em MariaDB real aprovado.** Consulte [o andamento](ANDAMENTO.md) para backup, preservação e regressões. O código passou220 testes locais na entrega mais recente, além de oito fluxos em navegador real com dados sintéticos. Cliente/operador juntos por HTTPS, concorrência do portal, carga e restauração continuam pendentes; isso não comprova atendimento de produção.
 
 ## O que o portal oferece
 
@@ -66,3 +66,6 @@ Execute também os verificadores anteriores compatíveis e a verificação HTTPS
 
 
 Revisão local do verificador: as operações transacionais na única conexão externa são sequenciais. O adaptador recusa uma segunda transação sobreposta antes de criar savepoint; rollback remove o savepoint e preserva a transação externa. Três ensaios modelados cobrem sobreposição, falha de revogação e fingerprint de dezessete tabelas. A suíte integrada local passou197/197 em35.4460725s; isso ainda não confirma execução em MariaDB/cPanel.
+
+
+Ativação hospedada concluída em03/10/2026: backup15 privado atualizado com checksum precedeu migração7; diagnóstico installed sem módulos pendentes, verificador SQL17 do portal e seis regressões anteriores passaram com rollback. A preservação privada foi reconferida depois das regressões. verify-access.js validou login/perfil/permissões/logout da equipe e negação do portal anônimo por HTTPS. APIs do portal passaram de503 para401 sem sessão; login público carregou. Isto não é ensaio de duas partes autenticadas por HTTPS. Não repetir DDL em cada retomada nem publicar backup/credenciais.
