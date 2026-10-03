@@ -45,3 +45,6 @@ Requisições têm prazo de15s e recusam redirects. Comandos SQL próprios usam 
 ## Limites
 
 Sessões são previamente preparadas: este ensaio não verifica formulário/login com senha, cadastro ou recuperação por HTTPS, nem políticas do Set-Cookie nesses fluxos. Esses contratos continuam cobertos por testes locais/SQL; homologação HTTPS específica ainda é necessária. Não é teste de navegador, carga, proxy, concorrência SQL do portal, saturação, retenção ou restauração. Nenhum arquivo privado deve ir ao Git ou ser enviado para suporte.
+
+
+Complemento manual de cadastro/login/recuperação por HTTPS: [procedimento de credenciais](VERIFICACAO-HTTPS-CREDENCIAIS-PORTAL.md). Preserva todos os limites compartilhados e compara dados das outras dezesseis tabelas mais DDL17; não confundir com fingerprint completo17 pós-ensaio.

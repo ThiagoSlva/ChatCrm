@@ -5,7 +5,7 @@ const {loadEnvironment}=require('../src/server');
 const {secret,digest,hashPassword}=require('../src/security');
 const {verifyDepartmentSchema,verifyChatSchema,verifyContactSchema,verifyOpportunitySchema,verifyConversationContactSchema,verifyPortalSchema}=require('./migrate-database');
 
-async function preservationFingerprint(connection) {
+async function fingerprintTables(connection, includeRateRows) {
   // Hash rows in SQL; never output existing identities, tokens or message content.
   const tables = [
     ['cl_schema', 'id, version', 'id'], ['cl_company', 'id, name', 'id'],
@@ -31,11 +31,15 @@ async function preservationFingerprint(connection) {
     const [ddl] = await connection.query('SHOW CREATE TABLE ' + table);
     // Consumed InnoDB auto-increment numbers can advance despite rollback.
     const definition = String(Object.values(ddl[0])[1]).replace(/\bAUTO_INCREMENT=\d+\b/gi, '').replace(/\s+/g, ' ').trim();
-    fingerprints.push([table, rows.map(row => row.fingerprint), digest(definition)]);
+    fingerprints.push([table, includeRateRows || table !== 'cl_chat_limits' ? rows.map(row => row.fingerprint) : [], digest(definition)]);
   }
   return digest(JSON.stringify(fingerprints));
 }
 
+
+async function preservationFingerprint(connection) { return fingerprintTables(connection, true); }
+// Credential HTTP checks retain all shared rate rows; their logical DDL remains checked.
+async function credentialPreservationFingerprint(connection) { return fingerprintTables(connection, false); }
 
 // A single outer connection cannot host overlapping repository transactions.
 // Refuse a second lease before it can replace the first transaction's savepoint.
@@ -113,4 +117,4 @@ async function verifyPortalDatabase(connection){
 }
 async function main(){loadEnvironment();const options=databaseOptions();if(!options)throw Error('Configure o banco privado.');const connection=await mysql.createConnection(options);try{console.log('Portal verificado em transacao revertida: '+JSON.stringify(await verifyPortalDatabase(connection)));}finally{await connection.end();}}
 if(require.main===module)main().catch(()=>{console.error('Verificacao SQL do portal falhou. Nenhuma credencial foi exibida.');process.exitCode=1;});
-module.exports={verifyPortalDatabase,preservationFingerprint,verificationPool};
+module.exports={verifyPortalDatabase,preservationFingerprint,credentialPreservationFingerprint,verificationPool};

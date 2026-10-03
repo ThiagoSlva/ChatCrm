@@ -70,3 +70,6 @@ Ambiente de testes atualizado em03/10/2026: regressão autenticada em6, backup15
 
 
 O [verificador HTTPS do portal](VERIFICACAO-HTTPS-PORTAL.md) é manual, exige backup17/schema7/base operacional vazia e opt-in para fixtures temporárias. Não incluir no cron ou startup; não repetir migração. Journal e dump permanecem privados. Execute após conferir a release, e registre preservação/resultado.
+
+
+Complemento manual de cadastro/login/recuperação por HTTPS: [procedimento de credenciais](VERIFICACAO-HTTPS-CREDENCIAIS-PORTAL.md). Preserva todos os limites compartilhados e compara dados das outras dezesseis tabelas mais DDL17; não confundir com fingerprint completo17 pós-ensaio.

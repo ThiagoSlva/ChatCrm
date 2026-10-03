@@ -318,4 +318,4 @@ async function main() {
   process.stdout.write('Portal HTTPS verificado: '+JSON.stringify({verifiedAt:new Date().toISOString(),checks,preparedSessions:true,passwordLoginTested:false,registrationRecoveryHttpTested:false})+'\n');
 }
 if(require.main===module)main().catch(()=>{process.stderr.write('Verificacao HTTPS do portal falhou. Revise o diario privado e use cleanup-only para conferir fixtures antes de repetir. Nenhuma credencial foi exibida.\n');process.exitCode=1;});
-module.exports={TABLES,parseArguments,privateFile,verifyBackup,validateRegistry,validateOwnedRows,cleanupFixtures,httpsClient,inspectPreflight};
+module.exports={TABLES,parseArguments,privateFile,verifyBackup,validateRegistry,validateOwnedRows,cleanupFixtures,httpsClient,inspectPreflight,inspectSchema};
