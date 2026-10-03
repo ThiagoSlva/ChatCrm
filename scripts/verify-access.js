@@ -47,7 +47,7 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2, 3, 4, 5, 6, 7].includes(capabilities?.schemaVersion), true);
+    assert.equal([1, 2, 3, 4, 5, 6, 7, 8].includes(capabilities?.schemaVersion), true);
     assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
     if (capabilities.schemaVersion >= 3) assert.equal(capabilities.chat, true);
     else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);

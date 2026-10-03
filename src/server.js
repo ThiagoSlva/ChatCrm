@@ -12,6 +12,7 @@ const { registerChat } = require('./chat');
 const { registerContacts } = require('./contacts');
 const { registerOpportunities } = require('./opportunities');
 const { registerConversationContacts } = require('./conversation-contacts');
+const { registerSubscriptions } = require('./subscriptions');
 const { registerPortal } = require('./portal');
 
 const projectRoot = path.resolve(__dirname, '..');
@@ -36,6 +37,7 @@ function buildServer(options = {}) {
     ['/widget.js', 'widget.js', 'application/javascript; charset=utf-8'],
     ['/portal.js', 'portal.js', 'application/javascript; charset=utf-8'],
     ['/portal-chat.js', 'portal-chat.js', 'application/javascript; charset=utf-8'],
+    ['/portal-subscription.js', 'portal-subscription.js', 'application/javascript; charset=utf-8'],
     ['/contacts.js', 'contacts.js', 'application/javascript; charset=utf-8'],
     ['/opportunities.js', 'opportunities.js', 'application/javascript; charset=utf-8']
   ];
@@ -67,9 +69,9 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.9.0',
+    version: '0.10.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'customer-portal-mvp',
+    phase: 'portal-subscriptions-mvp',
     authenticationImplemented: true,
     operatorsImplemented: true,
     passwordChangeImplemented: true,
@@ -79,6 +81,8 @@ function buildServer(options = {}) {
     opportunitiesImplemented: true,
     conversationContactsImplemented: true,
     portalImplemented: true,
+    subscriptionsImplemented: true,
+    campaignsImplemented: false,
     crmImplemented: false,
     chatImplemented: true
   }));
@@ -87,7 +91,8 @@ function buildServer(options = {}) {
   registerTeam(app, repository, auth);
   registerDepartments(app, repository, auth);
   const visitorAuth = registerChat(app, repository, auth);
-  registerPortal(app, repository, auth, visitorAuth);
+  const portalAuth = registerPortal(app, repository, auth, visitorAuth);
+  registerSubscriptions(app, repository, portalAuth.authorize);
   registerContacts(app, repository, auth);
   registerOpportunities(app, repository, auth);
   registerConversationContacts(app, repository, auth);

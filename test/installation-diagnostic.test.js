@@ -12,7 +12,7 @@ const groups = [
   ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'], ['cl_departments', 'cl_department_members'],
   ['cl_visitors', 'cl_chat_conversations', 'cl_chat_messages', 'cl_chat_limits'],
   ['cl_contacts'], ['cl_opportunities', 'cl_opportunity_events'],
-  ['cl_conversation_contacts', 'cl_conversation_contact_events'], ['cl_portal_accounts', 'cl_portal_sessions']
+  ['cl_conversation_contacts', 'cl_conversation_contact_events'], ['cl_portal_accounts', 'cl_portal_sessions'], ['cl_portal_subscription_events']
 ];
 function model({ version = 1, tables = groups.slice(0, version).flat(), users = true,
   admin = true, company = true, markers, afterVersion = version, queryError, engine = 'InnoDB' } = {}) {
@@ -83,14 +83,14 @@ test('v6 compatibility reports portal pending and validates its registered versi
   } });
   assert.equal(validated, 6);
   assert.equal(result.code, 'installed'); assert.equal(result.ok, true);
-  assert.deepEqual(result.modulesPending, ['portal']);
+  assert.deepEqual(result.modulesPending, ['portal', 'subscriptions']);
   assert.equal(state.closed(), 1);
 });
 test('v7 report can list portal without claiming operational homologation', async () => {
   const state = model({ version: 7 });
   const result = await inspect(state, { validate: async () => {} }); // Structural validators have their own migration tests.
   assert.equal(result.ok, true); assert.equal(result.schemaVersion, 7);
-  assert.ok(result.modulesAvailable.includes('portal')); assert.deepEqual(result.modulesPending, []);
+  assert.ok(result.modulesAvailable.includes('portal')); assert.deepEqual(result.modulesPending, ['subscriptions']);
   assert.match(formatReport(result), /Nao comprova HTTPS, cron, carga, backup ou restauracao/);
 });
 test('empty database remains untouched and requires explicit preparation', async () => {
@@ -116,11 +116,11 @@ test('missing and partial-migration tables prevent a successful report', async (
   }
 });
 test('zero marker and future marker do not suggest downgrade or perform DDL', async () => {
-  for (const [version, code] of [[0, 'database-unprepared'], [8, 'schema-incompatible']]) {
+  for (const [version, code] of [[0, 'database-unprepared'], [9, 'schema-incompatible']]) {
     const state = model({ version, tables: groups[0] });
     const result = await inspect(state);
     assert.equal(result.code, code); assert.equal(state.closed(), 1);
-    if (version === 8) assert.match(formatReport(result), /nao diminua o marcador/);
+    if (version === 9) assert.match(formatReport(result), /nao diminua o marcador/);
   }
 });
 test('fresh installation requires a private setup secret without creating accounts', async () => {

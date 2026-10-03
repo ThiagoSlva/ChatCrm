@@ -126,6 +126,7 @@ function registerPortal(app, repository, auth, visitorAuth) {
     if (!result) return deny(reply, 404, 'Atendimento indisponivel.');
     return reply.code(result.created ? 201 : 200).send({ message: result.message });
   });
+  return { authorize };
 }
 
 module.exports = { registerPortal };

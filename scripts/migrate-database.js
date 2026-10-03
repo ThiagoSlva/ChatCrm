@@ -1,4 +1,5 @@
 'use strict';
+const {statement: subscriptionStatement, verifySubscriptionSchema} = require('./subscriptions-schema');
 
 const mysql = require('mysql2/promise');
 const { databaseOptions } = require('../src/database');
@@ -278,8 +279,8 @@ async function verifyPortalSchema(connection) {
   if (foreignKeys.length !== keys.length || keys.some(([table, column, target]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === 'id' && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos do portal incompativeis.');
 }
 
-async function migrate(connection, { targetVersion = 7 } = {}) {
-  if (![1, 2, 3, 4, 5, 6, 7].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
+async function migrate(connection, { targetVersion = 8 } = {}) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
   // Keep the established lock so an older explicit v1 migrator cannot race this one.
   const [lock] = await connection.execute("SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired");
   if (Number(lock[0]?.acquired) !== 1) throw new Error('Outra migracao em andamento.');
@@ -287,7 +288,7 @@ async function migrate(connection, { targetVersion = 7 } = {}) {
     const [tables] = await connection.query('SHOW TABLES');
     const names = tables.map(row => Object.values(row)[0]);
     const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
-    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables, ...portalTables];
+    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables, ...portalTables, 'cl_portal_subscription_events'];
     if (names.some(name => !allowed.includes(name))) throw new Error('Use um banco exclusivo e vazio para o projeto.');
     if (names.length && !names.includes('cl_schema')) throw new Error('Banco sem identificacao do projeto.');
     let version = 0;
@@ -296,7 +297,7 @@ async function migrate(connection, { targetVersion = 7 } = {}) {
       // A crash between creating the marker table and inserting its row is resumable.
       if (!rows.length && names.length !== 1) throw new Error('Banco sem identificacao do projeto.');
       version = rows.length ? Number(rows[0].version) : 0;
-      if (![0, 1, 2, 3, 4, 5, 6, 7].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
     }
     if (version > targetVersion) throw new Error('Downgrade de schema nao permitido.');
     if (version >= 1 && baseTables.some(name => !names.includes(name))) throw new Error('Estrutura base incompleta.');
@@ -312,6 +313,8 @@ async function migrate(connection, { targetVersion = 7 } = {}) {
     if (version >= 6 && conversationContactTables.some(name => !names.includes(name))) throw new Error('Estrutura de vinculos atendimento-contato incompleta.');
     if (version < 6 && names.some(name => portalTables.includes(name))) throw new Error('Estrutura sem vinculos atendimento-contato concluidos.');
     if (version >= 7 && portalTables.some(name => !names.includes(name))) throw new Error('Estrutura do portal incompleta.');
+    if (version < 7 && names.includes('cl_portal_subscription_events')) throw new Error('Estrutura sem portal concluido.');
+    if (version >= 8 && !names.includes('cl_portal_subscription_events')) throw new Error('Estrutura de inscricoes incompleta.');
     // MySQL DDL commits implicitly. Keep v1 intact while v2 is partial, and resume by table.
     if (version === 0) {
       await connection.query(statements[0]);
@@ -353,7 +356,12 @@ async function migrate(connection, { targetVersion = 7 } = {}) {
     if (targetVersion >= 7) {
       if (version === 6) for (const statement of portalStatements) await connection.query(statement);
       await verifyPortalSchema(connection);
-      if (version === 6) await connection.execute('UPDATE cl_schema SET version = 7 WHERE id = 1');
+      if (version === 6) { await connection.execute('UPDATE cl_schema SET version = 7 WHERE id = 1'); version = 7; }
+    }
+    if (targetVersion >= 8) {
+      if (version === 7) await connection.query(subscriptionStatement);
+      await verifySubscriptionSchema(connection);
+      if (version === 7) await connection.execute('UPDATE cl_schema SET version = 8 WHERE id = 1');
     }
     return { schemaVersion: targetVersion };
   } finally { await connection.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
@@ -368,4 +376,4 @@ async function main() {
   finally { if (connection) await connection.end(); }
 }
 if (require.main === module) main().catch(() => { process.stderr.write('Migracao interrompida. Confira configuracao, banco exclusivo e acesso MySQL.\n'); process.exitCode = 1; });
-module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema };
+module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema };

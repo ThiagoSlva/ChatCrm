@@ -73,3 +73,6 @@ O [verificador HTTPS do portal](VERIFICACAO-HTTPS-PORTAL.md) é manual, exige ba
 
 
 Complemento manual de cadastro/login/recuperação por HTTPS: [procedimento de credenciais](VERIFICACAO-HTTPS-CREDENCIAIS-PORTAL.md). Preserva todos os limites compartilhados e compara dados das outras dezesseis tabelas mais DDL17; não confundir com fingerprint completo17 pós-ensaio.
+
+
+v0.10 prepara inscrições explícitas no portal/schema8, sem envio de campanhas. Publicar/validar compatibilidade7, fazer backup17 fresco incluindo limites, preservar release0.10, migrar explicitamente e conferir dados anteriores/SQL18/diagnóstico/HTTPS. Não voltar0.9 após8 ou executar fixtures HTTPS7. [Contrato](INSCRICOES-PORTAL.md). Cron/bootstrap permanecem iguais.

@@ -252,7 +252,7 @@ test('defaults, engine e collation defeituosos impedem concluir v2 parcial', asy
 
 test('migracao padrao instala v7 sem publicar canais nem criar identidades', async () => {
   const { connection, statements, state } = migrationConnection();
-  assert.deepEqual(await migrate(connection), { schemaVersion: 7 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 7 }), { schemaVersion: 7 });
   assert.equal(state.version, 7);
   assert.equal(state.tables.size, 17);
   assert.deepEqual(state.departmentColumns.find(row => row.Field === 'public_chat'), publicColumn);
@@ -829,12 +829,12 @@ test('marker6 incompleto ou tabelas novas antes de oportunidades concluidas recu
 });
 
 test('targets invalidos e marker futuro recusam antes de mutacao', async () => {
-  for (const targetVersion of [0, 8, '7', null, false]) {
+  for (const targetVersion of [0, 9, '7', null, false]) {
     const { connection, statements } = migrationConnection();
     await assert.rejects(migrate(connection, { targetVersion }), /alvo/);
     assert.equal(statements.length, 0);
   }
-  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 8 });
+  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 9 });
   await assert.rejects(migrate(connection, { targetVersion: 6 }), /nao reconhecida/);
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -845,7 +845,7 @@ function portalMigrationConnection(options) { const result=migrationConnection(o
 
 test('upgrade6 cria apenas duas tabelas portal e marca7 depois de validar',async()=>{
  const {connection,statements,state}=portalMigrationConnection({tables:schema6Tables,version:6});
- assert.deepEqual(await migrate(connection),{schemaVersion:7}); assert.equal(state.version,7); assert.equal(state.tables.size,17);
+ assert.deepEqual(await migrate(connection, { targetVersion: 7 }),{schemaVersion:7}); assert.equal(state.version,7); assert.equal(state.tables.size,17);
  const ddl=statements.filter(x=>x.startsWith('CREATE TABLE')); assert.equal(ddl.length,2);
  assert.match(ddl[0],/UNIQUE KEY cl_portal_accounts_visitor \(visitor_id\)/); assert.match(ddl[0],/access_id CHAR\(24\) CHARACTER SET ascii COLLATE ascii_bin/);
  assert.match(ddl[0],/created_at DATETIME NOT NULL, UNIQUE/); assert.match(ddl[1],/expires_at DATETIME NOT NULL, INDEX/);
@@ -856,10 +856,10 @@ test('upgrade6 cria apenas duas tabelas portal e marca7 depois de validar',async
 
 test('portal parcial retoma7 e target6 permanece somente leitura',async()=>{
  const {connection,statements,state}=portalMigrationConnection({tables:schema6Tables,version:6}); state.failTable='cl_portal_sessions';
- await assert.rejects(migrate(connection),/Interrupcao/); assert.equal(state.version,6); assert.equal(state.tables.size,16);
+ await assert.rejects(migrate(connection, { targetVersion: 7 }),/Interrupcao/); assert.equal(state.version,6); assert.equal(state.tables.size,16);
  assert.equal(statements.includes('UPDATE cl_schema SET version = 7 WHERE id = 1'),false);
  statements.length=0; assert.deepEqual(await migrate(connection,{targetVersion:6}),{schemaVersion:6}); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
- state.failTable=null; assert.deepEqual(await migrate(connection),{schemaVersion:7}); assert.equal(state.tables.size,17);
+ state.failTable=null; assert.deepEqual(await migrate(connection, { targetVersion: 7 }),{schemaVersion:7}); assert.equal(state.tables.size,17);
 });
 
 test('portal7 recusa estruturas parciais incompatíveis sem DDL nem marcador',async()=>{
@@ -897,14 +897,14 @@ test('portal7 recusa estruturas parciais incompatíveis sem DDL nem marcador',as
   if(defect==='delete-rule') state.portalForeignKeys[0].deleteRule='CASCADE';
   if(defect==='update-rule') state.portalForeignKeys[1].updateRule='CASCADE';
   if(defect==='target') state.portalForeignKeys[0].referencedTable='cl_users';
-  await assert.rejects(migrate(connection),/incompativ/,defect); assert.equal(state.version,6,defect); assert.equal(statements.some(x=>/^(UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false,defect);
+  await assert.rejects(migrate(connection, { targetVersion: 7 }),/incompativ/,defect); assert.equal(state.version,6,defect); assert.equal(statements.some(x=>/^(UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false,defect);
  }
 });
 
 test('portal7 completo idempotente aceita índice extra não único e impede downgrade',async()=>{
  const {connection,statements,state}=portalMigrationConnection({tables:[...schema6Tables,...portalTables],version:7});
  state.portalIndexes.cl_portal_accounts.push(...index('extra_version',['version'],1));
- assert.deepEqual(await migrate(connection),{schemaVersion:7}); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
+ assert.deepEqual(await migrate(connection, { targetVersion: 7 }),{schemaVersion:7}); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
  await verifyPortalSchema(connection);
  for(const targetVersion of [1,2,3,4,5,6]) await assert.rejects(migrate(connection,{targetVersion}),/Downgrade/);
 });
@@ -914,6 +914,56 @@ test('marcador7 incompleto e tabelas portal antes6 recusam mutação',async()=>{
   ...portalTables.map(missing=>({tables:[...schema6Tables,...portalTables].filter(x=>x!==missing),version:7})),
   ...portalTables.map(table=>({tables:[...schema5Tables,table],version:5}))
  ]){
-  const {connection,statements}=portalMigrationConnection(options); await assert.rejects(migrate(connection),/incompleta|concluidos/); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
+  const {connection,statements}=portalMigrationConnection(options); await assert.rejects(migrate(connection, { targetVersion: 7 }),/incompleta|concluidos/); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
  }
 });
+
+function subscriptionMigration(options){
+ const f=portalMigrationConnection(options),query=f.connection.query,execute=f.connection.execute;
+ f.state.subscriptionColumns=[field('account_id','int unsigned',{Default:null}),field('version','int unsigned',{Default:null}),field('subscribed','tinyint',{Default:null}),field('notice_version','varchar(40)',{Default:null,Collation:'ascii_bin'}),ascii('client_key',32),ascii('request_hash',64),field('created_at','datetime',{Default:null})].map(c=>({...c,Default:null}));
+ f.state.subscriptionIndexes=[...index('PRIMARY',['account_id','version']),...index('cl_subscription_request',['account_id','client_key']),...index('cl_subscription_created',['account_id','created_at'],1)];
+ f.state.subscriptionEngine={engine:'InnoDB',tableCollation:'utf8mb4_unicode_ci'};
+ f.state.subscriptionKeys=[{columnName:'account_id',referencedTable:'cl_portal_accounts',referencedColumn:'id',localSchema:1,deleteRule:'RESTRICT',updateRule:'RESTRICT'}];
+ f.connection.query=async(sql,args)=>{
+  if(sql.startsWith('CREATE TABLE IF NOT EXISTS cl_portal_subscription_events')){
+   f.statements.push(sql);if(f.state.failTable==='cl_portal_subscription_events')throw Error('Interrupcao');
+   f.state.tables.add('cl_portal_subscription_events');return[[]];
+  }
+  if(sql==='SHOW FULL COLUMNS FROM cl_portal_subscription_events'){f.statements.push(sql);return[f.state.subscriptionColumns];}
+  if(sql==='SHOW INDEX FROM cl_portal_subscription_events'){f.statements.push(sql);return[f.state.subscriptionIndexes];}
+  return query(sql,args);
+ };
+ f.connection.execute=async(sql,args)=>{
+  if(sql.includes("TABLE_NAME = 'cl_portal_subscription_events'")){f.statements.push(sql);return[[f.state.subscriptionEngine]];}
+  if(sql.includes("k.TABLE_NAME='cl_portal_subscription_events'")){f.statements.push(sql);return[f.state.subscriptionKeys];}
+  if(sql==='UPDATE cl_schema SET version = 8 WHERE id = 1'){f.statements.push(sql);f.state.version=8;return[{affectedRows:1}];}
+  return execute(sql,args);
+ };return f;
+}
+test('default upgrade7 adds only immutable subscription history, verifies structure before marker8 and is idempotent',async()=>{
+ const f=subscriptionMigration({tables:[...schema6Tables,...portalTables],version:7});
+ assert.deepEqual(await migrate(f.connection),{schemaVersion:8});assert.equal(f.state.tables.size,18);
+ assert.equal(f.statements.filter(s=>s.startsWith('CREATE TABLE')).length,1);
+ assert(f.statements.indexOf('UPDATE cl_schema SET version = 8 WHERE id = 1')>f.statements.indexOf('SHOW INDEX FROM cl_portal_subscription_events'));
+ f.statements.length=0;assert.deepEqual(await migrate(f.connection),{schemaVersion:8});assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
+ await assert.rejects(migrate(f.connection,{targetVersion:7}),/Downgrade/);
+});
+test('subscription invalid columns, indexes, FK and engine keep marker7; interrupted creation can resume8',async()=>{
+ for(const mutate of[
+  s=>s.subscriptionColumns[0].Type='int',s=>s.subscriptionColumns[2].Default='1',s=>s.subscriptionColumns[3].Collation='ascii_general_ci',s=>s.subscriptionColumns[6].Extra='on update current_timestamp()',
+  s=>s.subscriptionIndexes[0].Seq_in_index=2,s=>s.subscriptionIndexes.find(r=>r.Key_name==='cl_subscription_request').Sub_part=8,
+  s=>s.subscriptionEngine.engine='MyISAM',s=>s.subscriptionKeys[0].localSchema=0,s=>s.subscriptionKeys[0].deleteRule='CASCADE'
+ ]){
+  const f=subscriptionMigration({tables:[...schema6Tables,...portalTables,'cl_portal_subscription_events'],version:7});mutate(f.state);
+  await assert.rejects(migrate(f.connection),/incompat/);assert.equal(f.state.version,7);assert(!f.statements.includes('UPDATE cl_schema SET version = 8 WHERE id = 1'));
+ }
+ const f=subscriptionMigration({tables:[...schema6Tables,...portalTables],version:7});f.state.failTable='cl_portal_subscription_events';
+ await assert.rejects(migrate(f.connection),/Interrupcao/);assert.equal(f.state.version,7);f.state.failTable=null;await migrate(f.connection);assert.equal(f.state.version,8);
+});
+test('schema8 missing history and subscription table before portal conclusion refuse any DDL',async()=>{
+ for(const options of[{tables:[...schema6Tables,...portalTables],version:8},{tables:[...schema6Tables,'cl_portal_subscription_events'],version:6}]){
+  const f=subscriptionMigration(options);await assert.rejects(migrate(f.connection),/incompleta|concluido/);assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
+ }
+});
+
+ test('fresh default install prepares schema8 without opting in any account',async()=>{const f=subscriptionMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection),{schemaVersion:8});assert.equal(f.state.tables.size,18);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_portal_subscription_events')));});

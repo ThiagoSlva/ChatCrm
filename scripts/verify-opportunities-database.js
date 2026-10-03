@@ -69,7 +69,7 @@ async function verifyOpportunitiesDatabase(connection) {
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
     const capabilities = await repository.capabilities();
-    assert.equal([5, 6, 7].includes(capabilities.schemaVersion), true);
+    assert.equal([5, 6, 7, 8].includes(capabilities.schemaVersion), true);
     assert.equal(capabilities.opportunities, true);
     if (capabilities.schemaVersion >= 6) assert.equal(capabilities.conversationContacts, true);
     await verifyDepartmentSchema(connection); await verifyChatSchema(connection); await verifyContactSchema(connection); await verifyOpportunitySchema(connection);

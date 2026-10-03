@@ -14,7 +14,7 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
   assert.equal(response.json().chatImplemented, true);
   assert.equal(response.json().contactsImplemented, true);
   assert.equal(response.json().opportunitiesImplemented, true);
-  assert.equal(response.json().version, '0.9.0');
+  assert.equal(response.json().version, '0.10.0');
   assert.equal(response.json().conversationContactsImplemented, true);
   assert.equal(response.json().portalImplemented, true);
 });
@@ -31,7 +31,7 @@ test('arquivos privados e caminhos arbitrarios nao sao publicados', async (t) =>
 test('pagina e assets publicos sao servidos com politica restrita', async (t) => {
   const app = buildServer();
   t.after(() => app.close());
-  for (const url of ['/', '/styles.css', '/status.js', '/acesso', '/access.js', '/chat', '/chat.js', '/atendimento', '/inbox.js', '/inbox-crm.js', '/widget.js', '/contatos', '/contacts.js', '/vendas', '/opportunities.js', '/portal', '/portal.js', '/portal-chat.js']) {
+  for (const url of ['/', '/styles.css', '/status.js', '/acesso', '/access.js', '/chat', '/chat.js', '/atendimento', '/inbox.js', '/inbox-crm.js', '/widget.js', '/contatos', '/contacts.js', '/vendas', '/opportunities.js', '/portal', '/portal.js', '/portal-chat.js', '/portal-subscription.js']) {
     const response = await app.inject(url);
     assert.equal(response.statusCode, 200, url);
     assert.equal(response.headers['x-content-type-options'], 'nosniff');
@@ -45,7 +45,7 @@ test('HTML usa assets identificados pelo conteudo para evitar cache ou arquivos 
   for (const url of ['/', '/acesso', '/chat', '/atendimento', '/contatos', '/vendas', '/portal']) {
     const html = (await app.inject(url)).body;
     const urls = [...html.matchAll(/(?:href|src)="(\/assets\/[a-f0-9]{16}\/[^"]+)"/g)].map(match => match[1]);
-    assert.equal(urls.length, ['/atendimento', '/portal'].includes(url) ? 3 : 2);
+    assert.equal(urls.length, url === '/portal' ? 4 : url === '/atendimento' ? 3 : 2);
     for (const asset of urls) {
       const response = await app.inject(asset);
       assert.equal(response.statusCode, 200);
