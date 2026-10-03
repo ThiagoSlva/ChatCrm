@@ -61,3 +61,6 @@ Concorrência CRM em schema5 tem um procedimento manual separado: [verificação
 
 
 v0.8.0 adiciona associação manual atendimento/contato e histórico no schema6. Primeiro publique a aplicação compatível com5; valide acesso/atendimento/contatos/vendas enquanto o contexto informa preparação pendente. Faça backup privado atualizado das treze tabelas e preserve release v0.8 compatível; só então migre explicitamente e compare dados/canais anteriores. Execute o verificador transacional novo, verificadores existentes e HTTPS, conferindo o hash servido. v0.7 não aceita6: recuperar somente código compatível, sem diminuir marcador ou apagar tabelas. Cron e bootstrap permanecem iguais. [Contrato e verificação](ASSOCIACAO-ATENDIMENTO.md). O verificador de concorrência anterior é exclusivo de schema5 e não deve ser executado após essa migração.
+
+
+v0.9.0 implementa o portal do cliente e suporta schema7; frontend revisado localmente em navegador real. A ativação do portal ainda exige homologação: publicar/validar release compatível6 com portal503, criar backup privado fresco das quinze tabelas e só então executar DDL7/verificador transacional/HTTPS. v0.8 não aceita7; não diminuir marcador nem apagar tabelas. Cron/bootstrap/configuração permanecem iguais. [Contrato e sequência](PORTAL-MVP.md).

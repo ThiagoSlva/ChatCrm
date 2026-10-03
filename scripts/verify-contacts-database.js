@@ -61,9 +61,10 @@ async function verifyContactsDatabase(connection) {
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
     const capabilities = await repository.capabilities();
-    assert.equal([4, 5, 6].includes(capabilities.schemaVersion), true);
+    assert.equal([4, 5, 6, 7].includes(capabilities.schemaVersion), true);
     assert.equal(capabilities.departments, true); assert.equal(capabilities.chat, true); assert.equal(capabilities.contacts, true);
     if (capabilities.schemaVersion >= 5) assert.equal(capabilities.opportunities, true);
+    if (capabilities.schemaVersion >= 7) assert.equal(capabilities.portal, true);
     await verifyDepartmentSchema(connection); await verifyChatSchema(connection); await verifyContactSchema(connection);
     checks.push('schema-v4-contact-columns-defaults-indexes-foreign-keys');
     baseline = await preservationFingerprint(connection);

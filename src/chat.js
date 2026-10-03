@@ -160,6 +160,7 @@ function registerChat(app, repository, auth) {
       return await repository.changeChatConversation(session.user.id, session.token, request.params.id, action) || missing(reply);
     });
   }
+  return { visitor, readVisitorToken, visitorCookie };
 }
 
 module.exports = { registerChat };

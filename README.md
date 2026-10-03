@@ -13,6 +13,8 @@ O [contexto do contato no atendimento](docs/ASSOCIACAO-ATENDIMENTO.md) permite v
 
 A [verificação manual de concorrência SQL](docs/VERIFICACAO-CONCORRENCIA-CRM.md) cobre oportunidades em duas conexões físicas. Exige banco de testes vazio, backup privado atual e opção explícita para fixtures temporariamente confirmadas; não faz parte do cron ou de npm test. Consulte o andamento para evidências.
 
+O [portal v0.9](docs/PORTAL-MVP.md) está implementado localmente e aguardando revisão visual e homologação no cPanel. A versão publicada continua v0.8.
+
 ## Executar a base
 
 Requisitos: Node.js 22 ou 24 e npm. MySQL é opcional para abrir a página.

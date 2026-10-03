@@ -71,7 +71,9 @@ async function verifyConversationContactsDatabase(connection) {
     };
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
-    assert.deepEqual(await repository.capabilities(), { schemaVersion: 6, departments: true, chat: true, contacts: true, opportunities: true, conversationContacts: true });
+    const capabilities = await repository.capabilities();
+    assert.equal([6, 7].includes(capabilities.schemaVersion), true);
+    assert.deepEqual(capabilities, { schemaVersion: capabilities.schemaVersion, departments: true, chat: true, contacts: true, opportunities: true, conversationContacts: true, ...(capabilities.schemaVersion >= 7 ? { portal: true } : {}) });
     await verifyDepartmentSchema(connection); await verifyChatSchema(connection); await verifyContactSchema(connection);
     await verifyOpportunitySchema(connection); await verifyConversationContactSchema(connection);
     baseline = await preservationFingerprint(connection);

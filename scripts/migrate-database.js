@@ -32,6 +32,12 @@ const conversationContactStatements = [
   "CREATE TABLE IF NOT EXISTS cl_conversation_contact_events (conversation_id INT UNSIGNED NOT NULL, version INT UNSIGNED NOT NULL, contact_id INT UNSIGNED NULL, actor_id INT UNSIGNED NOT NULL, created_at DATETIME NOT NULL, PRIMARY KEY (conversation_id, version), INDEX cl_conversation_contact_events_contact (contact_id), INDEX cl_conversation_contact_events_actor (actor_id), FOREIGN KEY (conversation_id) REFERENCES cl_conversation_contacts(conversation_id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (contact_id) REFERENCES cl_contacts(id) ON DELETE RESTRICT ON UPDATE RESTRICT, FOREIGN KEY (actor_id) REFERENCES cl_users(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
 ];
 const conversationContactTables = ['cl_conversation_contacts', 'cl_conversation_contact_events'];
+const portalStatements = [
+  "CREATE TABLE IF NOT EXISTS cl_portal_accounts (id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, visitor_id INT UNSIGNED NOT NULL, access_id CHAR(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, password_hash VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, recovery_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, version INT UNSIGNED NOT NULL DEFAULT 1, active TINYINT NOT NULL DEFAULT 1, created_at DATETIME NOT NULL, UNIQUE KEY cl_portal_accounts_visitor (visitor_id), UNIQUE KEY cl_portal_accounts_access (access_id), FOREIGN KEY (visitor_id) REFERENCES cl_visitors(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+  "CREATE TABLE IF NOT EXISTS cl_portal_sessions (token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY, account_id INT UNSIGNED NOT NULL, expires_at DATETIME NOT NULL, INDEX cl_portal_sessions_account (account_id), INDEX cl_portal_sessions_expiry (expires_at), FOREIGN KEY (account_id) REFERENCES cl_portal_accounts(id) ON DELETE RESTRICT ON UPDATE RESTRICT) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+];
+const portalTables = ['cl_portal_accounts', 'cl_portal_sessions'];
+
 const opportunityTables = ['cl_opportunities', 'cl_opportunity_events'];
 const chatTables = ['cl_visitors', 'cl_chat_conversations', 'cl_chat_messages', 'cl_chat_limits'];
 const unsignedInt = /^int(?:\(\d+\))? unsigned$/;
@@ -229,8 +235,51 @@ async function verifyConversationContactSchema(connection) {
   if (foreignKeys.length !== keys.length || keys.some(([table, column, target, referencedColumn]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === referencedColumn && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos e historico atendimento-contato incompativeis.');
 }
 
-async function migrate(connection, { targetVersion = 6 } = {}) {
-  if (![1, 2, 3, 4, 5, 6].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
+async function verifyPortalSchema(connection) {
+  const instant = /^datetime(?:\(0\))?$/;
+  const expected = {
+    cl_portal_accounts: [
+      ['id', unsignedInt, null, 'auto_increment'], ['visitor_id', unsignedInt, null], ['access_id', /^char\(24\)$/, null],
+      ['password_hash', /^varchar\(200\)$/, null], ['recovery_hash', /^char\(64\)$/, null],
+      ['version', unsignedInt, '1'], ['active', /^tinyint(?:\(\d+\))?$/, '1'], ['created_at', instant, null]
+    ],
+    cl_portal_sessions: [['token_hash', /^char\(64\)$/, null], ['account_id', unsignedInt, null], ['expires_at', instant, null]]
+  };
+  const indexes = {};
+  const exactIndex = (rows, columns, unique) => {
+    const keys = new Set(rows.map(row => row.Key_name));
+    return [...keys].some(key => {
+      const ordered = rows.filter(row => row.Key_name === key).sort((a, b) => Number(a.Seq_in_index) - Number(b.Seq_in_index));
+      return ordered.length === columns.length && ordered.every((row, position) =>
+        Number(row.Seq_in_index) === position + 1 && row.Column_name === columns[position] && !row.Sub_part && Number(row.Non_unique) === (unique ? 0 : 1));
+    });
+  };
+  for (const table of portalTables) {
+    const [columns] = await connection.query('SHOW FULL COLUMNS FROM ' + table);
+    if (columns.length !== expected[table].length || !expected[table].every(([field, type, defaultValue, extra = '']) => columns.some(row =>
+      row.Field === field && type.test(row.Type.toLowerCase()) && row.Null === 'NO' &&
+      (defaultValue === null ? row.Default === null : String(row.Default) === defaultValue) && (row.Extra || '').toLowerCase() === extra))) throw new Error('Estrutura do portal incompativel.');
+    if (columns.some(row => ['access_id', 'password_hash', 'recovery_hash', 'token_hash'].includes(row.Field) && row.Collation !== 'ascii_bin')) throw new Error('Collation de segredos do portal incompativel.');
+    [indexes[table]] = await connection.query('SHOW INDEX FROM ' + table);
+  }
+  const [tables] = await connection.execute("SELECT TABLE_NAME AS tableName, ENGINE AS engine, TABLE_COLLATION AS tableCollation FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('cl_portal_accounts', 'cl_portal_sessions')");
+  if (tables.length !== portalTables.length || portalTables.some(table => !tables.some(row => row.tableName === table && row.engine?.toLowerCase() === 'innodb' && row.tableCollation === 'utf8mb4_unicode_ci'))) throw new Error('Engine ou collation do portal incompativel.');
+  if (!exactIndex(indexes.cl_portal_accounts.filter(row => row.Key_name === 'PRIMARY'), ['id'], true) ||
+    !exactIndex(indexes.cl_portal_accounts, ['visitor_id'], true) || !exactIndex(indexes.cl_portal_accounts, ['access_id'], true) ||
+    !exactIndex(indexes.cl_portal_sessions.filter(row => row.Key_name === 'PRIMARY'), ['token_hash'], true) ||
+    !exactIndex(indexes.cl_portal_sessions, ['account_id'], false) || !exactIndex(indexes.cl_portal_sessions, ['expires_at'], false)) throw new Error('Indices do portal incompativeis.');
+  for (const table of portalTables) {
+    const uniqueNames = new Set(indexes[table].filter(row => Number(row.Non_unique) === 0).map(row => row.Key_name));
+    const allowed = table === 'cl_portal_accounts' ? [['id'], ['visitor_id'], ['access_id']] : [['token_hash']];
+    if ([...uniqueNames].some(key => !allowed.some(columns => exactIndex(indexes[table].filter(row => row.Key_name === key), columns, true)))) throw new Error('Unicidade do portal incompativel.');
+  }
+  const [foreignKeys] = await connection.execute("SELECT k.TABLE_NAME AS tableName, k.COLUMN_NAME AS columnName, k.REFERENCED_TABLE_NAME AS referencedTable, k.REFERENCED_COLUMN_NAME AS referencedColumn, (k.REFERENCED_TABLE_SCHEMA = DATABASE()) AS localSchema, r.DELETE_RULE AS deleteRule, r.UPDATE_RULE AS updateRule FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA = k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME = k.CONSTRAINT_NAME AND r.TABLE_NAME = k.TABLE_NAME WHERE k.TABLE_SCHEMA = DATABASE() AND k.TABLE_NAME IN ('cl_portal_accounts', 'cl_portal_sessions') AND k.REFERENCED_TABLE_NAME IS NOT NULL");
+  const keys = [['cl_portal_accounts', 'visitor_id', 'cl_visitors'], ['cl_portal_sessions', 'account_id', 'cl_portal_accounts']];
+  if (foreignKeys.length !== keys.length || keys.some(([table, column, target]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === 'id' && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos do portal incompativeis.');
+}
+
+async function migrate(connection, { targetVersion = 7 } = {}) {
+  if (![1, 2, 3, 4, 5, 6, 7].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
   // Keep the established lock so an older explicit v1 migrator cannot race this one.
   const [lock] = await connection.execute("SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired");
   if (Number(lock[0]?.acquired) !== 1) throw new Error('Outra migracao em andamento.');
@@ -238,7 +287,7 @@ async function migrate(connection, { targetVersion = 6 } = {}) {
     const [tables] = await connection.query('SHOW TABLES');
     const names = tables.map(row => Object.values(row)[0]);
     const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
-    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables];
+    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables, ...portalTables];
     if (names.some(name => !allowed.includes(name))) throw new Error('Use um banco exclusivo e vazio para o projeto.');
     if (names.length && !names.includes('cl_schema')) throw new Error('Banco sem identificacao do projeto.');
     let version = 0;
@@ -247,7 +296,7 @@ async function migrate(connection, { targetVersion = 6 } = {}) {
       // A crash between creating the marker table and inserting its row is resumable.
       if (!rows.length && names.length !== 1) throw new Error('Banco sem identificacao do projeto.');
       version = rows.length ? Number(rows[0].version) : 0;
-      if (![0, 1, 2, 3, 4, 5, 6].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
+      if (![0, 1, 2, 3, 4, 5, 6, 7].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
     }
     if (version > targetVersion) throw new Error('Downgrade de schema nao permitido.');
     if (version >= 1 && baseTables.some(name => !names.includes(name))) throw new Error('Estrutura base incompleta.');
@@ -261,6 +310,8 @@ async function migrate(connection, { targetVersion = 6 } = {}) {
     if (version >= 5 && opportunityTables.some(name => !names.includes(name))) throw new Error('Estrutura de oportunidades incompleta.');
     if (version < 5 && names.some(name => conversationContactTables.includes(name))) throw new Error('Estrutura sem oportunidades concluidas.');
     if (version >= 6 && conversationContactTables.some(name => !names.includes(name))) throw new Error('Estrutura de vinculos atendimento-contato incompleta.');
+    if (version < 6 && names.some(name => portalTables.includes(name))) throw new Error('Estrutura sem vinculos atendimento-contato concluidos.');
+    if (version >= 7 && portalTables.some(name => !names.includes(name))) throw new Error('Estrutura do portal incompleta.');
     // MySQL DDL commits implicitly. Keep v1 intact while v2 is partial, and resume by table.
     if (version === 0) {
       await connection.query(statements[0]);
@@ -297,7 +348,12 @@ async function migrate(connection, { targetVersion = 6 } = {}) {
     if (targetVersion >= 6) {
       if (version === 5) for (const statement of conversationContactStatements) await connection.query(statement);
       await verifyConversationContactSchema(connection);
-      if (version === 5) await connection.execute('UPDATE cl_schema SET version = 6 WHERE id = 1');
+      if (version === 5) { await connection.execute('UPDATE cl_schema SET version = 6 WHERE id = 1'); version = 6; }
+    }
+    if (targetVersion >= 7) {
+      if (version === 6) for (const statement of portalStatements) await connection.query(statement);
+      await verifyPortalSchema(connection);
+      if (version === 6) await connection.execute('UPDATE cl_schema SET version = 7 WHERE id = 1');
     }
     return { schemaVersion: targetVersion };
   } finally { await connection.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
@@ -312,4 +368,4 @@ async function main() {
   finally { if (connection) await connection.end(); }
 }
 if (require.main === module) main().catch(() => { process.stderr.write('Migracao interrompida. Confira configuracao, banco exclusivo e acesso MySQL.\n'); process.exitCode = 1; });
-module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema };
+module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema };

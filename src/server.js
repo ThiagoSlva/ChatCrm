@@ -12,6 +12,7 @@ const { registerChat } = require('./chat');
 const { registerContacts } = require('./contacts');
 const { registerOpportunities } = require('./opportunities');
 const { registerConversationContacts } = require('./conversation-contacts');
+const { registerPortal } = require('./portal');
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -33,6 +34,8 @@ function buildServer(options = {}) {
     ['/inbox.js', 'inbox.js', 'application/javascript; charset=utf-8'],
     ['/inbox-crm.js', 'inbox-crm.js', 'application/javascript; charset=utf-8'],
     ['/widget.js', 'widget.js', 'application/javascript; charset=utf-8'],
+    ['/portal.js', 'portal.js', 'application/javascript; charset=utf-8'],
+    ['/portal-chat.js', 'portal-chat.js', 'application/javascript; charset=utf-8'],
     ['/contacts.js', 'contacts.js', 'application/javascript; charset=utf-8'],
     ['/opportunities.js', 'opportunities.js', 'application/javascript; charset=utf-8']
   ];
@@ -55,7 +58,7 @@ function buildServer(options = {}) {
     app.get(route, async (request, reply) => reply.type(contentType).send(content));
     app.get(versionedUrl, async (request, reply) => reply.type(contentType).send(content));
   }
-  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html']]) {
+  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html'], ['/portal', 'portal.html']]) {
     let content = fs.readFileSync(path.join(projectRoot, 'public', fileName), 'utf8');
     for (const [asset, url] of assetUrls) content = content.replaceAll(`="${asset}"`, `="${url}"`).replaceAll(`="/${asset}"`, `="${url}"`);
     app.get(route, async (request, reply) => reply.type('text/html; charset=utf-8').send(content));
@@ -64,9 +67,9 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.8.0',
+    version: '0.9.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'conversation-contact-mvp',
+    phase: 'customer-portal-mvp',
     authenticationImplemented: true,
     operatorsImplemented: true,
     passwordChangeImplemented: true,
@@ -75,6 +78,7 @@ function buildServer(options = {}) {
     contactsImplemented: true,
     opportunitiesImplemented: true,
     conversationContactsImplemented: true,
+    portalImplemented: true,
     crmImplemented: false,
     chatImplemented: true
   }));
@@ -82,7 +86,8 @@ function buildServer(options = {}) {
   const auth = registerAuth(app, repository, env);
   registerTeam(app, repository, auth);
   registerDepartments(app, repository, auth);
-  registerChat(app, repository, auth);
+  const visitorAuth = registerChat(app, repository, auth);
+  registerPortal(app, repository, auth, visitorAuth);
   registerContacts(app, repository, auth);
   registerOpportunities(app, repository, auth);
   registerConversationContacts(app, repository, auth);

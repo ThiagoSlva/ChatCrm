@@ -45,6 +45,7 @@ function registerAuth(app, repository, env = process.env) {
     return user;
   }
   async function hashWork(work) {
+    if (activeHashes >= 2) { const error = new Error(); error.statusCode = 429; throw error; }
     activeHashes++;
     try { return await work(); } finally { activeHashes--; }
   }

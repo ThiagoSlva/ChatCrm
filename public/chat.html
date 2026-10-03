@@ -3,8 +3,8 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Atendimento — Conversa Livre</title><link rel="stylesheet" href="/styles.css"><script src="/chat.js" defer></script></head>
 <body class="visitor-page">
   <main class="visitor-main">
-    <header><a class="brand" href="/chat"><span class="brand-mark" aria-hidden="true">c</span>Conversa Livre</a><span class="version">v0.7.0</span></header>
-    <section class="welcome"><p class="eyebrow">FALE COM A EQUIPE</p><h1>Como podemos ajudar?</h1><p class="intro">Seu atendimento acontece aqui, no site da empresa. Informe seu nome e escolha uma área para começar.</p></section>
+    <header><a class="brand" href="/chat"><span class="brand-mark" aria-hidden="true">c</span>Conversa Livre</a><span class="version">v0.9.0</span></header>
+    <p class="session-note"><a class="button-link" href="/portal">Já tenho acesso ao portal</a></p><section class="welcome"><p class="eyebrow">FALE COM A EQUIPE</p><h1>Como podemos ajudar?</h1><p class="intro">Seu atendimento acontece aqui, no site da empresa. Informe seu nome e escolha uma área para começar.</p></section>
     <p id="visitor-feedback" class="feedback" role="status" aria-live="polite"></p>
     <section id="visitor-unavailable" class="card access-card" hidden><h2>Atendimento indisponível</h2><p id="visitor-unavailable-description">O atendimento ainda precisa ser preparado pela empresa. Tente novamente mais tarde.</p><button id="visitor-retry" type="button">Verificar novamente</button></section>
     <form id="visitor-start" class="card access-card" hidden><h2>Apresente-se</h2><label for="visitor-name">Seu nome</label><input id="visitor-name" name="name" required minlength="2" maxlength="100" autocomplete="name"><p>O nome informado não verifica sua identidade. O histórico fica associado a este navegador por até oito horas; permita cookies neste site para continuar.</p><button type="submit">Continuar</button></form>
@@ -14,7 +14,7 @@
       <section class="card access-card" aria-labelledby="visitor-history-title"><h2 id="visitor-history-title">Seus atendimentos</h2><ul id="visitor-conversation-list" class="conversation-list"></ul><p id="visitor-conversations-empty" hidden>Você ainda não iniciou um atendimento neste navegador.</p></section>
       <section id="visitor-conversation" class="card conversation-card" hidden aria-labelledby="visitor-conversation-title"><h2 id="visitor-conversation-title" tabindex="-1"></h2><p id="visitor-conversation-state" class="conversation-state"></p><div id="visitor-messages" class="message-log" role="log" aria-label="Mensagens do atendimento" aria-live="polite" aria-relevant="additions"></div><p id="visitor-message-feedback" class="feedback" role="status" aria-live="polite"></p><form id="visitor-compose" class="message-compose"><label for="visitor-text">Sua mensagem</label><textarea id="visitor-text" name="text" required minlength="1" maxlength="2000" rows="4" aria-describedby="visitor-compose-note"></textarea><p id="visitor-compose-note">Até 2.000 caracteres. Use o botão para enviar; Enter cria uma nova linha.</p><button id="visitor-send" type="submit">Enviar mensagem</button></form></section>
     </section>
-    <footer>Conversa Livre · código aberto. Nome informado não permite recuperar o histórico em outro navegador. Texto apenas nesta versão.</footer>
+    <footer>Conversa Livre · código aberto. Para voltar em outro dispositivo, crie seu acesso no portal antes de encerrar a sessão de visitante. Texto apenas nesta versão.</footer>
   </main>
 </body>
 </html>

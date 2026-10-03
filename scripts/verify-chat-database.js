@@ -64,10 +64,11 @@ async function verifyChatDatabase(connection) {
     const pool = { execute: nested.execute, getConnection: async () => nested, end: async () => {} };
     const repository = repositoryForPool(pool);
     const capabilities = await repository.capabilities();
-    assert.equal([3, 4, 5, 6].includes(capabilities.schemaVersion), true);
+    assert.equal([3, 4, 5, 6, 7].includes(capabilities.schemaVersion), true);
     assert.equal(capabilities.departments, true); assert.equal(capabilities.chat, true);
     if (capabilities.schemaVersion >= 4) assert.equal(capabilities.contacts, true);
     if (capabilities.schemaVersion >= 5) assert.equal(capabilities.opportunities, true);
+    if (capabilities.schemaVersion >= 7) assert.equal(capabilities.portal, true);
     await verifyDepartmentSchema(connection);
     await verifyChatSchema(connection);
     checks.push('schema-v3-defaults-indexes-foreign-keys');

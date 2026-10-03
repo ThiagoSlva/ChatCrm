@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { migrate, verifyConversationContactSchema } = require('../scripts/migrate-database');
+const { migrate, verifyConversationContactSchema, verifyPortalSchema } = require('../scripts/migrate-database');
 const { databaseOptions, repositoryForPool } = require('../src/database');
 
 const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
@@ -81,6 +81,20 @@ const conversationContactForeignKeys = [
   ['cl_conversation_contact_events', 'conversation_id', 'cl_conversation_contacts', 'conversation_id'], ['cl_conversation_contact_events', 'contact_id', 'cl_contacts', 'id'], ['cl_conversation_contact_events', 'actor_id', 'cl_users', 'id']
 ].map(([tableName, columnName, referencedTable, referencedColumn]) => ({ tableName, columnName, referencedTable, referencedColumn, localSchema: 1, deleteRule: 'RESTRICT', updateRule: 'RESTRICT' }));
 
+
+const portalTables = ['cl_portal_accounts', 'cl_portal_sessions'];
+const schema6Tables = [...schema5Tables, ...conversationContactTables];
+const portalColumns = {
+  cl_portal_accounts: [identity(), field('visitor_id','int unsigned'), ascii('access_id',24), field('password_hash','varchar(200)',{Collation:'ascii_bin'}), ascii('recovery_hash',64), field('version','int unsigned',{Default:'1'}), field('active','tinyint',{Default:'1'}), field('created_at','datetime')],
+  cl_portal_sessions: [ascii('token_hash',64), field('account_id','int unsigned'), field('expires_at','datetime')]
+};
+for(const table of portalTables) portalColumns[table]=portalColumns[table].map(row=>({Default:null,...row}));
+const portalIndexes = {
+  cl_portal_accounts: [...index('PRIMARY',['id']),...index('cl_portal_accounts_visitor',['visitor_id']),...index('cl_portal_accounts_access',['access_id'])],
+  cl_portal_sessions: [...index('PRIMARY',['token_hash']),...index('cl_portal_sessions_account',['account_id'],1),...index('cl_portal_sessions_expiry',['expires_at'],1)]
+};
+const portalForeignKeys=[['cl_portal_accounts','visitor_id','cl_visitors'],['cl_portal_sessions','account_id','cl_portal_accounts']].map(([tableName,columnName,referencedTable])=>({tableName,columnName,referencedTable,referencedColumn:'id',localSchema:1,deleteRule:'RESTRICT',updateRule:'RESTRICT'}));
+
 function migrationConnection({ tables = [], version = null } = {}) {
   const state = { tables: new Set(tables), version, failTable: null, departmentIndexes: [...index('PRIMARY', ['id']), ...index('name_unique', ['name'])],
     memberIndexes: [...index('PRIMARY', ['department_id', 'user_id']), ...index('user_lookup', ['user_id', 'department_id'], 1)], foreignKeys: [...foreignKeys], acquired: 1,
@@ -88,7 +102,7 @@ function migrationConnection({ tables = [], version = null } = {}) {
     chatColumns: structuredClone(chatColumns), chatIndexes: structuredClone(chatIndexes), chatForeignKeys: structuredClone(chatForeignKeys), chatEngines: chatTables.map(tableName => ({ tableName, engine: 'InnoDB' })), coreEngines: ['cl_schema', 'cl_users', 'cl_sessions'].map(tableName => ({ tableName, engine: 'InnoDB' })),
     contactColumns: structuredClone(contactColumns), contactIndexes: structuredClone(contactIndexes), contactForeignKeys: structuredClone(contactForeignKeys),
     contactTables: [{ tableName: 'cl_contacts', engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' }], opportunityColumns: structuredClone(opportunityColumns), opportunityIndexes: structuredClone(opportunityIndexes), opportunityForeignKeys: structuredClone(opportunityForeignKeys), opportunityEngines: opportunityTables.map(tableName => ({ tableName, engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' })),
-    conversationContactColumns: structuredClone(conversationContactColumns), conversationContactIndexes: structuredClone(conversationContactIndexes), conversationContactForeignKeys: structuredClone(conversationContactForeignKeys), conversationContactEngines: conversationContactTables.map(tableName => ({ tableName, engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' })) };
+    conversationContactColumns: structuredClone(conversationContactColumns), conversationContactIndexes: structuredClone(conversationContactIndexes), conversationContactForeignKeys: structuredClone(conversationContactForeignKeys), conversationContactEngines: conversationContactTables.map(tableName => ({ tableName, engine: 'InnoDB', tableCollation: 'utf8mb4_unicode_ci' })), portalColumns: structuredClone(portalColumns), portalIndexes: structuredClone(portalIndexes), portalForeignKeys: structuredClone(portalForeignKeys), portalEngines: portalTables.map(tableName=>({tableName,engine:'InnoDB',tableCollation:'utf8mb4_unicode_ci'})) };
   const statements = [];
   const connection = {
     execute: async sql => {
@@ -97,6 +111,8 @@ function migrationConnection({ tables = [], version = null } = {}) {
       if (sql.startsWith('SELECT version')) return [state.version === null ? [] : [{ version: state.version }]];
       if (sql.startsWith('INSERT IGNORE INTO cl_schema')) { if (state.version === null) state.version = 0; }
       if (sql.startsWith('UPDATE cl_schema')) state.version = Number(sql.match(/version = (\d+)/)[1]);
+      if (sql.includes('KEY_COLUMN_USAGE') && sql.includes("TABLE_NAME IN ('cl_portal_accounts'")) return [state.portalForeignKeys];
+      if (sql.includes('information_schema.TABLES') && sql.includes("TABLE_NAME IN ('cl_portal_accounts'")) return [state.portalEngines];
       if (sql.includes('KEY_COLUMN_USAGE') && sql.includes("TABLE_NAME IN ('cl_conversation_contacts'")) return [state.conversationContactForeignKeys];
       if (sql.includes('information_schema.TABLES') && sql.includes("TABLE_NAME IN ('cl_conversation_contacts'")) return [state.conversationContactEngines];
       if (sql.includes('KEY_COLUMN_USAGE') && sql.includes("TABLE_NAME IN ('cl_opportunities'")) return [state.opportunityForeignKeys];
@@ -116,6 +132,8 @@ function migrationConnection({ tables = [], version = null } = {}) {
         if (name === state.failTable) throw new Error('Interrupcao simulada de DDL.');
         state.tables.add(name);
       }
+      if (sql.startsWith('SHOW FULL COLUMNS FROM ') && state.portalColumns[sql.slice(23)]) return [state.portalColumns[sql.slice(23)]];
+      if (sql.startsWith('SHOW INDEX FROM ') && state.portalIndexes[sql.slice(16)]) return [state.portalIndexes[sql.slice(16)]];
       if (sql === 'SHOW FULL COLUMNS FROM cl_contacts') return [state.contactColumns];
       if (sql === 'SHOW INDEX FROM cl_contacts') return [state.contactIndexes];
       if (sql === 'SHOW FULL COLUMNS FROM cl_departments') return [state.departmentColumns];
@@ -232,11 +250,11 @@ test('defaults, engine e collation defeituosos impedem concluir v2 parcial', asy
   assert.equal(state.version, 2);
 });
 
-test('migracao padrao instala v6 sem publicar canais nem criar identidades', async () => {
+test('migracao padrao instala v7 sem publicar canais nem criar identidades', async () => {
   const { connection, statements, state } = migrationConnection();
-  assert.deepEqual(await migrate(connection), { schemaVersion: 6 });
-  assert.equal(state.version, 6);
-  assert.equal(state.tables.size, 15);
+  assert.deepEqual(await migrate(connection), { schemaVersion: 7 });
+  assert.equal(state.version, 7);
+  assert.equal(state.tables.size, 17);
   assert.deepEqual(state.departmentColumns.find(row => row.Field === 'public_chat'), publicColumn);
   assert.equal(statements.some(sql => /^(?:INSERT(?: IGNORE)? INTO|UPDATE|DELETE FROM) cl_(?:users|sessions|visitors|company)\b/.test(sql)), false);
   const mark = statements.indexOf('UPDATE cl_schema SET version = 3 WHERE id = 1');
@@ -249,6 +267,8 @@ test('migracao padrao instala v6 sem publicar canais nem criar identidades', asy
   assert.ok(statements.findIndex(sql => sql.includes("k.TABLE_NAME IN ('cl_opportunities'")) < opportunityMark);
   const bindingMark = statements.indexOf('UPDATE cl_schema SET version = 6 WHERE id = 1');
   assert.ok(opportunityMark < bindingMark);
+  const portalMark = statements.indexOf('UPDATE cl_schema SET version = 7 WHERE id = 1');
+  assert.ok(bindingMark < portalMark);
   assert.ok(statements.findIndex(sql => sql.includes("k.TABLE_NAME IN ('cl_conversation_contacts'")) < bindingMark);
   assert.ok(statements.filter(sql => sql.startsWith('CREATE TABLE')).every(sql => /ENGINE=InnoDB/.test(sql)));
   assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -579,6 +599,8 @@ test('status e capacidades preservam v1-v5 e habilitam associacoes em v6', async
   version = 6;
   assert.equal(await repository.status(), 'installed');
   assert.deepEqual(await repository.capabilities(), { schemaVersion: 6, departments: true, chat: true, contacts: true, opportunities: true, conversationContacts: true });
+  version = 7;
+  assert.deepEqual(await repository.capabilities(), { schemaVersion: 7, departments: true, chat: true, contacts: true, opportunities: true, conversationContacts: true, portal: true });
   version = 0;
   await assert.rejects(repository.capabilities(), /incompativel/);
 });
@@ -640,7 +662,7 @@ test('duas criacoes no limite nao usam snapshot anterior a espera pela trava', a
 test('upgrade v5 acrescenta somente associacao e historico antes de marcar v6', async () => {
   const { connection, statements, state } = migrationConnection({ tables: schema5Tables, version: 5 });
   state.departmentColumns.push({ ...publicColumn });
-  assert.deepEqual(await migrate(connection), { schemaVersion: 6 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 6 }), { schemaVersion: 6 });
   assert.equal(state.version, 6); assert.equal(state.tables.size, 15);
   const ddl = statements.filter(sql => /^(CREATE|ALTER|DROP)/.test(sql));
   assert.equal(ddl.length, 2);
@@ -661,14 +683,14 @@ test('upgrade v5 acrescenta somente associacao e historico antes de marcar v6', 
 test('v6 interrompido retoma tabela parcial mantendo v5 e target5 somente leitura', async () => {
   const { connection, statements, state } = migrationConnection({ tables: schema5Tables, version: 5 });
   state.departmentColumns.push({ ...publicColumn }); state.failTable = 'cl_conversation_contact_events';
-  await assert.rejects(migrate(connection), /Interrupcao/);
+  await assert.rejects(migrate(connection, { targetVersion: 6 }), /Interrupcao/);
   assert.equal(state.version, 5); assert.equal(state.tables.has('cl_conversation_contacts'), true); assert.equal(state.tables.has('cl_conversation_contact_events'), false);
   assert.equal(statements.includes('UPDATE cl_schema SET version = 6 WHERE id = 1'), false);
   const checkpoint = statements.length;
   assert.deepEqual(await migrate(connection, { targetVersion: 5 }), { schemaVersion: 5 });
   assert.equal(statements.slice(checkpoint).some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   state.failTable = null;
-  assert.deepEqual(await migrate(connection), { schemaVersion: 6 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 6 }), { schemaVersion: 6 });
   assert.equal(state.tables.size, 15); assert.equal(state.version, 6);
 });
 
@@ -676,7 +698,7 @@ test('preparacao parcial valida v6 retoma sem apagar registros ou alterar tabela
   for (const partial of [[conversationContactTables[0]], [conversationContactTables[1]], conversationContactTables]) {
     const { connection, statements, state } = migrationConnection({ tables: [...schema5Tables, ...partial], version: 5 });
     state.departmentColumns.push({ ...publicColumn });
-    assert.deepEqual(await migrate(connection), { schemaVersion: 6 });
+    assert.deepEqual(await migrate(connection, { targetVersion: 6 }), { schemaVersion: 6 });
     assert.equal(state.tables.size, 15); assert.equal(state.version, 6);
     assert.equal(statements.some(sql => /^(ALTER|DROP|DELETE)|^UPDATE cl_(?!schema\b)|^INSERT(?: IGNORE)? INTO cl_(?!schema\b)/.test(sql)), false);
   }
@@ -684,12 +706,12 @@ test('preparacao parcial valida v6 retoma sem apagar registros ou alterar tabela
 
 test('instalacao interrompida no ultimo historico preserva fases anteriores concluidas', async () => {
   const { connection, statements, state } = migrationConnection(); state.failTable = 'cl_conversation_contact_events';
-  await assert.rejects(migrate(connection), /Interrupcao/);
+  await assert.rejects(migrate(connection, { targetVersion: 6 }), /Interrupcao/);
   assert.equal(state.version, 5); assert.equal(state.tables.size, 14);
   assert.ok([1, 2, 3, 4, 5].every(version => statements.includes('UPDATE cl_schema SET version = ' + version + ' WHERE id = 1')));
   assert.equal(statements.includes('UPDATE cl_schema SET version = 6 WHERE id = 1'), false);
   state.failTable = null;
-  assert.deepEqual(await migrate(connection), { schemaVersion: 6 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 6 }), { schemaVersion: 6 });
   assert.equal(state.tables.size, 15);
 });
 
@@ -751,7 +773,7 @@ test('estruturas parciais defeituosas de associacao nao recebem marcador v6', as
     if (defect === 'update-rule') state.conversationContactForeignKeys[4].updateRule = 'CASCADE';
     if (defect === 'referenced-table') state.conversationContactForeignKeys[0].referencedTable = 'cl_users';
     if (defect === 'event-parent-column') state.conversationContactForeignKeys[3].referencedColumn = 'id';
-    await assert.rejects(migrate(connection), /incompativ/, defect);
+    await assert.rejects(migrate(connection, { targetVersion: 6 }), /incompativ/, defect);
     assert.equal(state.version, 5, defect);
     assert.equal(statements.some(sql => /^(ALTER|DELETE|DROP)/.test(sql) || sql === 'UPDATE cl_schema SET version = 6 WHERE id = 1'), false, defect);
     assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -764,7 +786,7 @@ test('v6 verifica schema anterior antes de qualquer nova DDL', async () => {
     state.departmentColumns.push({ ...publicColumn });
     if (defect === 'contact-hash') state.contactColumns.find(row => row.Field === 'request_hash').Collation = 'ascii_general_ci';
     else state.opportunityColumns.cl_opportunities.find(row => row.Field === 'stage').Default = 'won';
-    await assert.rejects(migrate(connection), /incompativ/);
+    await assert.rejects(migrate(connection, { targetVersion: 6 }), /incompativ/);
     assert.equal(state.version, 5);
     assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   }
@@ -775,7 +797,7 @@ test('schema6 completo e idempotente aceita indices extras nao unicos e recusa d
   state.departmentColumns.push({ ...publicColumn });
   state.conversationContactIndexes.cl_conversation_contacts.push(...index('updated_lookup', ['updated_at'], 1));
   state.conversationContactIndexes.cl_conversation_contact_events.push(...index('created_lookup', ['created_at'], 1));
-  assert.deepEqual(await migrate(connection), { schemaVersion: 6 });
+  assert.deepEqual(await migrate(connection, { targetVersion: 6 }), { schemaVersion: 6 });
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   for (const targetVersion of [1, 2, 3, 4, 5]) await assert.rejects(migrate(connection, { targetVersion }), /Downgrade/);
   assert.equal(state.version, 6);
@@ -800,20 +822,98 @@ test('marker6 incompleto ou tabelas novas antes de oportunidades concluidas recu
   ];
   for (const options of states) {
     const { connection, statements } = migrationConnection(options);
-    await assert.rejects(migrate(connection), /incompleta|concluidas/);
+    await assert.rejects(migrate(connection, { targetVersion: 6 }), /incompleta|concluidas/);
     assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
     assert.match(statements.at(-1), /RELEASE_LOCK/);
   }
 });
 
 test('targets invalidos e marker futuro recusam antes de mutacao', async () => {
-  for (const targetVersion of [0, 7, '6', null, false]) {
+  for (const targetVersion of [0, 8, '7', null, false]) {
     const { connection, statements } = migrationConnection();
     await assert.rejects(migrate(connection, { targetVersion }), /alvo/);
     assert.equal(statements.length, 0);
   }
-  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 7 });
-  await assert.rejects(migrate(connection), /nao reconhecida/);
+  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 8 });
+  await assert.rejects(migrate(connection, { targetVersion: 6 }), /nao reconhecida/);
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   assert.match(statements.at(-1), /RELEASE_LOCK/);
+});
+
+
+function portalMigrationConnection(options) { const result=migrationConnection(options); result.state.departmentColumns.push({...publicColumn}); return result; }
+
+test('upgrade6 cria apenas duas tabelas portal e marca7 depois de validar',async()=>{
+ const {connection,statements,state}=portalMigrationConnection({tables:schema6Tables,version:6});
+ assert.deepEqual(await migrate(connection),{schemaVersion:7}); assert.equal(state.version,7); assert.equal(state.tables.size,17);
+ const ddl=statements.filter(x=>x.startsWith('CREATE TABLE')); assert.equal(ddl.length,2);
+ assert.match(ddl[0],/UNIQUE KEY cl_portal_accounts_visitor \(visitor_id\)/); assert.match(ddl[0],/access_id CHAR\(24\) CHARACTER SET ascii COLLATE ascii_bin/);
+ assert.match(ddl[0],/created_at DATETIME NOT NULL, UNIQUE/); assert.match(ddl[1],/expires_at DATETIME NOT NULL, INDEX/);
+ const marker=statements.indexOf('UPDATE cl_schema SET version = 7 WHERE id = 1');
+ assert.ok(marker>statements.findIndex(x=>x.includes("k.TABLE_NAME IN ('cl_portal_accounts'")));
+ assert.equal(statements.some(x=>/^(ALTER|DROP|DELETE)/.test(x)),false);
+});
+
+test('portal parcial retoma7 e target6 permanece somente leitura',async()=>{
+ const {connection,statements,state}=portalMigrationConnection({tables:schema6Tables,version:6}); state.failTable='cl_portal_sessions';
+ await assert.rejects(migrate(connection),/Interrupcao/); assert.equal(state.version,6); assert.equal(state.tables.size,16);
+ assert.equal(statements.includes('UPDATE cl_schema SET version = 7 WHERE id = 1'),false);
+ statements.length=0; assert.deepEqual(await migrate(connection,{targetVersion:6}),{schemaVersion:6}); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
+ state.failTable=null; assert.deepEqual(await migrate(connection),{schemaVersion:7}); assert.equal(state.tables.size,17);
+});
+
+test('portal7 recusa estruturas parciais incompatíveis sem DDL nem marcador',async()=>{
+ const defects=['missing','extra','signed','nullable','access-length','hash-type','collation','version-default','active-default','date-default','date-extra','auto-increment','session-null','session-type','session-date','engine','table-collation','primary','visitor-unique','access-unique','account-index','expiry-index','prefix','index-order','extra-unique','foreign','foreign-schema','delete-rule','update-rule','target'];
+ for(const defect of defects){
+  const {connection,statements,state}=portalMigrationConnection({tables:[...schema6Tables,...portalTables],version:6});
+  const col=f=>state.portalColumns.cl_portal_accounts.find(x=>x.Field===f); const sess=f=>state.portalColumns.cl_portal_sessions.find(x=>x.Field===f);
+  if(defect==='missing') state.portalColumns.cl_portal_accounts.pop();
+  if(defect==='extra') state.portalColumns.cl_portal_accounts.push(field('extra','int'));
+  if(defect==='signed') col('visitor_id').Type='int';
+  if(defect==='nullable') col('recovery_hash').Null='YES';
+  if(defect==='access-length') col('access_id').Type='char(25)';
+  if(defect==='hash-type') col('password_hash').Type='varchar(201)';
+  if(defect==='collation') col('password_hash').Collation='ascii_general_ci';
+  if(defect==='version-default') col('version').Default='0';
+  if(defect==='active-default') col('active').Default='0';
+  if(defect==='date-default') col('created_at').Default='CURRENT_TIMESTAMP';
+  if(defect==='date-extra') col('created_at').Extra='on update current_timestamp()';
+  if(defect==='auto-increment') col('id').Extra='';
+  if(defect==='session-null') sess('account_id').Null='YES';
+  if(defect==='session-type') sess('token_hash').Type='char(63)';
+  if(defect==='session-date') sess('expires_at').Default='CURRENT_TIMESTAMP';
+  if(defect==='engine') state.portalEngines[1].engine='MyISAM';
+  if(defect==='table-collation') state.portalEngines[0].tableCollation='utf8mb4_bin';
+  if(defect==='primary') state.portalIndexes.cl_portal_accounts=state.portalIndexes.cl_portal_accounts.filter(x=>x.Key_name!=='PRIMARY');
+  if(defect==='visitor-unique') state.portalIndexes.cl_portal_accounts.find(x=>x.Column_name==='visitor_id').Non_unique=1;
+  if(defect==='access-unique') state.portalIndexes.cl_portal_accounts.find(x=>x.Column_name==='access_id').Non_unique=1;
+  if(defect==='account-index') state.portalIndexes.cl_portal_sessions=state.portalIndexes.cl_portal_sessions.filter(x=>x.Column_name!=='account_id');
+  if(defect==='expiry-index') state.portalIndexes.cl_portal_sessions.find(x=>x.Column_name==='expires_at').Non_unique=0;
+  if(defect==='prefix') state.portalIndexes.cl_portal_accounts.find(x=>x.Column_name==='access_id').Sub_part=12;
+  if(defect==='index-order') state.portalIndexes.cl_portal_sessions.find(x=>x.Column_name==='expires_at').Seq_in_index=2;
+  if(defect==='extra-unique') state.portalIndexes.cl_portal_accounts.push(...index('hash_unique',['recovery_hash']));
+  if(defect==='foreign') state.portalForeignKeys.pop();
+  if(defect==='foreign-schema') state.portalForeignKeys[0].localSchema=0;
+  if(defect==='delete-rule') state.portalForeignKeys[0].deleteRule='CASCADE';
+  if(defect==='update-rule') state.portalForeignKeys[1].updateRule='CASCADE';
+  if(defect==='target') state.portalForeignKeys[0].referencedTable='cl_users';
+  await assert.rejects(migrate(connection),/incompativ/,defect); assert.equal(state.version,6,defect); assert.equal(statements.some(x=>/^(UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false,defect);
+ }
+});
+
+test('portal7 completo idempotente aceita índice extra não único e impede downgrade',async()=>{
+ const {connection,statements,state}=portalMigrationConnection({tables:[...schema6Tables,...portalTables],version:7});
+ state.portalIndexes.cl_portal_accounts.push(...index('extra_version',['version'],1));
+ assert.deepEqual(await migrate(connection),{schemaVersion:7}); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
+ await verifyPortalSchema(connection);
+ for(const targetVersion of [1,2,3,4,5,6]) await assert.rejects(migrate(connection,{targetVersion}),/Downgrade/);
+});
+
+test('marcador7 incompleto e tabelas portal antes6 recusam mutação',async()=>{
+ for(const options of [
+  ...portalTables.map(missing=>({tables:[...schema6Tables,...portalTables].filter(x=>x!==missing),version:7})),
+  ...portalTables.map(table=>({tables:[...schema5Tables,table],version:5}))
+ ]){
+  const {connection,statements}=portalMigrationConnection(options); await assert.rejects(migrate(connection),/incompleta|concluidos/); assert.equal(statements.some(x=>/^(CREATE|UPDATE|INSERT|ALTER|DELETE|DROP)/.test(x)),false);
+ }
 });

@@ -6,6 +6,7 @@ const { chatRepository } = require('./chat-database');
 const { contactsRepository } = require('./contacts-database');
 const { opportunitiesRepository } = require('./opportunities-database');
 const { conversationContactsRepository } = require('./conversation-contacts-database');
+const { portalRepository } = require('./portal-database');
 
 function databaseOptions(env = process.env) {
   if (!env.DB_HOST || !env.DB_NAME || !env.DB_USER || !env.DB_PASSWORD) return null;
@@ -28,8 +29,8 @@ function repositoryForPool(pool) {
   async function capabilities(connection = pool) {
     const [schema] = await connection.execute('SELECT version FROM cl_schema WHERE id = 1');
     const schemaVersion = Number(schema[0]?.version);
-    if (![1, 2, 3, 4, 5, 6].includes(schemaVersion)) throw new Error('Schema incompativel.');
-    return { schemaVersion, departments: schemaVersion >= 2, ...(schemaVersion >= 3 ? { chat: true } : {}), ...(schemaVersion >= 4 ? { contacts: true } : {}), ...(schemaVersion >= 5 ? { opportunities: true } : {}), ...(schemaVersion >= 6 ? { conversationContacts: true } : {}) };
+    if (![1, 2, 3, 4, 5, 6, 7].includes(schemaVersion)) throw new Error('Schema incompativel.');
+    return { schemaVersion, departments: schemaVersion >= 2, ...(schemaVersion >= 3 ? { chat: true } : {}), ...(schemaVersion >= 4 ? { contacts: true } : {}), ...(schemaVersion >= 5 ? { opportunities: true } : {}), ...(schemaVersion >= 6 ? { conversationContacts: true } : {}), ...(schemaVersion >= 7 ? { portal: true } : {}) };
   }
   async function requireDepartments(connection = pool) {
     if (!(await capabilities(connection)).departments) throw failure(503);
@@ -64,6 +65,7 @@ function repositoryForPool(pool) {
     ...contactsRepository(pool, { transaction, capabilities }),
     ...opportunitiesRepository(pool, { transaction, capabilities }),
     ...conversationContactsRepository(pool, { transaction, capabilities }),
+    ...portalRepository(pool, { transaction, capabilities }),
     capabilities,
     async status() {
       await capabilities();

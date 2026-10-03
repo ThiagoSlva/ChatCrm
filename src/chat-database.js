@@ -1,6 +1,7 @@
 'use strict';
 
 const { digest } = require('./security');
+const { portalIdentity } = require('./portal-database');
 
 function chatRepository(pool, { transaction, capabilities }) {
   const fail = code => { const error = new Error(); error.statusCode = code; return error; };
@@ -72,6 +73,28 @@ function chatRepository(pool, { transaction, capabilities }) {
   async function safeConversationById(connection, id) {
     const [rows] = await connection.execute(`SELECT ${conversationFields} ${conversationFrom} WHERE c.id = ?`, [id]);
     return safeConversation(rows[0]);
+  }
+
+  async function readyPortal(connection) { if ((await capabilities(connection)).portal !== true) throw fail(503); }
+  const portalConversationFields = "c.id, CASE WHEN d.active = 1 AND d.public_chat = 1 THEN d.name ELSE 'Atendimento anterior' END AS departmentName, c.status, c.updated_at AS updatedAt";
+  const safePortalConversation = row => ({ id: Number(row.id), departmentName: row.departmentName, status: row.status, updatedAt: timestamp(row.updatedAt) });
+  async function portalConversationById(connection, id) {
+    const [rows] = await connection.execute('SELECT ' + portalConversationFields + ' ' + conversationFrom + ' WHERE c.id = ?', [id]);
+    return safePortalConversation(rows[0]);
+  }
+  async function openConversation(connection, visitorId, departmentId, representation) {
+    const [open] = await connection.execute("SELECT id, department_id AS departmentId FROM cl_chat_conversations WHERE visitor_id = ? AND status <> 'closed' ORDER BY id LIMIT 1 FOR UPDATE", [visitorId]);
+    if (open.length) {
+      if (Number(open[0].departmentId) !== departmentId) throw fail(409);
+      return { conversation: await representation(connection, open[0].id), created: false };
+    }
+    const row = await department(connection, departmentId);
+    if (!row || Number(row.active) !== 1 || Number(row.public_chat) !== 1) throw fail(404);
+    const [counts] = await connection.execute('SELECT COUNT(*) AS total FROM cl_chat_conversations WHERE visitor_id = ?', [visitorId]);
+    if (Number(counts[0].total) >= 20) throw fail(429);
+    await quota(connection, 'cl_chat_conversations', 5000);
+    const [result] = await connection.execute('INSERT INTO cl_chat_conversations (visitor_id, department_id, updated_at, created_at) VALUES (?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())', [visitorId, departmentId]);
+    return { conversation: await representation(connection, result.insertId), created: true };
   }
   async function quota(connection, table, maximum) {
     const [rows] = await connection.execute(`SELECT COUNT(*) AS total FROM ${table}`);
@@ -166,18 +189,7 @@ function chatRepository(pool, { transaction, capabilities }) {
     async createVisitorConversation(token, departmentId) {
       return coordinated(async connection => {
         const user = await visitor(connection, token);
-        const [open] = await connection.execute("SELECT id, department_id AS departmentId FROM cl_chat_conversations WHERE visitor_id = ? AND status <> 'closed' ORDER BY id LIMIT 1 FOR UPDATE", [user.id]);
-        if (open.length) {
-          if (Number(open[0].departmentId) !== departmentId) throw fail(409);
-          return { conversation: await safeConversationById(connection, open[0].id), created: false };
-        }
-        const row = await department(connection, departmentId);
-        if (!row || Number(row.active) !== 1 || Number(row.public_chat) !== 1) throw fail(404);
-        const [counts] = await connection.execute('SELECT COUNT(*) AS total FROM cl_chat_conversations WHERE visitor_id = ?', [user.id]);
-        if (Number(counts[0].total) >= 20) throw fail(429);
-        await quota(connection, 'cl_chat_conversations', 5000);
-        const [result] = await connection.execute('INSERT INTO cl_chat_conversations (visitor_id, department_id, updated_at, created_at) VALUES (?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP())', [user.id, departmentId]);
-        return { conversation: await safeConversationById(connection, result.insertId), created: true };
+        return openConversation(connection, user.id, departmentId, safeConversationById);
       });
     },
     async visitorMessages(token, conversationId, after, limit) {
@@ -198,6 +210,46 @@ function chatRepository(pool, { transaction, capabilities }) {
         const area = await department(connection, row.departmentId);
         if (!area || Number(area.active) !== 1) throw fail(404);
         return send(connection, row, { ...user, sender: 'visitor' }, input);
+      });
+    },
+    async listPortalConversations(token) {
+      return coordinated(async connection => {
+        await readyPortal(connection);
+        const user = await portalIdentity(connection, token);
+        const [rows] = await connection.execute('SELECT ' + portalConversationFields + ' ' + conversationFrom + ' WHERE c.visitor_id = ? ORDER BY c.id DESC LIMIT 20', [user.visitorId]);
+        return { conversations: rows.map(safePortalConversation) };
+      });
+    },
+    async createPortalConversation(token, departmentId) {
+      if (!Number.isInteger(departmentId) || departmentId < 1 || departmentId > 4294967295) throw fail(400);
+      return coordinated(async connection => {
+        await readyPortal(connection);
+        const user = await portalIdentity(connection, token);
+        return openConversation(connection, user.visitorId, departmentId, portalConversationById);
+      });
+    },
+    async portalMessages(token, conversationId, after, limit) {
+      if (!Number.isInteger(conversationId) || conversationId < 1 || conversationId > 4294967295) throw fail(400);
+      validateHistory(after, limit);
+      return coordinated(async connection => {
+        await readyPortal(connection);
+        const user = await portalIdentity(connection, token);
+        const row = await conversation(connection, conversationId);
+        if (!row || Number(row.visitorId) !== user.visitorId) return null;
+        return history(connection, conversationId, after, limit);
+      });
+    },
+    async sendPortalMessage(token, conversationId, input) {
+      if (!Number.isInteger(conversationId) || conversationId < 1 || conversationId > 4294967295) throw fail(400);
+      content(input);
+      return coordinated(async connection => {
+        await readyPortal(connection);
+        const user = await portalIdentity(connection, token);
+        const row = await conversation(connection, conversationId);
+        if (!row || Number(row.visitorId) !== user.visitorId) throw fail(404);
+        const area = await department(connection, row.departmentId);
+        if (!area || Number(area.active) !== 1) throw fail(404);
+        return send(connection, row, { id: user.visitorId, sender: 'visitor' }, input);
       });
     },
     async listChatConversations(actorId, teamToken, page, limit, options = {}) {

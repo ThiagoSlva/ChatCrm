@@ -219,3 +219,43 @@ Próxima entrega base: portal do cliente com identidade verificada e recuperaç�
 
 
 Fechamento da revisão v0.8: commit d58b5bf44bbffb7cbcb1a9b56c049c8b70713cb0 confirmado em /health200; [Actions37070936660](https://github.com/ThiagoSlva/ChatCrm/actions/runs/37070936660) aprovado em Node22/24. Cron ativou22:10:29.647Z após161/161 testes em24,37s. Novo CSS /assets/04c5d5232b3b742a/styles.css responde200/hash/nosniff; JS manteve os hashes anteriores. Entrar no painel confirmado44px em desktop e móvel390(375úteis), sem overflow; o ajuste do alvo está verificado. Testes auxiliares de assets4/4 passaram. Alterações desse fechamento: documentação e esse alvo CSS; backend e schema são os já homologados no commit funcional. Fixture local encerrada e nenhuma credencial real usada no navegador.
+
+
+## 03/10/2026 — portal v0.9 concluído localmente, aguardando revisão visual e cPanel
+
+Retomada manual preservou alterações da rodada interrompida por limite de uso. /health HTTP200 confirmou v0.8.0 e 9bfb37ab95cd01d25a876eb5c11200b93424c5b8; main remoto/publicado não foi atualizado nesta entrega. Não houve compra, reset ou contorno. Artefato %SystemDrive%/ preservado.
+
+Contrato implementado conforme alternativa de conta própria prevista no plano: um visitante por conta, identificador aleatório96bits e senha, recuperação por código256bits preparado no navegador antes da operação. Sem SMTP, e-mail verificado ou fusão por nome/CRM. Registro exige guest atual+Origin+visitorCSRF e expira a credencial guest atomicamente; login explícito com cookie/CSRF próprios. Recuperação CAS troca senha/código/versão e revoga todas as sessões da conta. Tentativas persistentes/IP+identificador commitadas antes do scrypt, gateCPU compartilhado e budgets de contas/sessões. Histórico/envio reaproveitam autor/idempotência/quotas do chat. DTO privado do CRM não aparece no portal.
+
+Frontend próprio em /portal: entrar/criar/recuperar, pacote de acesso privado para guardar antes de confirmar, lista/histórico/envio e estado de erro. Pacotes e senhas somente em memória; downloads contêm identificador/código sem senha. Respostas de cadastro/recuperação incertas preservam pacote e bloqueiam repetição; login confirma. POST de mensagem incompleto conserva texto/chave. Troca de conta antes de ação é recusada e remove os dados anteriores; polling é serializado, respeita aba oculta e BFCache. [Skill](skills/chatcrm-frontend-quality/SKILL.md) aplicada; revisão real desktop/390px/teclado ainda pendente.
+
+Validação integrada local193/193 em36.7237188s:44 cenários migração,11 repositório portal modelado,9 HTTP portal (incluindo gateCPU),7 DOM/fetch portal e regressões existentes. DOM e SQL modelados são simulações. Verificador MariaDB manual preparado com rollback/fingerprint17, isolamento, autoria/replay, paginação, áreas, cinco sessões, limites persistentes, recoveryCAS e falha controlada revertida. Ainda NÃO executado no banco real.
+
+Prévia real do servidor apenas loopback3219 com sessões e dados sintéticos preparada. HTTP local em2026-10-03T03:03:22.886Z confirmou perfil seguro, dois atendimentos, paginação,54 IDs/labels/ARIA e três assets200/hash/nosniff. CSS6d5f5cf1e04b55f3,portalJSd38bbab51c6aaad6,chatJS7454d843c405200f. Isso não é revisão visual nem homologação HTTPS. Evidências e fixture em storage/verificacoes, ignoradas; nenhum usuário/segredo real foi usado.
+
+Bloqueio concreto: controle CUA do navegador respondeu timeout em três tentativas (34s/30s/15s), com reset automático do kernel; sem leitura/interação com cPanel. Não contornar autenticação ou usar sessão/credencial extraída. Pedido de prévia ao open_in_codex retornou queued; não é confirmação de abertura ou aprovação visual. Nenhuma publicação, backup real novo ou DDL7 ocorreu. Helper privado pré-v7 preparado localmente, não executado; backup pré-v6 não substitui um snapshot atual das quinze tabelas.
+
+Próximo passo: recuperar o navegador disponível, revisar /portal em desktop/390px, textos longos, teclado, vazio/rede/revogação e cadastro/recuperação com fixture sintética; corrigir e retestar se necessário. Depois publicar aplicação compatível6, validar CI/cron/hash e regressão com portal503, fazer backup15 fresco/revalidado, migrar explicitamente7 e executar SQL novo+regressões/HTTPS/preservação. Manter v0.8 remoto e dados reais intactos até essa sequência. Campanhas consentidas e instalador continuam depois; CRM completo permanece false. [Contrato e guia](PORTAL-MVP.md).
+
+
+Revisão final local:194/194 testes integrados em40.7066384s, mais8/8 frontend após separar a limpeza dos kits. Corrigida recuperação incerta: perfil de uma sessão antiga não comprova troca de senha/código; kit só é confirmado por recuperação válida200 ou login efetivo com a nova senha. Backend exige senha diferente da atual. Preparações de cadastro e recuperação são limpas individualmente, sem descartar outro pacote pendente. Registro inicial193/193 acima permanece como checkpoint anterior. Prévia loopback reiniciada com código final; assets200/hash conferidos: /assets/6d5f5cf1e04b55f3/styles.css, /assets/057b7190093b6a36/portal.js, /assets/7454d843c405200f/portal-chat.js.
+
+
+## 03/10/2026 — revisão do verificador SQL do portal
+
+Retomada automática preservou a implementação local do portal. /health200 continua v0.8.0 no commit9bfb37ab95cd01d25a876eb5c11200b93424c5b8. O inventário do navegador voltou a expirar por timeout; revisão visual, cPanel e publicação seguem pendentes, sem mudança do ambiente.
+
+Encontrada e corrigida uma sobreposição no verificador manual: as duas consultas de conta usavam Promise.all sobre uma única conexão e o mesmo savepoint, podendo substituir/liberar o savepoint de outra operação e interromper a homologação. As leituras agora são sequenciais; o adaptador recusa uma segunda transação antes de tocar no banco, libera o savepoint após rollback e permite reutilizar a conexão. Isso corrige o ensaio, sem alterar comportamento do produto ou schema.
+
+Três testes novos executam o repositório real sobre um modelo de conexão: sobreposição recusada sem perturbar a primeira leitura, falha de revogação preserva o erro e reverte somente o savepoint, fingerprint cobre dezessete tabelas e detecta dados/DDL enquanto aceita AUTO_INCREMENT consumido. São simulações, sem comprovação de MariaDB real. Suíte integrada197/197 em35.4460725s; sintaxe e diff--check aprovados. Nenhuma publicação, DDL7, backup novo ou acesso a dados hospedados ocorreu. Próximo passo continua revisão visual com a skill e sequência de homologação do portal descrita em PORTAL-MVP.md.
+
+
+## 03/10/2026 — revisão real do frontend do portal
+
+Concluída a revisão local pela skill chatcrm-frontend-quality em Edge154.0.4258.48 headless, dois contextos novos e isolados, tráfego restrito a loopback. Biblioteca Playwright1.63.0 instalada somente no diretório de verificações ignorado, sem alterar dependências do produto, navegador instalado, perfis ou sessões existentes. O controle CUA continua indisponível; esta alternativa serve aos testes locais e não recupera o cPanel.
+
+Desktop1280 e móvel390: sem overflow horizontal, textos longos legíveis, foco de teclado3px e controles/labels de checkbox>=44px. Capturas locais ignoradas portal-real-*-v090.png e relatório portal-real-browser-check.json. O navegador executou o frontend e HTTP reais da fixture; a persistência é sintética em memória, não MariaDB.
+
+Oito cenários aprovados: teclado/histórico encerrado; metadata truncada preserva rascunho e bloqueia escrita; envio com resposta incompleta confirma a mesma chave e deixa uma única mensagem; histórico vazio/nenhuma área; cadastro com checkbox nativo e login explícito; duas contas em contextos separados sem mistura de históricos; recuperação com resposta perdida conserva código até login com nova senha; logout em outra aba remove dados privados sem encerrar outra conta. Kits de cadastro/recuperação em390px revisados. Nenhuma credencial real ou usuário destinatário externo foi usado.
+
+Frontend local revisado; suíte integrada anterior197/197 permanece válida porque não houve mudança do código do produto. Próximo passo: publicar aplicação compatível6, confirmar CI/cron/hash e portal503; cPanel ainda necessário para backup15 fresco, migração7, SQL17 e HTTPS autenticado. Não tratar esses ensaios locais como homologação hospedada ou CRM completo.
