@@ -18,15 +18,16 @@ const portal = {
   for(const kind of ['register','recover']){const kit=this.kits[kind];for(const field of (kind==='register'?['password','confirmation']:['id','code','password','confirmation']))this.el(kind+'-'+field).readOnly=Boolean(kit);
    this.el(kind+'-prepare').disabled=this.busy||!this.ready||Boolean(kit?.attempted);this.el(kind+'-prepare').textContent=kit?'Revisar dados preparados':(kind==='register'?'Preparar meu acesso':'Preparar novo código');
    this.el(kind+'-submit').disabled=this.busy||!this.ready||!kit||Boolean(kit.attempted);
-  }this.el('space').setAttribute('aria-busy',String(this.busy));if(typeof portalChat!=='undefined')portalChat.controls();if(typeof portalSubscription!=='undefined')portalSubscription.controls();
+  }this.el('space').setAttribute('aria-busy',String(this.busy));if(typeof portalChat!=='undefined')portalChat.controls();if(typeof portalSubscription!=='undefined')portalSubscription.controls();if(typeof portalNews!=='undefined')portalNews.controls();
  },
  paneShow(kind){this.pane=kind;for(const name of ['login','register','recover']){this.el(name).hidden=name!==kind;this.el('tab-'+name).setAttribute('aria-pressed',String(name===kind));}},
- clearIdentity(){this.account=null;this.csrf=null;this.confirmed=false;this.el('space').hidden=true;this.el('name').textContent='';this.el('access-id').textContent='';if(typeof portalChat!=='undefined')portalChat.clear();if(typeof portalSubscription!=='undefined')portalSubscription.clear();},
+ clearIdentity(){this.account=null;this.csrf=null;this.confirmed=false;this.el('space').hidden=true;this.el('name').textContent='';this.el('access-id').textContent='';if(typeof portalChat!=='undefined')portalChat.clear();if(typeof portalSubscription!=='undefined')portalSubscription.clear();if(typeof portalNews!=='undefined')portalNews.clear();},
  eraseKits(kinds=['register','recover']){for(const kind of kinds){this.kits[kind]=null;this.el(kind).reset();this.el(kind+'-kit').hidden=true;this.el(kind+'-access').textContent='';this.el(kind==='register'?'register-code':'recover-new-code').textContent='';}this.el('login-password').value='';},
  async profile(){
   const data=await this.api('/api/portal/me');if(!data.account||typeof data.account.name!=='string'||data.account.name.length>100||typeof data.account.accessId!=='string'||typeof data.csrfToken!=='string'||!/^[a-f0-9]{24}$/.test(data.account.accessId||'')||!/^[a-f0-9]{64}$/.test(data.csrfToken||''))this.invalid();
   if(this.account?.accessId!==data.account.accessId)this.clearIdentity();this.account=data.account;this.csrf=data.csrfToken;this.confirmed=true;this.ready=true;
   if(typeof portalSubscription!=='undefined')await portalSubscription.refresh();
+  if(typeof portalNews!=='undefined')await portalNews.refresh();
   this.el('name').textContent=data.account.name;this.el('access-id').textContent='Identificador: '+data.account.accessId;this.el('auth').hidden=true;this.el('space').hidden=false;
   const registration=this.kits.register, recovery=this.kits.recover;
   if(registration?.payload.accessId===data.account.accessId)this.eraseKits(['register']);if(recovery?.confirmed&&recovery.payload.accessId===data.account.accessId)this.eraseKits(['recover']);return data;

@@ -12,6 +12,7 @@ const { registerChat } = require('./chat');
 const { registerContacts } = require('./contacts');
 const { registerOpportunities } = require('./opportunities');
 const { registerConversationContacts } = require('./conversation-contacts');
+const { registerCampaigns } = require('./campaigns');
 const { registerSubscriptions } = require('./subscriptions');
 const { registerPortal } = require('./portal');
 
@@ -38,6 +39,8 @@ function buildServer(options = {}) {
     ['/portal.js', 'portal.js', 'application/javascript; charset=utf-8'],
     ['/portal-chat.js', 'portal-chat.js', 'application/javascript; charset=utf-8'],
     ['/portal-subscription.js', 'portal-subscription.js', 'application/javascript; charset=utf-8'],
+    ['/campaigns.js', 'campaigns.js', 'application/javascript; charset=utf-8'],
+    ['/portal-news.js', 'portal-news.js', 'application/javascript; charset=utf-8'],
     ['/contacts.js', 'contacts.js', 'application/javascript; charset=utf-8'],
     ['/opportunities.js', 'opportunities.js', 'application/javascript; charset=utf-8']
   ];
@@ -60,7 +63,7 @@ function buildServer(options = {}) {
     app.get(route, async (request, reply) => reply.type(contentType).send(content));
     app.get(versionedUrl, async (request, reply) => reply.type(contentType).send(content));
   }
-  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html'], ['/portal', 'portal.html']]) {
+  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html'], ['/portal', 'portal.html'], ['/campanhas','campaigns.html']]) {
     let content = fs.readFileSync(path.join(projectRoot, 'public', fileName), 'utf8');
     for (const [asset, url] of assetUrls) content = content.replaceAll(`="${asset}"`, `="${url}"`).replaceAll(`="/${asset}"`, `="${url}"`);
     app.get(route, async (request, reply) => reply.type('text/html; charset=utf-8').send(content));
@@ -69,9 +72,9 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.10.0',
+    version: '0.11.0',
     commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
-    phase: 'portal-subscriptions-mvp',
+    phase: 'portal-campaigns-mvp',
     authenticationImplemented: true,
     operatorsImplemented: true,
     passwordChangeImplemented: true,
@@ -82,7 +85,7 @@ function buildServer(options = {}) {
     conversationContactsImplemented: true,
     portalImplemented: true,
     subscriptionsImplemented: true,
-    campaignsImplemented: false,
+    campaignsImplemented: true,
     crmImplemented: false,
     chatImplemented: true
   }));
@@ -93,6 +96,7 @@ function buildServer(options = {}) {
   const visitorAuth = registerChat(app, repository, auth);
   const portalAuth = registerPortal(app, repository, auth, visitorAuth);
   registerSubscriptions(app, repository, portalAuth.authorize);
+  registerCampaigns(app, repository, auth, portalAuth.authorize);
   registerContacts(app, repository, auth);
   registerOpportunities(app, repository, auth);
   registerConversationContacts(app, repository, auth);

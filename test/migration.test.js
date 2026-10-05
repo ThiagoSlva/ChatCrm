@@ -829,12 +829,12 @@ test('marker6 incompleto ou tabelas novas antes de oportunidades concluidas recu
 });
 
 test('targets invalidos e marker futuro recusam antes de mutacao', async () => {
-  for (const targetVersion of [0, 9, '7', null, false]) {
+  for (const targetVersion of [0, 10, '7', null, false]) {
     const { connection, statements } = migrationConnection();
     await assert.rejects(migrate(connection, { targetVersion }), /alvo/);
     assert.equal(statements.length, 0);
   }
-  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 9 });
+  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 10 });
   await assert.rejects(migrate(connection, { targetVersion: 6 }), /nao reconhecida/);
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -942,10 +942,10 @@ function subscriptionMigration(options){
 }
 test('default upgrade7 adds only immutable subscription history, verifies structure before marker8 and is idempotent',async()=>{
  const f=subscriptionMigration({tables:[...schema6Tables,...portalTables],version:7});
- assert.deepEqual(await migrate(f.connection),{schemaVersion:8});assert.equal(f.state.tables.size,18);
+ assert.deepEqual(await migrate(f.connection,{targetVersion:8}),{schemaVersion:8});assert.equal(f.state.tables.size,18);
  assert.equal(f.statements.filter(s=>s.startsWith('CREATE TABLE')).length,1);
  assert(f.statements.indexOf('UPDATE cl_schema SET version = 8 WHERE id = 1')>f.statements.indexOf('SHOW INDEX FROM cl_portal_subscription_events'));
- f.statements.length=0;assert.deepEqual(await migrate(f.connection),{schemaVersion:8});assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
+ f.statements.length=0;assert.deepEqual(await migrate(f.connection,{targetVersion:8}),{schemaVersion:8});assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
  await assert.rejects(migrate(f.connection,{targetVersion:7}),/Downgrade/);
 });
 test('subscription invalid columns, indexes, FK and engine keep marker7; interrupted creation can resume8',async()=>{
@@ -955,15 +955,66 @@ test('subscription invalid columns, indexes, FK and engine keep marker7; interru
   s=>s.subscriptionEngine.engine='MyISAM',s=>s.subscriptionKeys[0].localSchema=0,s=>s.subscriptionKeys[0].deleteRule='CASCADE'
  ]){
   const f=subscriptionMigration({tables:[...schema6Tables,...portalTables,'cl_portal_subscription_events'],version:7});mutate(f.state);
-  await assert.rejects(migrate(f.connection),/incompat/);assert.equal(f.state.version,7);assert(!f.statements.includes('UPDATE cl_schema SET version = 8 WHERE id = 1'));
+  await assert.rejects(migrate(f.connection,{targetVersion:8}),/incompat/);assert.equal(f.state.version,7);assert(!f.statements.includes('UPDATE cl_schema SET version = 8 WHERE id = 1'));
  }
  const f=subscriptionMigration({tables:[...schema6Tables,...portalTables],version:7});f.state.failTable='cl_portal_subscription_events';
- await assert.rejects(migrate(f.connection),/Interrupcao/);assert.equal(f.state.version,7);f.state.failTable=null;await migrate(f.connection);assert.equal(f.state.version,8);
+ await assert.rejects(migrate(f.connection,{targetVersion:8}),/Interrupcao/);assert.equal(f.state.version,7);f.state.failTable=null;await migrate(f.connection,{targetVersion:8});assert.equal(f.state.version,8);
 });
 test('schema8 missing history and subscription table before portal conclusion refuse any DDL',async()=>{
  for(const options of[{tables:[...schema6Tables,...portalTables],version:8},{tables:[...schema6Tables,'cl_portal_subscription_events'],version:6}]){
-  const f=subscriptionMigration(options);await assert.rejects(migrate(f.connection),/incompleta|concluido/);assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
+  const f=subscriptionMigration(options);await assert.rejects(migrate(f.connection,{targetVersion:8}),/incompleta|concluido/);assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
  }
 });
 
- test('fresh default install prepares schema8 without opting in any account',async()=>{const f=subscriptionMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection),{schemaVersion:8});assert.equal(f.state.tables.size,18);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_portal_subscription_events')));});
+ test('fresh default install prepares schema8 without opting in any account',async()=>{const f=subscriptionMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection,{targetVersion:8}),{schemaVersion:8});assert.equal(f.state.tables.size,18);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_portal_subscription_events')));});
+
+const {definitions:campaignDefinitions,verifyCampaignSchema}=require('../scripts/campaigns-schema');
+function campaignMigration(options={}){
+ const f=subscriptionMigration(options),query=f.connection.query.bind(f.connection),execute=f.connection.execute.bind(f.connection);
+ f.state.campaignColumns=Object.fromEntries(campaignDefinitions.map(d=>[d.name,d.columns.map(x=>({Field:x.name,Type:x.type.source.includes('unsigned')?'int unsigned':x.type.source.includes('datetime')?'datetime':x.type.source.includes('varchar')?'varchar('+x.type.source.match(/\d+/)[0]+')':x.type.source.includes('char')?'char('+x.type.source.match(/\d+/)[0]+')':'text',Null:x.nullable?'YES':'NO',Default:null,Extra:x.auto?'auto_increment':'',Collation:x.ascii?'ascii_bin':null}))]));
+ f.state.campaignIndexes=Object.fromEntries(campaignDefinitions.map(d=>[d.name,d.indexes.flatMap(([name,cols,unique])=>cols.map((col,i)=>({Key_name:name,Column_name:col,Seq_in_index:i+1,Non_unique:unique?0:1,Sub_part:null})))]));
+ f.state.campaignEngines=Object.fromEntries(campaignDefinitions.map(d=>[d.name,{engine:'InnoDB',tableCollation:'utf8mb4_unicode_ci'}]));
+ f.state.campaignKeys=Object.fromEntries(campaignDefinitions.map(d=>[d.name,d.keys.map(([columnName,referencedTable,referencedColumn])=>({columnName,referencedTable,referencedColumn,localSchema:1,deleteRule:'RESTRICT',updateRule:'RESTRICT'}))]));
+ f.connection.query=async(sql,args=[])=>{
+  const name=sql.split(' ').pop(),d=campaignDefinitions.find(x=>sql.startsWith('CREATE TABLE IF NOT EXISTS '+x.name+' '));
+  if(d){f.statements.push(sql);f.state.tables.add(d.name);if(f.state.failTable===d.name)throw Error('Interrupcao controlada');return[[]];}
+  if(sql.startsWith('SHOW FULL COLUMNS FROM cl_campaign')){f.statements.push(sql);return[f.state.campaignColumns[name]];}
+  if(sql.startsWith('SHOW INDEX FROM cl_campaign')){f.statements.push(sql);return[f.state.campaignIndexes[name]];}
+  return query(sql,args);
+ };
+ f.connection.execute=async(sql,args=[])=>{
+  if(sql.includes('information_schema.TABLES')&&sql.includes('TABLE_NAME = ?')&&f.state.campaignEngines[args[0]]){f.statements.push(sql);return[[f.state.campaignEngines[args[0]]]];}
+  if(sql.includes('information_schema.KEY_COLUMN_USAGE')&&sql.includes('TABLE_NAME=?')&&f.state.campaignKeys[args[0]]){f.statements.push(sql);return[f.state.campaignKeys[args[0]]];}
+  if(sql==='UPDATE cl_schema SET version = 9 WHERE id = 1'){f.statements.push(sql);f.state.version=9;return[{affectedRows:1}];}
+  return execute(sql,args);
+ };return f;
+}
+const schema8Tables=[...schema6Tables,...portalTables,'cl_portal_subscription_events'];
+test('campaign upgrade8 creates three tables, validates before marker9 and idempotent read-only recheck',async()=>{
+ const f=campaignMigration({tables:schema8Tables,version:8});assert.deepEqual(await migrate(f.connection),{schemaVersion:9});assert.equal(f.state.tables.size,21);
+ assert.equal(f.statements.filter(s=>s.startsWith('CREATE TABLE')).length,3);assert(f.statements.indexOf('UPDATE cl_schema SET version = 9 WHERE id = 1')>f.statements.indexOf('SHOW INDEX FROM cl_campaign_batches'));
+ f.statements.length=0;await migrate(f.connection);assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));await assert.rejects(migrate(f.connection,{targetVersion:8}),/Downgrade/);
+});
+test('campaign schema refuses invalid columns, unique indexes, engine and foreign keys; marker8 survives interruptions',async()=>{
+ for(const mutate of[
+  s=>s.campaignColumns.cl_campaigns[0].Type='int',
+  s=>s.campaignColumns.cl_campaigns[4].Collation='ascii_general_ci',
+  s=>s.campaignColumns.cl_campaign_recipients[4].Null='NO',
+  s=>s.campaignColumns.cl_campaign_batches[3].Default='0',
+  s=>s.campaignIndexes.cl_campaign_recipients.pop(),
+  s=>s.campaignIndexes.cl_campaign_batches[0].Sub_part=8,
+  s=>s.campaignIndexes.cl_campaigns.push({Key_name:'unexpected_unique',Column_name:'title',Seq_in_index:1,Non_unique:0,Sub_part:null}),
+  s=>s.campaignEngines.cl_campaigns.engine='MyISAM',
+  s=>s.campaignKeys.cl_campaign_recipients[0].deleteRule='CASCADE',
+  s=>s.campaignKeys.cl_campaign_batches[0].localSchema=0
+ ]){
+  const f=campaignMigration({tables:[...schema8Tables,...campaignDefinitions.map(d=>d.name)],version:8});mutate(f.state);await assert.rejects(migrate(f.connection),/incompat/);assert.equal(f.state.version,8);
+ }
+ const f=campaignMigration({tables:schema8Tables,version:8});f.state.failTable='cl_campaign_recipients';await assert.rejects(migrate(f.connection),/Interrupcao/);assert.equal(f.state.version,8);f.state.failTable=null;await migrate(f.connection);assert.equal(f.state.version,9);
+});
+test('fresh default prepares9 without campaigns; incomplete9 and premature campaign tables refuse any DDL',async()=>{
+ const f=campaignMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection),{schemaVersion:9});assert.equal(f.state.tables.size,21);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_campaign')));
+ for(const options of[{tables:schema8Tables,version:9},{tables:[...schema6Tables,...portalTables,'cl_campaigns'],version:7}]){
+  const g=campaignMigration(options);await assert.rejects(migrate(g.connection),/incompleta|concluidas/);assert(!g.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
+ }
+});

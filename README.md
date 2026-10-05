@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.9.0 publicada no ambiente de testes, com o portal ativado em schema7. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. O portal passou pela verificação transacional em MariaDB real; ensaio cliente/operador juntos por HTTPS, campanhas e instalador completo seguem pendentes. Consulte o andamento para resultados e limites das verificações; o projeto ainda não está homologado para atendimento real.
+**v0.10.0 publicada no ambiente de testes, com portal e inscrições explícitas em schema8. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) está preparado na v0.11, com ativação explícita após backup e schema9; instalador completo e restauração seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
@@ -13,7 +13,7 @@ O [contexto do contato no atendimento](docs/ASSOCIACAO-ATENDIMENTO.md) permite v
 
 A [verificação manual de concorrência SQL](docs/VERIFICACAO-CONCORRENCIA-CRM.md) cobre oportunidades em duas conexões físicas. Exige banco de testes vazio, backup privado atual e opção explícita para fixtures temporariamente confirmadas; não faz parte do cron ou de npm test. Consulte o andamento para evidências.
 
-O [portal v0.9](docs/PORTAL-MVP.md) está ativado no ambiente de testes após backup privado atualizado e migração explícita schema7. Verificador SQL do portal, regressões dos módulos anteriores e acesso da equipe por HTTPS passaram. Login público e assets foram conferidos; fluxo autenticado cliente/operador juntos por HTTPS e recuperação do backup continuam pendentes.
+O [portal](docs/PORTAL-MVP.md) oferece contas/sessões próprias, retomada de histórico e recuperação de acesso. As [preferências de novidades](docs/INSCRICOES-PORTAL.md) acrescentam inscrição e descadastro explícitos, desligados por padrão, com auditoria e proteção contra reenvio antigo. Foram homologadas no ambiente de testes em schema8; campanhas e caixa de novidades ainda estão pendentes. Consulte o andamento para evidências e limitações.
 
 ## Executar a base
 

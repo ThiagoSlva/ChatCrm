@@ -76,3 +76,6 @@ Complemento manual de cadastro/login/recuperação por HTTPS: [procedimento de c
 
 
 v0.10 prepara inscrições explícitas no portal/schema8, sem envio de campanhas. Publicar/validar compatibilidade7, fazer backup17 fresco incluindo limites, preservar release0.10, migrar explicitamente e conferir dados anteriores/SQL18/diagnóstico/HTTPS. Não voltar0.9 após8 ou executar fixtures HTTPS7. [Contrato](INSCRICOES-PORTAL.md). Cron/bootstrap permanecem iguais.
+
+
+v0.11 prepara campanhas/caixa de novidades e suporta schema9. Primeiro publicar e confirmar compatibilidade8 (apenas campanhas aguarda preparação), CI/hash e backup privado fresco18. Migrar explicitamente, comparar dados/DDL18 normalizando somente marcador, validar três tabelas novas vazias, diagnóstico e verificador SQL21 em transação revertida; conferir HTTPS/assets/hash. v0.10 não aceita9. Não reexecutar fixtures HTTPS7/8 ou apagar tabelas/marcador. Cron/bootstrap permanecem iguais. [Contrato e limites](CAMPANHAS-MVP.md).
