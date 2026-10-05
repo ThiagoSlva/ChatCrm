@@ -253,10 +253,11 @@ async function main() {
         if(fs.existsSync(journal)) cleaned=await cleanup(c,registry,backup);
         if(failure) { if(cleaned) {registry.stage='cleaned-after-failure';writeJournal(journal,registry);} throw failure; }
       }
-      registry.stage='cleaned'; registry.checks=checks; writeJournal(journal,registry);
+      registry.stage='cleaned'; if(!args['cleanup-only']) registry.checks=checks; writeJournal(journal,registry);
     } finally { await c.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
   });
-  process.stdout.write(JSON.stringify({ok:true,code:'campaigns-https-verified',commit:args.commit,checks,cleanup:cleaned,sessionsSeeded:true,loginNotExercised:true})+'\n');
+  process.stdout.write(JSON.stringify({ok:true,code:args['cleanup-only']?'campaigns-fixtures-cleaned':'campaigns-https-verified',commit:args.commit,checks,cleanup:cleaned,
+    ...(args['cleanup-only']?{httpNotExercised:true}:{sessionsSeeded:true,loginNotExercised:true})})+'\n');
 }
 module.exports={parseArguments,rows,hashes,preflight,validateRegistry,validateOwned,cleanup,writeJournal,readJournal};
 if(require.main===module) main().catch(()=>{process.stderr.write('Ensaio nao confirmado. Preserve backup e journal privados; nenhuma credencial foi exibida. Nao repita fixtures. Use somente --cleanup-only com os mesmos parametros e diagnostique divergencias antes de retomar.\n');process.exitCode=1;});
