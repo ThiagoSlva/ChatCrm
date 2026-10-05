@@ -34,6 +34,33 @@ test('lista permitida exclui dados privados, referências GPL, dependências e c
     const files = entries(); files.set(name, Buffer.from('private')); assert.throws(() => release.buildRelease(files, identity), { code: 'invalid-source' });
   }
 });
+test('geração Git inclui a skill exigida por AGENTS e recusa revisão que a omite; ZIP anterior continua verificável', t => {
+  if (spawnSync('git', ['--version']).error?.code === 'ENOENT') { t.skip('Gerar pacote exige Git; instalar e verificar ZIP não exige.'); return; }
+  const dir = ownedTemp(t), files = entries(), skill = 'docs/skills/chatcrm-frontend-quality/SKILL.md';
+  const legacy = release.buildRelease(files, identity).bytes;
+  assert.equal(release.verifyArchive(legacy).version, identity.version);
+  files.set('AGENTS.md', Buffer.from('Leia `' + skill + '` antes de editar o frontend.\n'));
+  for (const [name, data] of files) { const file = path.join(dir, name); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, data); }
+  const globalConfig = path.join(dir, '.test-gitconfig'); fs.writeFileSync(globalConfig, '');
+  const git = args => {
+    const result = spawnSync('git', ['-c', 'user.name=Package test', '-c', 'user.email=package-test@example.test', ...args], {
+      cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: globalConfig, GIT_TERMINAL_PROMPT: '0' }
+    });
+    assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
+  };
+  git(['init', '-q']); git(['add', '.']); git(['commit', '-qm', 'Synthetic package without skill']);
+  const incomplete = git(['rev-parse', 'HEAD']);
+  assert.throws(() => release.readRevision(dir, incomplete), { code: 'incomplete-contributor-instructions' });
+  const source = Buffer.from('Skill pública sintética\n');
+  fs.mkdirSync(path.dirname(path.join(dir, skill)), { recursive: true }); fs.writeFileSync(path.join(dir, skill), source);
+  git(['add', skill]); git(['commit', '-qm', 'Include referenced skill']);
+  const complete = git(['rev-parse', 'HEAD']), built = release.readRevision(dir, complete);
+  assert.deepEqual(release.readZip(built.bytes).get(skill), source);
+  assert.equal(release.verifyArchive(built.bytes).commit, complete);
+  assert.deepEqual(release.readRevision(dir, complete).bytes, built.bytes);
+  const extra = files; extra.set('docs/skills/private/SKILL.md', Buffer.from('private'));
+  assert.throws(() => release.buildRelease(extra, identity), { code: 'invalid-source' });
+});
 test('revisão precisa de arquivos essenciais, MIT e lockfile correspondente', () => {
   const missing = entries(); missing.delete('LICENSE'); assert.throws(() => release.buildRelease(missing, identity), { code: 'incomplete-release' });
   const badLock = entries(), lock = JSON.parse(badLock.get('package-lock.json')); lock.packages[''].dependencies.mysql2 = 'different'; badLock.set('package-lock.json', Buffer.from(JSON.stringify(lock)));

@@ -1,6 +1,6 @@
 # Instalação simples no cPanel
 
-v0.12.1 oferece pacote ZIP reproduzível, preparação protegida pelo terminal e primeiro cadastro pelo navegador. Código MIT, gratuito e independente de conta do autor. Hospedagem e domínio são fornecidos por quem instala. Siga [o guia ilustrado do pacote](PACOTE-INSTALACAO.md) para baixar/extrair sem Git na hospedagem. Assistente sem terminal e homologação ampla de recuperação/provedores continuam pendentes.
+O projeto oferece pacote ZIP reproduzível, preparação protegida pelo terminal e primeiro cadastro pelo navegador. Código MIT, gratuito e independente de conta do autor. Hospedagem e domínio são fornecidos por quem instala. Siga [o guia ilustrado do pacote](PACOTE-INSTALACAO.md) para baixar/extrair sem Git na hospedagem. Assistente sem terminal e homologação ampla de recuperação/provedores continuam pendentes.
 
 ## Preparar o ambiente
 

@@ -1,6 +1,6 @@
 # Baixar, conferir e instalar o pacote
 
-O pacote v0.12.1 distribui o código JavaScript pronto para executar, páginas, testes, documentação, licença MIT e lockfile. Não exige compilação, Git, Docker, Redis ou conta do autor para **instalar e operar**. Ainda precisa de Node.js 22/24, npm, HTTPS, MySQL/MariaDB e terminal da aplicação no cPanel. Hospedagem e domínio são fornecidos por quem instala. O projeto está em homologação; não é uma garantia de uso em produção.
+O pacote distribui o código JavaScript pronto para executar, páginas, testes, documentação, licença MIT e lockfile. Não exige compilação, Git, Docker, Redis ou conta do autor para **instalar e operar**. Ainda precisa de Node.js 22/24, npm, HTTPS, MySQL/MariaDB e terminal da aplicação no cPanel. Hospedagem e domínio são fornecidos por quem instala. O projeto está em homologação; não é uma garantia de uso em produção.
 
 ![Etapas de instalação em uma pasta privada](images/installation-overview.svg)
 
@@ -53,6 +53,8 @@ Também compare o SHA256 total com `SHA256SUMS`, usando `sha256sum` no Linux ou 
 ## Reproduzir como mantenedor
 
 Gerar exige Git e checkout do projeto, com a revisão já commitada. Não lê arquivos locais, dados privados, node_modules ou referências de pesquisa. Alterações não commitadas não entram no pacote; revise/commite antes de gerar e confira o SHA retornado.
+
+Para quem mantém ou adapta o frontend, o ZIP inclui `AGENTS.md` e a [skill de qualidade do projeto](skills/chatcrm-frontend-quality/SKILL.md), com revisão de teclado, largura móvel e estados da interface. A partir da v0.12.3, a geração exige os dois arquivos; somente essa skill pública específica é permitida. Outras pastas de skills e memórias privadas continuam excluídas. Os ZIPs anteriores conservam a verificação de integridade do formato1, mesmo sem essa instrução adicional.
 
 ```sh
 npm run release:package -- --output /PASTA/EXISTENTE/conversa-livre.zip

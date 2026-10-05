@@ -9,6 +9,7 @@ const MAX_BYTES = 16 * 1024 * 1024;
 const MAX_FILES = 500;
 const PREFIX = 'conversa-livre/';
 const FORMAT = 'conversa-livre-release';
+const contributorFiles = ['AGENTS.md', 'docs/skills/chatcrm-frontend-quality/SKILL.md'];
 const essential = ['.env.example', 'LICENSE', 'README.md', 'app.js', 'package.json', 'package-lock.json', 'src/server.js', 'scripts/run-tests.js', 'scripts/prepare-installation.js', 'scripts/package-release.js', 'scripts/release-package.js', 'test/server.test.js', 'docs/INSTALADOR-CPANEL.md', 'docs/PACOTE-INSTALACAO.md'];
 function fail(code) { const error = new Error(code); error.code = code; throw error; }
 function sha256(data) { return createHash('sha256').update(data).digest('hex'); }
@@ -18,7 +19,8 @@ function allowed(name) {
     || /^public\/[a-z0-9-]+\.(js|html|css)$/.test(name)
     || /^test\/(helpers\/)?[a-z0-9.-]+\.js$/.test(name)
     || /^docs\/[A-Z0-9-]+\.md$/.test(name)
-    || /^docs\/images\/installation-overview\.svg$/.test(name));
+    || /^docs\/images\/installation-overview\.svg$/.test(name)
+    || name === contributorFiles[1]);
 }
 function exactKeys(value, keys) {
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).sort().join() !== [...keys].sort().join()) fail('invalid-manifest');
@@ -150,6 +152,9 @@ function readRevision(root, revision = 'HEAD') {
     if (mode !== '100644' || type !== 'blob') fail('unsafe-source-mode');
     const data = git(['cat-file', 'blob', blob]); total += data.length; if (total > MAX_BYTES) fail('release-too-large'); entries.set(name, data);
   }
+  // New packages must carry the instructions referenced by AGENTS. Older ZIPs
+  // remain verifiable with the existing manifest format and required files.
+  if (contributorFiles.some(name => !entries.has(name))) fail('incomplete-contributor-instructions');
   let version; try { version = JSON.parse(entries.get('package.json')).version; } catch { fail('invalid-package-metadata'); }
   return buildRelease(entries, { commit, tree, version });
 }

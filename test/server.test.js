@@ -14,7 +14,7 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
   assert.equal(response.json().chatImplemented, true);
   assert.equal(response.json().contactsImplemented, true);
   assert.equal(response.json().opportunitiesImplemented, true);
-  assert.equal(response.json().version, '0.12.2');
+  assert.equal(response.json().version, '0.12.3');
   assert.equal(response.json().conversationContactsImplemented, true);
   assert.equal(response.json().portalImplemented, true);
 });
