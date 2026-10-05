@@ -90,3 +90,15 @@ Fechamento v0.11.1: c55edc0195443c85b9d2bc22724bdbd52dbf51a4 ativo15:08:44.244Z,
 
 
 v0.12 mantém schema9 e não exige DDL. [Backup/restauração](BACKUP-RESTAURACAO.md) são comandos privados e explícitos, fora do cron/startup/CI. Nunca restaurar o banco instalado do domínio para testar; use destino isolado preparado/vazio e configuração própria. Arquivos privados ficam fora de releases e do Git.
+
+
+Fechamento verificado em05/10/2026 — v0.12.0: main68f019939901945c09b058f0a8ad52fb0bef575b, árvoref07d230c7d1d68075f6976ca458d226e00898cde. CI37340562365 concluída/sucesso nos jobs Node22 e24 para esse hash. Cron ativou16:26:45.786Z, recibo600/current correspondente; cPanel288/288 testes, zero falhas,41.063320875s. Local288/288, zero falhas,47.0503671s. Health HTTPS200/v0.12.0/hash exato em16:30:24.131Z. Schema permanece9; nenhum upgrade aplicado.
+
+Backup privado novo das21 tabelas criado pelo CLI público e verificado offline:6 registros,3.614bytes, arquivo600/diretório700. Verificação hospedada16:30:52.637Z confirmou a fotografia igual à fonte e recusou restauração sobre a instalação existente antes de qualquer DDL/DML; fingerprint21 idêntico antes/depois. Nenhum dado, campanha, credencial, configuração, bootstrap ou cron alterado. Artefato permaneceu somente na hospedagem; caminhos/nomes operacionais no arquivo de memória privado ignorado.
+
+Instalação limpa e restauração foram ensaiadas num MariaDB11.4.13 local isolado, com dados sintéticos e conexões físicas; os cenários incluem rollback de DML, nova tentativa em destino vazio, concorrência e COMMIT aplicado com resposta perdida. Os dois containers próprios foram parados após conferir suas identidades, preservando volumes/configuração privados; Docker Desktop continuou disponível. Isto não comprova restauração da configuração/arquivos da hospedagem, recuperação de desastre completa ou compatibilidade com todo provedor. Frontend não mudou nesta entrega.
+
+Próxima entrega coesa: distribuição/pacote instalável reproduzível e guia ilustrado; ensaio autenticado de campanhas por HTTPS precisa snapshot21 fresco e journal próprio. Não reutilizar os antigos journals7/8, restaurar o banco instalado ou sobrescrever backups. Novas funções úteis continuam autorizadas, priorizando base funcional antes de chatbot/fluxos. Este fechamento documental fica local para a próxima entrega, evitando deploy só para atualizar referências ao próprio hash.
+
+
+v0.12.1 mantém schema9/cron/bootstrap; não exige DDL. Gerador e guia de [distribuição](PACOTE-INSTALACAO.md) são para pasta nova. Não extrair sobre current/.env/release existente; fontes do ZIP e configuração são etapas distintas. CI passa a conferir pacote extraído antes de publicar artefato temporário, com permissões read preservadas.

@@ -1,6 +1,6 @@
 # Andamento e ponto de retomada
 
-Estado atual em05/10/2026: v0.11.1/schema9 ativa, campanhas e preparação inicial protegida publicadas; mainc55edc0, CI/cron/HTTPS e recusa MariaDB/fingerprint21 aprovados. Próximo marco: backup/restauração isolada e distribuição simples; instalação limpa real e ensaio autenticado HTTPS de campanhas continuam pendentes.
+Estado atual em05/10/2026: v0.12.0/schema9 ativa em main68f0199; backup privado21 e proteção contra restauração em banco ocupado verificados no cPanel. Instalação limpa/restauração e falhas ensaiadas em MariaDB local isolado; 288 testes e CI Node22/24 aprovados. Próximo marco: pacote instalável reproduzível e guia ilustrado; campanhas HTTPS autenticadas e recuperação completa da hospedagem continuam pendentes.
 
 ## 01/10/2026 — Base publicada e primeiro deploy
 
@@ -470,3 +470,21 @@ Falhas reais16:11:18.196Z: INSERT simulado após primeira linha reverteu todo DM
 Suíte inicial287/287/zero falhas48.8175154s; após validação de tipos base,13 testes alvo aprovados1.1256255s e suíte final registrada abaixo. Publicação/CI/hash e novo backup21 do cPanel ainda pendentes nesta preparação. Não restaurar o banco instalado do domínio, criar banco/grants extra no cPanel ou sobrescrever backups antigos. Próximo: pacote simples/reproduzível, ensaio autenticado de campanhas com backup/journal próprios e guia ilustrado; homologação ampla de provedor/carga/recuperação da configuração continua pendente. Frontend não alterado; skill permanece obrigatória.
 
 Suíte integrada final288/288, zero falhas47.0503671s no Node22; alvo final13/13,1.1256255s. Publicar somente esta árvore revisada, conferir CI/hash e backup privado real antes de encerrar.
+
+
+Fechamento verificado em05/10/2026 — v0.12.0: main68f019939901945c09b058f0a8ad52fb0bef575b, árvoref07d230c7d1d68075f6976ca458d226e00898cde. CI37340562365 concluída/sucesso nos jobs Node22 e24 para esse hash. Cron ativou16:26:45.786Z, recibo600/current correspondente; cPanel288/288 testes, zero falhas,41.063320875s. Local288/288, zero falhas,47.0503671s. Health HTTPS200/v0.12.0/hash exato em16:30:24.131Z. Schema permanece9; nenhum upgrade aplicado.
+
+Backup privado novo das21 tabelas criado pelo CLI público e verificado offline:6 registros,3.614bytes, arquivo600/diretório700. Verificação hospedada16:30:52.637Z confirmou a fotografia igual à fonte e recusou restauração sobre a instalação existente antes de qualquer DDL/DML; fingerprint21 idêntico antes/depois. Nenhum dado, campanha, credencial, configuração, bootstrap ou cron alterado. Artefato permaneceu somente na hospedagem; caminhos/nomes operacionais no arquivo de memória privado ignorado.
+
+Instalação limpa e restauração foram ensaiadas num MariaDB11.4.13 local isolado, com dados sintéticos e conexões físicas; os cenários incluem rollback de DML, nova tentativa em destino vazio, concorrência e COMMIT aplicado com resposta perdida. Os dois containers próprios foram parados após conferir suas identidades, preservando volumes/configuração privados; Docker Desktop continuou disponível. Isto não comprova restauração da configuração/arquivos da hospedagem, recuperação de desastre completa ou compatibilidade com todo provedor. Frontend não mudou nesta entrega.
+
+Próxima entrega coesa: distribuição/pacote instalável reproduzível e guia ilustrado; ensaio autenticado de campanhas por HTTPS precisa snapshot21 fresco e journal próprio. Não reutilizar os antigos journals7/8, restaurar o banco instalado ou sobrescrever backups. Novas funções úteis continuam autorizadas, priorizando base funcional antes de chatbot/fluxos. Este fechamento documental fica local para a próxima entrega, evitando deploy só para atualizar referências ao próprio hash.
+
+
+## 05/10/2026 — distribuição reproduzível e guia (v0.12.1)
+
+Gerador manual release:package lê exclusivamente blobs de uma revisão commitada com lista permitida; não lê working tree/configuração/dados. ZIP de arquivos regulares com prefixo conversa-livre, metadados fixos, manifesto formato1 com commit/árvore/versão/SHA/tamanho, lockfile/MIT/fontes/testes/guias e .env.example com valores privados obrigatoriamente vazios. Sem node_modules, .git/.github/.cpanel.yml/storage/referências GPL. Sem sobrescrita,16MiB/500arquivos; verificação offline de ZIP e pasta extraída não carrega .env/Git/SQL. Checksum é integridade, não assinatura/autenticidade.
+
+CI mantém contents:read; novo job depende dos testes22/24, compara duas gerações, usa unzip real, verifica manifesto, instala lockfile e testa código extraído antes de publicar somente ZIP/checksum em artefato30dias. Ação oficial upload-artifact v7 fixada043fb46d1a93c77aae656e7c1c64a875d1fc6a0a. Download Actions exige login GitHub; operação instalada dispensa Git/Docker/conta do autor. Release permanente sem login e assistente sem terminal continuam pendentes, sem promessa de homologação ampla. Guia PACOTE-INSTALACAO.md ilustra6 etapas e distingue instalação direta app.js do bootstrap current/releases. Ilustração vetorial própria renderizada e conferida no navegador; não é uma captura de outro provedor. Frontend do aplicativo não mudou.
+
+Suíte local299/299, zero falhas,48.0717159s;11 testes novos de integridade, caminhos, tipos, lockfile/template, limites, criação exclusiva, junction e CLI offline. Publicação/CI/artefato real/extração/hash servido ainda aguardam fechamento. Schema permanece9; não há DDL ou configuração/bootstrap/cron novos. Próximo: ensaio autenticado HTTPS de campanhas com backup21/journal frescos, validação de instalação por iniciante e distribuição permanente; recuperação completa e carga/provedores seguem pendentes.

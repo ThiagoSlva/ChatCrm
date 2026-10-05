@@ -19,3 +19,39 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  package:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Gerar e comparar dois pacotes da mesma revisão
+        env:
+          CHATCRM_REVISION: ${{ github.sha }}
+        run: |
+          mkdir "$RUNNER_TEMP/chatcrm-package"
+          node scripts/package-release.js --output "$RUNNER_TEMP/chatcrm-package/conversa-livre.zip" --commit "$CHATCRM_REVISION"
+          node scripts/package-release.js --output "$RUNNER_TEMP/chatcrm-repeat.zip" --commit "$CHATCRM_REVISION"
+          cmp "$RUNNER_TEMP/chatcrm-package/conversa-livre.zip" "$RUNNER_TEMP/chatcrm-repeat.zip"
+          node scripts/package-release.js --verify "$RUNNER_TEMP/chatcrm-package/conversa-livre.zip"
+          cd "$RUNNER_TEMP/chatcrm-package"
+          sha256sum conversa-livre.zip > SHA256SUMS
+      - name: Conferir extração e testar o pacote distribuído
+        run: |
+          unzip -t "$RUNNER_TEMP/chatcrm-package/conversa-livre.zip"
+          unzip -q "$RUNNER_TEMP/chatcrm-package/conversa-livre.zip" -d "$RUNNER_TEMP/chatcrm-extracted"
+          cd "$RUNNER_TEMP/chatcrm-extracted/conversa-livre"
+          node scripts/package-release.js --verify-directory "$PWD"
+          npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+          npm test
+      - name: Disponibilizar pacote e checksum após todas as verificações
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7 oficial
+        with:
+          name: conversa-livre-${{ github.sha }}
+          path: ${{ runner.temp }}/chatcrm-package/*
+          if-no-files-found: error
+          retention-days: 30

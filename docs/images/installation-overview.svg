@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 550" role="img" aria-labelledby="title description">
+  <title id="title">Do pacote ZIP ao primeiro atendimento</title>
+  <desc id="description">Seis etapas: baixar pacote, extrair em pasta privada, registrar Node, verificar fontes e testes, preparar banco novo, cadastrar administrador e testar atendimento.</desc>
+  <rect width="960" height="550" rx="20" fill="#eff6fb"/>
+  <g font-family="system-ui, sans-serif" fill="#16324a">
+    <text x="40" y="55" font-size="28" font-weight="700">Seu chat, na sua hospedagem</text>
+    <text x="40" y="87" font-size="17">Guia ilustrativo • Node.js 22/24 + MySQL • raiz fora de public_html</text>
+    <g fill="#fff" stroke="#d1e1ec" stroke-width="2">
+      <rect x="40" y="120" width="280" height="160" rx="12"/><rect x="340" y="120" width="280" height="160" rx="12"/><rect x="640" y="120" width="280" height="160" rx="12"/>
+      <rect x="40" y="300" width="280" height="160" rx="12"/><rect x="340" y="300" width="280" height="160" rx="12"/><rect x="640" y="300" width="280" height="160" rx="12"/>
+    </g>
+    <g fill="#087ba9"><circle cx="70" cy="150" r="17"/><circle cx="370" cy="150" r="17"/><circle cx="670" cy="150" r="17"/><circle cx="70" cy="330" r="17"/><circle cx="370" cy="330" r="17"/><circle cx="670" cy="330" r="17"/></g>
+    <g fill="#fff" font-size="18" text-anchor="middle"><text x="70" y="156">1</text><text x="370" y="156">2</text><text x="670" y="156">3</text><text x="70" y="336">4</text><text x="370" y="336">5</text><text x="670" y="336">6</text></g>
+    <g font-size="20" font-weight="700"><text x="97" y="156">Baixar</text><text x="397" y="156">Extrair</text><text x="697" y="156">Registrar Node</text><text x="97" y="336">Conferir</text><text x="397" y="336">Preparar banco</text><text x="697" y="336">Primeiro acesso</text></g>
+    <g font-size="16">
+      <text x="60" y="199">Actions aprovado em main</text><text x="60" y="226">ZIP interno + SHA256SUMS</text><text x="60" y="253">Conservar commit e checksum</text>
+      <text x="360" y="199">Gerenciador de Arquivos</text><text x="360" y="226">Pasta nova e privada</text><text x="360" y="253">Raiz final contém app.js</text>
+      <text x="660" y="199">Produção • domínio HTTPS</text><text x="660" y="226">Entrada app.js • Node 22/24</text><text x="660" y="253">Ativar terminal da aplicação</text>
+      <text x="60" y="379">Verificar manifesto offline</text><text x="60" y="406">Instalar pelo lockfile</text><text x="60" y="433">Executar npm test</text>
+      <text x="360" y="379">Banco exclusivo e vazio</text><text x="360" y="406">Configuração privada (600)</text><text x="360" y="433">Preparação explícita</text>
+      <text x="660" y="379">Cadastrar administrador</text><text x="660" y="406">Remover segredo inicial</text><text x="660" y="433">Operadores + chat de teste</text>
+    </g>
+    <text x="40" y="505" font-size="16">Instalação existente? Preserve backup e configuração; não extraia por cima.</text>
+  </g>
+</svg>

@@ -1,6 +1,8 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.12.0 acrescenta backup privado e restauração para destino vazio; v0.11.1/schema9 já publicada no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**v0.12.1 acrescenta pacote ZIP reproduzível e guia de instalação; v0.12.0/schema9 publicada no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
+
+O [pacote de instalação](docs/PACOTE-INSTALACAO.md) é gerado a partir de uma revisão Git, contém manifesto/checksums e é testado extraído na CI. A instalação direta usa app.js em pasta privada e o [guia cPanel](docs/INSTALADOR-CPANEL.md). Não inclui configuração, banco ou dependências baixadas.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 

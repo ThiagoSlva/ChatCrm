@@ -1,6 +1,6 @@
 # Instalação simples no cPanel
 
-v0.11.1 oferece preparação protegida pelo terminal e primeiro cadastro pelo navegador. Código MIT, gratuito e independente de conta do autor. Hospedagem e domínio são fornecidos por quem instala. ZIP de release, assistente sem terminal e restauração homologada continuam pendentes.
+v0.12.1 oferece pacote ZIP reproduzível, preparação protegida pelo terminal e primeiro cadastro pelo navegador. Código MIT, gratuito e independente de conta do autor. Hospedagem e domínio são fornecidos por quem instala. Siga [o guia ilustrado do pacote](PACOTE-INSTALACAO.md) para baixar/extrair sem Git na hospedagem. Assistente sem terminal e homologação ampla de recuperação/provedores continuam pendentes.
 
 ## Preparar o ambiente
 
@@ -8,7 +8,7 @@ Você precisa de domínio com HTTPS, Node.js 22 ou 24, npm, MySQL/MariaDB e term
 
 1. Crie um banco **novo, exclusivo e vazio**. Não use banco de WordPress ou outro sistema.
 2. Associe um usuário exclusivo ao banco. Aplicação: SELECT, INSERT, UPDATE, DELETE. Preparação: CREATE, ALTER, INDEX, REFERENCES. Não exige DROP, privilégios globais ou acesso remoto. Registre nomes completos com prefixo da conta.
-3. Obtenha o código numa pasta privada, fora de `public_html` e da pasta pública do domínio:
+3. Extraia o [pacote verificado](PACOTE-INSTALACAO.md) numa pasta privada, ou use Git como alternativa abaixo. Obtenha o código numa pasta privada, fora de `public_html` e da pasta pública do domínio:
 
    ```sh
    git clone https://github.com/ThiagoSlva/ChatCrm.git conversa-livre
@@ -102,4 +102,4 @@ Atualizações exigem backup atual e release compatível antes de migração exp
 
 ## Limites verificados
 
-Instalação limpa/DDL parcial e concorrência com mudança entre diagnóstico/trava são exercitados em modelo SQL. Prazos também são ensaiados com conexão de protocolo isolada. A recusa no MariaDB hospedado é registrada no andamento. Não declarar banco novo em outro provedor, assistente sem terminal ou restauração homologados sem demonstração. Próximo marco: pacote reproduzível, imagens e restauração em instalação isolada compatível. Checksum de dump não comprova restauração.
+Instalação limpa9/21 e restauração foram ensaiadas em MariaDB11.4.13 local isolado com dados sintéticos. DDL parcial e mudança entre diagnóstico/trava também são exercitadas em modelo SQL. Prazos também são ensaiados com conexão de protocolo isolada. A recusa no MariaDB hospedado é registrada no andamento. Não declarar banco novo em outro provedor, assistente sem terminal ou restauração homologados sem demonstração. O pacote é extraído, verificado e testado na CI; a ilustração é um guia, não captura de outro provedor. Próximos marcos: instalação por pessoa iniciante e recuperação completa da configuração/arquivos. Checksum de dump não comprova restauração.
