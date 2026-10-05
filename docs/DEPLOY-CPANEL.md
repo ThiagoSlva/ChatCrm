@@ -85,3 +85,8 @@ Ambiente autorizado em05/10/2026: v0.11/schema9 ativo, backup18 fresco verificad
 
 
 Preparação inicial v0.11.1: [guia executável](INSTALADOR-CPANEL.md). install:prepare somente lê por padrão; --prepare-empty nunca autoriza atualizar o banco existente. Não muda bootstrap, cron ou configuração. Schema continua9; esta release não exige DDL. Preparação explícita não faz parte dos testes de deploy.
+
+Fechamento v0.11.1: c55edc0195443c85b9d2bc22724bdbd52dbf51a4 ativo15:08:44.244Z, CI37330200809 Node22/24 e275 testes cPanel aprovados. HTTPS/hash15:10:32.122Z confirmado. Recusa do preparador e guarda sob trava em MariaDB15:09:56.038Z preservaram21 registros/DDL; sem DDL/configuração/cron. Instalação limpa real/restauração ainda pendentes.
+
+
+v0.12 mantém schema9 e não exige DDL. [Backup/restauração](BACKUP-RESTAURACAO.md) são comandos privados e explícitos, fora do cron/startup/CI. Nunca restaurar o banco instalado do domínio para testar; use destino isolado preparado/vazio e configuração própria. Arquivos privados ficam fora de releases e do Git.

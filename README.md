@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.11.1 inclui preparação protegida de instalação; v0.11.0/campanhas/schema9 já publicada no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e restauração seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**v0.12.0 acrescenta backup privado e restauração para destino vazio; v0.11.1/schema9 já publicada no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
@@ -75,3 +75,5 @@ Os aplicativos baixados são clientes da rede Telegram. Não incluem o servidor 
 
 
 [Verificação manual cliente/operador por HTTPS](docs/VERIFICACAO-HTTPS-PORTAL.md): ferramenta com sessões sintéticas preparadas, backup17 obrigatório e limpeza por propriedade. Não faz parte do deploy; consulte o andamento para execução e limites.
+
+[Backup e restauração](docs/BACKUP-RESTAURACAO.md): exportação privada, verificação offline e recuperação explícita em schema9 vazio, com sessões da equipe/portal encerradas. Não substitui backup de configuração nem restaura sobre dados existentes.
