@@ -15,6 +15,7 @@ const { registerConversationContacts } = require('./conversation-contacts');
 const { registerCampaigns } = require('./campaigns');
 const { registerSubscriptions } = require('./subscriptions');
 const { registerPortal } = require('./portal');
+const { resolveReleaseIdentity } = require('./release-identity');
 
 const projectRoot = path.resolve(__dirname, '..');
 
@@ -26,6 +27,7 @@ function loadEnvironment() {
 function buildServer(options = {}) {
   const app = Fastify({ logger: options.logger || false, bodyLimit: 8192, ajv: { customOptions: { removeAdditional: false } } });
   const env = options.env || process.env;
+  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.12.4');
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
@@ -72,8 +74,9 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.12.3',
-    commit: /^[a-f0-9]{40}$/.test(process.env.APP_COMMIT || '') ? process.env.APP_COMMIT : null,
+    version: '0.12.4',
+    commit: releaseIdentity.commit,
+    releaseIdentitySource: releaseIdentity.source,
     phase: 'portal-campaigns-mvp',
     authenticationImplemented: true,
     operatorsImplemented: true,

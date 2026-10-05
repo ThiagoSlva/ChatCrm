@@ -14,15 +14,22 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
   assert.equal(response.json().chatImplemented, true);
   assert.equal(response.json().contactsImplemented, true);
   assert.equal(response.json().opportunitiesImplemented, true);
-  assert.equal(response.json().version, '0.12.3');
+  assert.equal(response.json().version, '0.12.4');
   assert.equal(response.json().conversationContactsImplemented, true);
   assert.equal(response.json().portalImplemented, true);
+});
+
+test('health usa a identidade do ambiente desta instância e conserva prioridade do deploy', async t => {
+  const commit = 'd'.repeat(40), app = buildServer({ env: { APP_COMMIT: commit }, repository: null });
+  t.after(() => app.close());
+  const body = (await app.inject('/health')).json();
+  assert.equal(body.commit, commit); assert.equal(body.releaseIdentitySource, 'environment');
 });
 
 test('arquivos privados e caminhos arbitrarios nao sao publicados', async (t) => {
   const app = buildServer();
   t.after(() => app.close());
-  for (const url of ['/.env', '/package.json', '/src/server.js', '/src/auth.js', '/.deployed.json', '/deploy.log', '/storage/config.json', '/docs/PLANO-IMPLEMENTACAO.md', '/%2e%2e/.env']) {
+  for (const url of ['/.env', '/.release.json', '/package.json', '/src/server.js', '/src/auth.js', '/.deployed.json', '/deploy.log', '/storage/config.json', '/docs/PLANO-IMPLEMENTACAO.md', '/%2e%2e/.env']) {
     const response = await app.inject(url);
     assert.equal(response.statusCode, 404, url);
   }

@@ -38,7 +38,11 @@ Confira o commit da execução e conserve o ZIP/checksum em lugar confiável. SH
 
 6. Siga [Configuração privada e preparação do banco](INSTALADOR-CPANEL.md#configuração-privada): criar banco exclusivo vazio, guardar `.env` privado600, diagnosticar, preparar explicitamente e concluir o primeiro cadastro em `/acesso`. Remova o segredo de instalação depois. O ZIP não migra, cria banco, muda credenciais ou reinicia aplicações automaticamente.
 
-Se o gerenciador exigir uma entrada Passenger específica, adapte segundo a documentação do seu provedor. `passenger.cjs` é destinado ao fluxo de releases `current/releases`; **não** é a entrada da instalação direta. Nesta, use `app.js`. `health.commit` pode ser `null` na instalação direta sem APP_COMMIT configurado; o manifesto/`--verify-directory` identifica a revisão distribuída. O ambiente de deploy por Git continua preenchendo o hash servido como antes.
+Se o gerenciador exigir uma entrada Passenger específica, adapte segundo a documentação do seu provedor. `passenger.cjs` é destinado ao fluxo de releases `current/releases`; **não** é a entrada da instalação direta. Nesta, use `app.js`. A partir da v0.12.4, ao iniciar uma instalação direta sem APP_COMMIT, a aplicação confere as fontes listadas no manifesto e sua versão. `/health` informa `commit` e `releaseIdentitySource: verified-package` quando a conferência passa. Isso identifica os bytes conferidos na inicialização; não é assinatura de autoria nem valida `.env`, dependências, banco ou alterações posteriores.
+
+Manifesto ausente produz `commit: null`/`unavailable`; manifesto inválido, fonte alterada, caminho inseguro ou versão divergente produz `null`/`unconfirmed`. O servidor pode continuar operacional, mas a revisão não está confirmada: preserve os arquivos, execute `--verify-directory` e compare com a origem confiável antes de ativar a instalação. O verificador não corrige arquivos.
+
+No fluxo de deploy por Git, APP_COMMIT válido mantém prioridade e `releaseIdentitySource: environment`, preservando o hash definido pelo bootstrap. Um APP_COMMIT explicitamente inválido retorna revisão não confirmada; o manifesto não mascara essa configuração. A conferência do ZIP não invoca Git nem abre conexão SQL.
 
 ## Verificar o ZIP antes de extrair
 
