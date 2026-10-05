@@ -49,3 +49,6 @@ Não voltar ao código 0.10 após schema 9, reduzir o marcador ou apagar tabelas
 ## Escopo restante
 
 Este é um primeiro módulo funcional de campanhas no portal. Trabalhador automático, agendamento, segmentação, filtros avançados, retenção/exportação da auditoria e ensaio de concorrência entre conexões continuam pendentes. O instalador simples e a homologação de recuperação/restauração continuam necessários antes de uma versão pública 1.0. Não representa um CRM completo nem substituição universal da rede de mensagens do WhatsApp.
+
+
+Verificação autenticada manual: [ensaio HTTPS protegido](VERIFICACAO-HTTPS-CAMPANHAS.md), exclusivo de schema9/base operacional vazia e backup/journal novos. Distinguir testes de rotas/modelos, sessões preparadas e homologação real; nenhuma entrega a pessoas reais.

@@ -102,3 +102,15 @@ Próxima entrega coesa: distribuição/pacote instalável reproduzível e guia i
 
 
 v0.12.1 mantém schema9/cron/bootstrap; não exige DDL. Gerador e guia de [distribuição](PACOTE-INSTALACAO.md) são para pasta nova. Não extrair sobre current/.env/release existente; fontes do ZIP e configuração são etapas distintas. CI passa a conferir pacote extraído antes de publicar artefato temporário, com permissões read preservadas.
+
+
+Fechamento05/10/2026 — v0.12.1 publicada em mainf9788fe4099ca3a88595545abb73014ce566cc5d, árvoreb199fd5fb54a314cd7d7e1e4448dfe15ffdc6302. CI37346141788 completou com sucesso os jobs Node22, Node24 e package (dupla geração, unzip real, manifesto, instalação lockfile, testes extraídos e upload). Artefato11360980658 criado17:09:41Z, expira04/11/2026; envelope418.022bytes. ZIP interno1.679.889bytes,131 fontes mais manifesto, SHA256 e32e50e6e6fb82478185f684abd2b58bc025115c48e3ba58cc8eb0f1f815648b. Download pelo conector, digest do envelope conferido, extração de somente2 arquivos esperados e comparação byte a byte com a geração Windows confirmados17:11:57.726Z: Windows/Linux idênticos e SHA256SUMS correspondente. Nenhum dado da hospedagem entrou no artefato.
+
+Validação local299/299/zero falhas48.0717159s; cópia ZIP de pré-publicação extraída pelo tar Windows e npmci próprio aprovou299/299/53.6520635s. Cron ativou17:10:46.050Z, recibo600/current correspondente, cPanel299/299/zero falhas41.244211715s. Health HTTPS200/v0.12.1/hash exato17:12:35.611Z; CI final success/exactsha. Schema continua9; nenhuma migração, configuração, credencial, campanha ou alteração de bootstrap/cron. Ferramentas de distribuição não leem configuração nem conectam ao banco.
+
+Pacote final local ignorado storage/releases/conversa-livre-0.12.1-f9788fe.zip e cópia baixada de CI preservados para revisão, junto com evidências package-final-bytes.json, package-cross-platform-proof.json, package-health-final.json e logs. Prévia local de ilustração encerrada e servidor próprio parado; abas do usuário preservadas. Frontend do aplicativo não alterado. O guia distingue imagem ilustrativa, integridade sem assinatura, necessidade de terminal/npm e download Actions autenticado/temporário. Não chamar o sistema de pronto para produção.
+
+Próximo passo: ensaio autenticado HTTPS das campanhas com backup21 fresco e journal novo, seguido de distribuição permanente e instalação por pessoa iniciante; ampliar recuperação da configuração/arquivos e limites operacionais antes de chatbot/fluxos. Fechamento documental local para próxima entrega coesa, sem redeploy só para seguir referências ao próprio hash.
+
+
+v0.12.2 mantém schema9/configuração/cron/bootstrap. [Ensaio HTTPS de campanhas](VERIFICACAO-HTTPS-CAMPANHAS.md) é manual e exige snapshot21 fresco, journal novo e opt-in em base operacional vazia. Sessões são preparadas, sem provar login. Não rodar no deploy/CI/startup ou reaproveitar journals7/8.
