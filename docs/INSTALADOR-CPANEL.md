@@ -98,7 +98,7 @@ Somente em instalação nova com banco vazio, acrescente `--prepare-empty` ao ú
 
 DDL MySQL confirma implicitamente. Repetir `--prepare-empty` **não retoma instalação parcial**: recusa tabelas existentes. `migrate:database` é a ferramenta de retomada, após conferir exclusividade, versão, estrutura e backup. Valida etapas existentes e recusa incompatibilidades; não faz DROP/TRUNCATE. Não apague o banco para corrigir falhas.
 
-Atualizações exigem backup atual e release compatível antes de migração explícita, conforme [instalação e acesso](INSTALACAO-ACESSO.md). Preparação inicial nunca autoriza upgrade, recuperação de senha ou alteração de contas. Preserve configuração/backups entre deploys.
+Atualizações exigem backup atual e release compatível antes de migração explícita, conforme [instalação e acesso](INSTALACAO-ACESSO.md). Preparação inicial nunca autoriza upgrade, recuperação de senha ou alteração de contas. Preserve configuração/backups entre deploys; a [cópia privada da configuração](BACKUP-CONFIGURACAO.md) complementa o backup do banco e só restaura para uma pasta nova de revisão.
 
 ## Limites verificados
 

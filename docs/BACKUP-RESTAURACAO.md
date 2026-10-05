@@ -67,6 +67,6 @@ O procedimento exige manutenção do destino: travas cooperativas não bloqueiam
 
 ## O que completar no backup da instalação
 
-Guarde separadamente e em ambiente privado a configuração, bootstrap necessário, versão compatível do código e arquivos operacionais que você realmente utiliza. O banco é apenas uma parte. Não copiar `.env` para releases ou pasta pública; revisar novos parâmetros de conexão/origem no destino. Pacote de distribuição, retenção, criptografia opcional e guia ilustrado continuam no plano.
+Use [backup de configuração](BACKUP-CONFIGURACAO.md) para guardar `.env` e bootstrap opcional na própria hospedagem e preparar uma cópia em pasta privada nova. Guarde separadamente a revisão compatível do código e arquivos operacionais que você realmente utiliza. O banco é apenas uma parte; os snapshots não são uma fotografia conjunta automática. Não copiar `.env` para releases ou pasta pública; revisar os parâmetros de conexão/origem no destino. Retenção, criptografia opcional e recuperação completa da hospedagem continuam no plano.
 
 Os ensaios em MariaDB local usam dados exclusivamente fictícios, com origem preservada e destino isolado. Não significam que dados ou credenciais operacionais do cPanel foram restaurados. As evidências executadas ficam em [ANDAMENTO.md](ANDAMENTO.md).
