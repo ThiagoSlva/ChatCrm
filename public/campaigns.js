@@ -9,9 +9,10 @@ const campaigns={
  invalid(){throw Error('A resposta não pôde ser confirmada.');},
  async api(url,options={}){
   const generation=this.generation,controller=this.controller;
-  const r=await fetch(url,{...options,credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});
+  try{const r=await fetch(url,{...options,credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(10000)])});
   const data=await r.json();if(generation!==this.generation||controller!==this.controller||this.disposed||controller.signal.aborted)throw Object.assign(Error(),{name:'AbortError'});
   if(!r.ok)throw Object.assign(Error(this.error(r.status)),{status:r.status});return data;
+  }catch(e){if(e.status||e.name==='AbortError'||controller.signal.aborted||generation!==this.generation||this.disposed)throw e;throw Error('A conexão falhou ou a resposta está incompleta. Seus dados continuam nesta aba. Verifique antes de reenviar.');}
  },
  headers(){return {'Content-Type':'application/json','X-CSRF-Token':this.csrf};},
  clear(){

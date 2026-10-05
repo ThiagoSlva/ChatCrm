@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.10.0 publicada no ambiente de testes, com portal e inscrições explícitas em schema8. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) está preparado na v0.11, com ativação explícita após backup e schema9; instalador completo e restauração seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**v0.11.0 publicada no ambiente de testes, com campanhas no portal e schema9. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e restauração seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
