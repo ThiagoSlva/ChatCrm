@@ -79,3 +79,9 @@ v0.10 prepara inscrições explícitas no portal/schema8, sem envio de campanhas
 
 
 v0.11 prepara campanhas/caixa de novidades e suporta schema9. Primeiro publicar e confirmar compatibilidade8 (apenas campanhas aguarda preparação), CI/hash e backup privado fresco18. Migrar explicitamente, comparar dados/DDL18 normalizando somente marcador, validar três tabelas novas vazias, diagnóstico e verificador SQL21 em transação revertida; conferir HTTPS/assets/hash. v0.10 não aceita9. Não reexecutar fixtures HTTPS7/8 ou apagar tabelas/marcador. Cron/bootstrap permanecem iguais. [Contrato e limites](CAMPANHAS-MVP.md).
+
+
+Ambiente autorizado em05/10/2026: v0.11/schema9 ativo, backup18 fresco verificado, DDL9/preservação21/SQL campanhas/regressões gerais e HTTPS/assets aprovados conforme ANDAMENTO.md. Não repetir a migração. Verificadores gerais de chat/contatos/vendas/associação reconhecem9; ferramentas exclusivas7/8 continuam exclusivas. Para próximas fixtures confirmadas, novo backup21 e journal próprio; backup pré-v9 não representa dados posteriores. Recuperação somente com código compatível9.
+
+
+Preparação inicial v0.11.1: [guia executável](INSTALADOR-CPANEL.md). install:prepare somente lê por padrão; --prepare-empty nunca autoriza atualizar o banco existente. Não muda bootstrap, cron ou configuração. Schema continua9; esta release não exige DDL. Preparação explícita não faz parte dos testes de deploy.

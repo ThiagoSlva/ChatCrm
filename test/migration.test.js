@@ -1013,7 +1013,7 @@ test('campaign schema refuses invalid columns, unique indexes, engine and foreig
  const f=campaignMigration({tables:schema8Tables,version:8});f.state.failTable='cl_campaign_recipients';await assert.rejects(migrate(f.connection),/Interrupcao/);assert.equal(f.state.version,8);f.state.failTable=null;await migrate(f.connection);assert.equal(f.state.version,9);
 });
 test('fresh default prepares9 without campaigns; incomplete9 and premature campaign tables refuse any DDL',async()=>{
- const f=campaignMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection),{schemaVersion:9});assert.equal(f.state.tables.size,21);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_campaign')));
+ const f=campaignMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection,{requireEmpty:true}),{schemaVersion:9});assert.equal(f.state.tables.size,21);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_campaign')));
  for(const options of[{tables:schema8Tables,version:9},{tables:[...schema6Tables,...portalTables,'cl_campaigns'],version:7}]){
   const g=campaignMigration(options);await assert.rejects(migrate(g.connection),/incompleta|concluidas/);assert(!g.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
  }

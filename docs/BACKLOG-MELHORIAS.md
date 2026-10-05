@@ -10,9 +10,9 @@ Em 02/10/2026, o usuário reiterou autorização para identificar funções úte
 | Verificado v0.7 | Concorrência SQL de oportunidades | Duas conexões, mesmo ator, replay/CAS e histórico; fixtures próprias removidas e treze tabelas preservadas. Carga/contatos/múltiplos processos continuam pendentes |
 | Entregue v0.8 | Associação entre atendimento e contato | Escolha manual autorizada em área ativa, histórico e versões; sem fundir visitantes por nome/e-mail ou ampliar acesso ao histórico |
 | Ativado v0.9; verificado em MariaDB real | Portal do cliente | Backup15, migração7, SQL17/preservação e HTTPS da equipe aprovados. Cliente/operador juntos por HTTPS e concorrência do portal pendentes; não verifica e-mail/identidade civil |
-| Próxima base | Campanhas consentidas no canal próprio | Consentimento registrado, descadastro, fila limitada e auditoria; somente destinatários sintéticos na homologação |
+| Ativado v0.11; SQL real e UI local verificados | Campanhas consentidas no canal próprio | Prévia, consentimento versionado revalidado na entrega, lotes manuais idempotentes, cancelamento e leitura própria; ensaio autenticado HTTPS/concorrência ainda pendentes |
 | Parcial: diagnóstico manual implementado | Diagnóstico de instalação | Configuração, schema, empresa/administrador e módulos pendentes; somente leitura. Executado em MariaDB real nas versões6/7; guia, limites e testes no andamento |
-| Próxima base | Instalador cPanel e recuperação | Diagnóstico claro, instalação repetível, backup e restauração ensaiada, preservação da configuração privada |
+| Parcial v0.11.1; próxima base | Instalador cPanel e recuperação | Diagnóstico, preparação vazia sob trava e guia implementados; pacote, banco novo real/assistente sem terminal e restauração ainda pendentes |
 | Produtividade | Respostas rápidas com variáveis limitadas | Inserção editável de textos autorizados, sem envio automático; versões, escopo e tratamento seguro de variáveis |
 | Produtividade | Notas internas e etiquetas | Contexto entre operadores; notas nunca chegam à API do visitante ou campanha |
 | Produtividade | Transferência e distribuição | Destino ativo/vinculado, transferência transacional e aviso claro; histórico e autorias preservados |

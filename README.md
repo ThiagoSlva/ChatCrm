@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**v0.11.0 publicada no ambiente de testes, com campanhas no portal e schema9. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e restauração seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**v0.11.1 inclui preparação protegida de instalação; v0.11.0/campanhas/schema9 já publicada no ambiente de testes. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e restauração seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 A fila agora inclui [busca, filtros e atalhos](docs/PRODUTIVIDADE-ATENDIMENTO.md). O [backlog de melhorias](docs/BACKLOG-MELHORIAS.md) registra prioridades e critérios para as próximas entregas. Consulte o andamento para confirmar a homologação da versão.
 
@@ -13,7 +13,7 @@ O [contexto do contato no atendimento](docs/ASSOCIACAO-ATENDIMENTO.md) permite v
 
 A [verificação manual de concorrência SQL](docs/VERIFICACAO-CONCORRENCIA-CRM.md) cobre oportunidades em duas conexões físicas. Exige banco de testes vazio, backup privado atual e opção explícita para fixtures temporariamente confirmadas; não faz parte do cron ou de npm test. Consulte o andamento para evidências.
 
-O [portal](docs/PORTAL-MVP.md) oferece contas/sessões próprias, retomada de histórico e recuperação de acesso. As [preferências de novidades](docs/INSCRICOES-PORTAL.md) acrescentam inscrição e descadastro explícitos, desligados por padrão, com auditoria e proteção contra reenvio antigo. Foram homologadas no ambiente de testes em schema8; campanhas e caixa de novidades ainda estão pendentes. Consulte o andamento para evidências e limitações.
+O [portal](docs/PORTAL-MVP.md) oferece contas/sessões próprias, retomada de histórico e recuperação de acesso. As [preferências de novidades](docs/INSCRICOES-PORTAL.md) acrescentam inscrição e descadastro explícitos, desligados por padrão, com auditoria e proteção contra reenvio antigo. Foram homologadas no ambiente de testes em schema8; campanhas e caixa de novidades estão ativas em schema9, com ensaio autenticado HTTPS de campanhas ainda pendente. Consulte o andamento para evidências e limitações.
 
 ## Executar a base
 
@@ -31,7 +31,7 @@ Para conferir configuração, estrutura e módulos pendentes, execute `npm run c
 
 Veja [como testar a base no cPanel](docs/TESTE-BASE.md). O provedor precisa oferecer Node.js compatível e gerenciador de aplicações. A entrada local é `app.js` em CommonJS; o ambiente de testes usa `passenger.cjs`, releases isoladas e migração explícita. Instalação sem terminal e carga de atendimento ainda precisam de homologação.
 
-Para preparar o banco e criar o primeiro administrador, siga o [guia de instalação e acesso](docs/INSTALACAO-ACESSO.md). Abra `/acesso` após configurar o ambiente. Não existem credenciais padrão.
+Para uma instalação nova, siga o [instalador cPanel passo a passo](docs/INSTALADOR-CPANEL.md). O comando `npm run install:prepare` só diagnostica; `npm run install:prepare -- --prepare-empty` prepara somente banco vazio, sob trava e com diagnóstico final. O [guia de instalação e acesso](docs/INSTALACAO-ACESSO.md) detalha a configuração. Abra `/acesso` após configurar o ambiente. Não existem credenciais padrão.
 
 Administradores podem [cadastrar, desativar e reativar operadores](docs/OPERADORES.md) em `/acesso`. Desativar revoga as sessões; operadores não acessam a gestão da equipe.
 

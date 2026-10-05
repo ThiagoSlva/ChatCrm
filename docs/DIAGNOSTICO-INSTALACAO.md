@@ -18,7 +18,7 @@ node --env-file="$CHATCRM_APP_ROOT/.env" "$CHATCRM_APP_ROOT/current/scripts/chec
 
 - Node.js 22/24 e APP_URL com a regra de origem da autenticação: HTTPS sem caminho, credenciais, parâmetros ou fragmento. HTTP em localhost/127.0.0.1 somente fora de production.
 - Configuração completa do banco, inclusive senha e porta, usando databaseOptions da aplicação.
-- Banco exclusivo, marcador entre 1 e 7, tabelas correspondentes e engines InnoDB. Projeções vazias da base e validadores de colunas, índices e relacionamentos dos módulos da versão registrada.
+- Banco exclusivo, marcador entre 1 e 9, tabelas correspondentes e engines InnoDB. Projeções vazias da base e validadores de colunas, índices e relacionamentos dos módulos da versão registrada.
 - Presença de empresa e administrador ativo, sem retornar nomes, e-mails, senhas ou hashes. Uma instalação nova exige SETUP_TOKEN privado de pelo menos 32 caracteres.
 - Alteração observada do marcador durante a leitura. Isso não garante uma fotografia atômica durante DDL concorrente; repita após a migração terminar.
 

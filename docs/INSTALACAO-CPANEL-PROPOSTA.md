@@ -1,51 +1,9 @@
-# Fluxo proposto de instalação Node.js no cPanel
+# Instalação no cPanel: implementação e próximas etapas
 
-**Tutorial planejado. O pacote, o assistente e os comandos próprios ainda precisam ser implementados.** A tela pode ser Application Manager, Setup Node.js App/CloudLinux ou outro gerenciador; o guia final terá variantes homologadas.
+A preparação protegida pelo terminal está implementada em v0.11.1. Siga o [guia atual com comandos executáveis](INSTALADOR-CPANEL.md), [configuração e primeiro acesso](INSTALACAO-ACESSO.md) e [fluxo de releases](DEPLOY-CPANEL.md).
 
-## Resultado esperado
+O pacote atual usa app.js, src/ e public/, JavaScript/CommonJS e assets prontos. Não exige build TypeScript/React, Redis, Docker, PM2 ou WebSocket. Chat usa polling; widget abre a página de chat em nova aba. Banco, configuração, backups e aplicação ficam privados, fora de public_html.
 
-Instalação em `suporte.empresa.com.br`, com Node suportado, banco MySQL, administrador e trecho HTML para ativar o chat. O site existente pode continuar usando PHP, WordPress ou outra tecnologia.
+Ainda planejado: ZIP público reproduzível, assistente sem terminal, variantes ilustradas de gerenciadores Node, fuso configurável, restauração demonstrada e ensaio por pessoa sem conhecimento de Node. Não existe o antigo comando conceitual cli.js tick, SMTP obrigatório ou envio automático de campanhas. O primeiro módulo usa lotes manuais e consentimento explícito no portal.
 
-## Fluxo de instalação
-
-1. Verificar versão Node, gerenciador, instalação npm, MySQL/MariaDB homologado, HTTPS, armazenamento e cron. WebSocket será testado separadamente.
-2. Criar banco e usuário pelo cPanel, associar privilégios necessários e registrar nomes completos com prefixo da conta.
-3. Criar subdomínio e ativar HTTPS conforme os recursos do provedor.
-4. Enviar e extrair o ZIP em diretório privado, fora de `public_html`. Backend e frontend chegam compilados.
-5. Registrar a aplicação Node: runtime suportado, produção, raiz privada, subdomínio e entrada `app.js` quando o gerenciador oferecer esses campos. Os padrões do Application Manager podem diferir do Selector.
-6. Usar a ação equivalente a Run NPM Install ou Enable Dependencies. O bootstrap deverá permitir a verificação do gerenciador antes de configurar banco/empresa. Não exigir build TypeScript/Vite no servidor.
-7. Configurar um segredo exclusivo de instalação por variável ou arquivo privado. Protege o primeiro acesso; não é licença de ativação.
-8. Iniciar/reiniciar pelo painel e abrir o assistente: banco, URL, empresa, fuso e administrador. Criar estrutura sem sobrescrever banco existente e bloquear o instalador ao terminar.
-9. Cadastrar departamentos/operadores e testar uma conversa.
-10. Copiar o trecho HTML do painel para o site.
-11. Configurar cron e SMTP para as funções automáticas. Chat básico funciona sem ambos; documentar convites e recuperação manuais quando SMTP não existir.
-
-## Organização privada
-
-```text
-/home/CONTA/conversa-livre/             raiz da aplicação
-/home/CONTA/conversa-livre/app.js       entrada do gerenciador
-/home/CONTA/conversa-livre/dist/server/ backend pronto
-/home/CONTA/conversa-livre/dist/public/ frontend pronto
-/home/CONTA/conversa-livre/storage/     anexos privados e logs
-```
-
-Publicar somente assets autorizados de `dist/public`. Configuração, backups e anexos privados não são arquivos públicos. Não exigir permissões 777, PM2 ou porta 3000 exposta.
-
-## Tarefas automáticas
-
-Comando conceitual, ainda inexistente:
-
-```text
-CAMINHO_DO_NODE /home/CONTA/conversa-livre/dist/server/cli.js tick
-```
-
-O programa processará lote limitado, com trava no banco, retomada em falhas e encerramento. O cron precisa ler a configuração privada; não presumir que herda as variáveis do processo web.
-
-Configurar a cada minuto se permitido pelo provedor, ou intervalo maior com atraso indicado. Painel mostra última execução e pendências. Sem cron, chat direto funciona; campanhas/notificações automáticas ficam visivelmente desabilitadas ou pendentes.
-
-## Aceite
-
-Guia final com imagens de implantação real, diagnóstico, erros comuns, recuperação sem SMTP, backup e atualização. Homologar extração ZIP, inodes, npm, Node CLI, HTTPS, subcaminhos, reinícios e retorno após ociosidade.
-
-Confirmar também operação sem WebSocket. Uma pessoa sem conhecimento de Node deve concluir atendimento com dois operadores e restaurar backup em instalação compatível. Compatibilidade cPanel será declarada verificada somente após essa demonstração.
+Aceite final: instalar banco novo, criar dois operadores/departamento, integrar página de teste, conversar, cadastrar lead/oportunidade, retornar pelo portal e restaurar backup isolado compatível. Node22/24 e MariaDB de testes não demonstram todas as variantes do cPanel. Resultados verificados ficam no [andamento](ANDAMENTO.md).

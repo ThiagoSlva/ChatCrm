@@ -280,7 +280,7 @@ async function verifyPortalSchema(connection) {
   if (foreignKeys.length !== keys.length || keys.some(([table, column, target]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === 'id' && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos do portal incompativeis.');
 }
 
-async function migrate(connection, { targetVersion = 9 } = {}) {
+async function migrate(connection, { targetVersion = 9, requireEmpty = false } = {}) {
   if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
   // Keep the established lock so an older explicit v1 migrator cannot race this one.
   const [lock] = await connection.execute("SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired");
@@ -288,6 +288,13 @@ async function migrate(connection, { targetVersion = 9 } = {}) {
   try {
     const [tables] = await connection.query('SHOW TABLES');
     const names = tables.map(row => Object.values(row)[0]);
+    // Fresh-install permission is checked AFTER acquiring the same migration lock.
+    // Never turn an empty preflight snapshot into permission to upgrade a changed DB.
+    if (requireEmpty && names.length) {
+      const error = new Error('Preparacao inicial exige banco vazio.');
+      error.code = 'DATABASE_NOT_EMPTY';
+      throw error;
+    }
     const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
     const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables, ...portalTables, 'cl_portal_subscription_events', ...campaignDefinitions.map(d => d.name)];
     if (names.some(name => !allowed.includes(name))) throw new Error('Use um banco exclusivo e vazio para o projeto.');

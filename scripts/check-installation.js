@@ -173,7 +173,7 @@ async function main() {
   process.stdout.write(args.includes('--json') ? JSON.stringify(result) + '\n' : formatReport(result),
     () => process.exit(result.ok ? 0 : 1));
 }
-module.exports = { inspectInstallation, readOnly, formatReport };
+module.exports = { inspectInstallation, readOnly, formatReport, withDeadline };
 if (require.main === module) main().catch(() => {
   process.stderr.write('Diagnostico interrompido. Confira configuracao privada e dependencias; nenhum segredo foi exibido.\n');
   process.exitCode = 1;
