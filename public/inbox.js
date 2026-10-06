@@ -138,7 +138,7 @@ function inboxSchedule(delay) {
   inboxTimer = setTimeout(() => inboxRun(async () => {
     if (Date.now() - inboxQueueAttemptAt >= 5000) await inboxLoadQueue();
     if (!document.hidden && inboxSelected && Date.now() - inboxMessagesAttemptAt >= 3000) await inboxLoadMessages();
-  }, true), delay === undefined ? next : delay);
+  }, true), window.ClPolling.delay(delay === undefined ? next : delay));
 }
 function inboxShowPending(message, connectionFailure = false) {
   inboxSuspended = true; inboxMarkUnconfirmed();

@@ -24,6 +24,10 @@ Os scripts do ensaio e sessões fictícias ficaram privados e fora do pacote. Pa
 
 ## Próximas verificações
 
+Desde v0.13.3, cada agendamento automático de chat, caixa de atendimento e portal soma uma variação aleatória positiva de150 a750 ms. O chat mantém a base de3 s após concluir a leitura; o portal mantém5 s, ou15 s no caminho de falha já existente. A caixa conserva os prazos mínimos de5 s para fila e3 s para histórico, acrescentando a variação à próxima espera calculada. Ao retornar a uma aba, o agendamento antes imediato passa a esperar150 a750 ms. Ações manuais continuam imediatas; o mecanismo não repete gravações nem muda o limite do pool.
+
+Quatro testes do agendador verificam trinta contextos distintos, prazos, apenas um timer, pausa quando a aba está oculta/ocupada/encerrada e preservação de envios pendentes. São testes determinísticos de scripts, não medição de carga. Revisão no navegador com persistência fictícia conferiu desktop/390px, teclado e rascunhos em chat/atendimento, reenvio incerto sem duplicação e portal vazio. A distribuição das chamadas é probabilística: não garante separação entre todas as abas, elimina saturação ou comprova maior capacidade do provedor. O benchmark acima continua sendo o ensaio da v0.13.2; carga prolongada com o novo agendador ainda precisa ser medida.
+
 - Ensaiar a carga prolongada com históricos preenchidos e o padrão real de navegação, registrando consumo e latência do banco.
 - Homologar concorrência entre processos, restart/proxy, limite real do provedor e recuperação após desconexão.
 - Planejar retenção de dados, logs e releases com recuperação preservada, antes de qualquer limpeza automática.

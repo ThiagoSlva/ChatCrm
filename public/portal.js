@@ -33,7 +33,7 @@ const portal = {
   if(registration?.payload.accessId===data.account.accessId)this.eraseKits(['register']);if(recovery?.confirmed&&recovery.payload.accessId===data.account.accessId)this.eraseKits(['recover']);return data;
  },
  async revalidate(){const expected=this.account?.accessId;await this.profile();if(expected!==this.account.accessId){const e=new Error('Seu acesso mudou em outra aba. Verifique antes de continuar.');e.status=401;throw e;}},
- schedule(delay=5000){clearTimeout(this.timer);if(!this.account||this.disposed||document.hidden||this.busy||!this.ready)return;this.timer=setTimeout(()=>this.run(async()=>{await this.profile();await portalChat.refresh();},true),delay);},
+ schedule(delay=5000){clearTimeout(this.timer);if(!this.account||this.disposed||document.hidden||this.busy||!this.ready)return;this.timer=setTimeout(()=>this.run(async()=>{await this.profile();await portalChat.refresh();},true),window.ClPolling.delay(delay));},
  async run(work,automatic=false,focusId=null){
   if(this.busy||this.disposed||(automatic&&document.hidden))return;clearTimeout(this.timer);this.busy=true;this.automatic=automatic;this.controller=new AbortController();const generation=this.generation,focus=document.activeElement?.id;this.controls();let failed=false;
   try{await work();}catch(e){if(generation!==this.generation||this.disposed||(automatic&&e.name==='AbortError'))return;failed=true;if(this.account){this.confirmed=false;if(e.status===401){this.clearIdentity();this.el('auth').hidden=false;this.paneShow('login');}}if(e.status===503)this.ready=false;this.el('feedback').textContent=e.status?e.message:(e.message||'A conexão falhou. A operação não foi confirmada.');}

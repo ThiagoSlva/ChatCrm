@@ -70,7 +70,7 @@ function visitorForget() {
 function visitorSchedule(delay = 3000) {
   clearTimeout(visitorTimer);
   if (!visitorIdentity || visitorSuspended || document.hidden || visitorDisposed || visitorBusy) return;
-  visitorTimer = setTimeout(() => visitorRun(async () => { await visitorLoadConversations(); if (!document.hidden && visitorSelected) await visitorLoadMessages(); }, true), delay);
+  visitorTimer = setTimeout(() => visitorRun(async () => { await visitorLoadConversations(); if (!document.hidden && visitorSelected) await visitorLoadMessages(); }, true), window.ClPolling.delay(delay));
 }
 async function visitorRun(work, automatic = false, focusId = null) {
   if (visitorBusy || visitorDisposed || (automatic && document.hidden)) return;

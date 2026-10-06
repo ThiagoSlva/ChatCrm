@@ -14,7 +14,7 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
   assert.equal(response.json().chatImplemented, true);
   assert.equal(response.json().contactsImplemented, true);
   assert.equal(response.json().opportunitiesImplemented, true);
-  assert.equal(response.json().version, '0.13.2');
+  assert.equal(response.json().version, '0.13.3');
   assert.equal(response.json().conversationContactsImplemented, true);
   assert.equal(response.json().portalImplemented, true);
 });
@@ -52,7 +52,7 @@ test('HTML usa assets identificados pelo conteudo para evitar cache ou arquivos 
   for (const url of ['/', '/acesso', '/chat', '/atendimento', '/contatos', '/vendas', '/portal', '/campanhas']) {
     const html = (await app.inject(url)).body;
     const urls = [...html.matchAll(/(?:href|src)="(\/assets\/[a-f0-9]{16}\/[^"]+)"/g)].map(match => match[1]);
-    assert.equal(urls.length, url === '/portal' ? 5 : url === '/atendimento' ? 3 : 2);
+    assert.equal(urls.length, url === '/portal' ? 6 : url === '/atendimento' ? 4 : url === '/chat' ? 3 : 2);
     for (const asset of urls) {
       const response = await app.inject(asset);
       assert.equal(response.statusCode, 200);

@@ -58,7 +58,7 @@ function fixture(){
   throw Error('Unexpected route '+url);
  }
  const context=vm.createContext({document,window,AbortController,AbortSignal,URL,Blob,location:{origin:'https://example.test'},crypto:require('node:crypto').webcrypto,Uint8Array,Date,Map,Promise,setTimeout(fn,ms){const id=++n;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);},async fetch(url,o={}){depth++;max=Math.max(max,depth);try{await Promise.resolve();const r=await router(url,o);return {ok:r.status<400,status:r.status,json:async()=>r.body};}finally{depth--;}}});
- vm.runInContext(fs.readFileSync('public/portal.js','utf8'),context);vm.runInContext(fs.readFileSync('public/portal-chat.js','utf8').replace(/portal.initialize\(\);\s*$/,''),context);
+ vm.runInContext(fs.readFileSync('public/polling.js','utf8'),context);vm.runInContext(fs.readFileSync('public/portal.js','utf8'),context);vm.runInContext(fs.readFileSync('public/portal-chat.js','utf8').replace(/portal.initialize\(\);\s*$/,''),context);
  const run=code=>vm.runInContext(code,context),get=id=>document.getElementById('portal-'+id);
  const idle=async()=>{for(let i=0;i<100;i++){await new Promise(setImmediate);if(!run('portal.busy')&&!depth)return;}throw Error('UI did not finish');};
  const init=async()=>{run('portal.initialize()');await idle();};

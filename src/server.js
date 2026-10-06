@@ -27,10 +27,11 @@ function loadEnvironment() {
 function buildServer(options = {}) {
   const app = Fastify({ logger: options.logger || false, bodyLimit: 8192, ajv: { customOptions: { removeAdditional: false } } });
   const env = options.env || process.env;
-  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.13.2');
+  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.13.3');
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
+    ['/polling.js', 'polling.js', 'application/javascript; charset=utf-8'],
     ['/styles.css', 'styles.css', 'text/css; charset=utf-8'],
     ['/status.js', 'status.js', 'application/javascript; charset=utf-8'],
     ['/access.js', 'access.js', 'application/javascript; charset=utf-8'],
@@ -74,7 +75,7 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.13.2',
+    version: '0.13.3',
     commit: releaseIdentity.commit,
     releaseIdentitySource: releaseIdentity.source,
     phase: 'portal-campaigns-mvp',
