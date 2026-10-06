@@ -47,7 +47,7 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2, 3, 4, 5, 6, 7, 8].includes(capabilities?.schemaVersion), true);
+    assert.equal([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(capabilities?.schemaVersion), true);
     assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
     if (capabilities.schemaVersion >= 3) assert.equal(capabilities.chat, true);
     else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);
@@ -55,9 +55,27 @@ async function verifyAccess(origin, credentials) {
     assert.equal(capabilities.opportunities === true, capabilities.schemaVersion >= 5);
     assert.equal(capabilities.conversationContacts === true, capabilities.schemaVersion >= 6);
     assert.equal(capabilities.portal === true, capabilities.schemaVersion >= 7);
+    assert.equal(capabilities.subscriptions === true, capabilities.schemaVersion >= 8);
+    assert.equal(capabilities.campaigns === true, capabilities.schemaVersion >= 9);
+    assert.equal(capabilities.conversationContacts === true, capabilities.schemaVersion >= 6);
+    assert.equal(capabilities.portal === true, capabilities.schemaVersion >= 7);
     checks.push('capabilities');
     for (const route of ['/api/portal/me','/api/portal/conversations','/api/portal/conversations/4294967295/messages']) assert.equal((await request(route)).response.status, capabilities.portal ? 401 : 503);
     checks.push('portal-anonymous-or-unprepared-denied');
+    assert.equal((await request('/api/portal/subscription')).response.status, capabilities.subscriptions ? 401 : 503);
+    assert.equal((await request('/api/portal/news')).response.status, capabilities.portal ? 401 : 503);
+    checks.push('subscriptions-and-news-anonymous-or-unprepared-denied');
+    if (capabilities.campaigns) {
+      assert.equal((await request('/api/campaigns')).response.status, 401);
+      const campaigns = await request('/api/campaigns?page=1&limit=20', 'GET', null, { Cookie: cookie });
+      assert.equal(campaigns.response.status, profile.data.user.role === 'admin' ? 200 : 403);
+      if (profile.data.user.role === 'admin') {
+        assert.equal(Array.isArray(campaigns.data.campaigns), true);
+        assert.equal(campaigns.data.page, 1); assert.equal(campaigns.data.limit, 20);
+        assert.equal(campaigns.data.campaigns.length <= 20, true);
+      }
+      checks.push('campaigns-current-role-read');
+    }
     const team = await request('/api/team/operators?limit=20', 'GET', null, { Cookie: cookie });
     if (profile.data.user.role === 'admin') {
       assert.equal(team.response.status, 200);

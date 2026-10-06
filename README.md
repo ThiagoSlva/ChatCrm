@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Base de homologação v0.13.0, com pacote ZIP reproduzível e guia de instalação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**Base de homologação v0.13.1, com pacote ZIP reproduzível e guia de instalação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 O [pacote de instalação](docs/PACOTE-INSTALACAO.md) é gerado a partir de uma revisão Git, contém manifesto/checksums e é testado extraído na CI. A instalação direta usa app.js em pasta privada e o [guia cPanel](docs/INSTALADOR-CPANEL.md). Não inclui configuração, banco ou dependências baixadas.
 
@@ -81,3 +81,5 @@ Os aplicativos baixados são clientes da rede Telegram. Não incluem o servidor 
 [Backup e restauração](docs/BACKUP-RESTAURACAO.md): exportação privada, verificação offline e recuperação explícita em schema9 vazio, com sessões da equipe/portal encerradas. Não substitui backup de configuração nem restaura sobre dados existentes.
 
 Configuração privada: [backup e preparação da recuperação](docs/BACKUP-CONFIGURACAO.md), sem ativar arquivos antigos ou substituir a instalação existente.
+
+[Recuperação conjunta](docs/RECUPERACAO-CONJUNTA.md): manutenção, cópias privadas, revisão dos parâmetros do destino e critérios funcionais após restaurar, com evidência local e limites de homologação.
