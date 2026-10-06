@@ -5,7 +5,7 @@ const path = require('node:path');
 const validators = require('./migrate-database');
 const { withDeadline } = require('./check-installation');
 
-// Fixed schema9 contract. Names/SQL never come from the backup or command line.
+// Fixed, versioned contracts. Names/SQL never come from a backup or command line.
 const definitions = [
   ['cl_schema','id,version'], ['cl_company','id,name'],
   ['cl_users','id,name,email,password_hash,role,active,created_at'],
@@ -28,6 +28,13 @@ const definitions = [
   ['cl_campaign_batches','campaign_id,client_key,delivered,skipped,remaining,created_at']
 ].map(([name, columns]) => Object.freeze({ name, columns: Object.freeze(columns.split(',')) }));
 Object.freeze(definitions);
+const tableCounts = Object.freeze([0, 4, 6, 10, 11, 13, 15, 17, 18, 21]);
+function definitionsForVersion(version) {
+  if (!Number.isInteger(version) || version < 1 || version >= tableCounts.length) fail('database-incompatible');
+  return Object.freeze(definitions.slice(0, tableCounts[version]).map(definition =>
+    version === 2 && definition.name === 'cl_departments'
+      ? Object.freeze({ name: definition.name, columns: Object.freeze(definition.columns.slice(0, 4)) }) : definition));
+}
 const MAX_BYTES = 16 * 1024 * 1024, MAX_ROWS = 25000;
 const lockSql = "SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired";
 const releaseSql = "SELECT RELEASE_LOCK('conversa-livre-schema-v1')";
@@ -52,12 +59,14 @@ function validateSnapshot(snapshot) {
     snapshot.version !== 1 || !/^[a-f0-9]{64}$/.test(snapshot.sha256 || '') ||
     !keys(snapshot.payload, ['schemaVersion','createdAt','tables'])) fail('backup-invalid');
   const payload = snapshot.payload;
-  if (payload.schemaVersion !== 9 || typeof payload.createdAt !== 'string' ||
+  if (!Number.isInteger(payload.schemaVersion) || payload.schemaVersion < 1 || payload.schemaVersion > 9) fail('backup-invalid');
+  const selected = definitionsForVersion(payload.schemaVersion);
+  if (typeof payload.createdAt !== 'string' ||
     !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(payload.createdAt) ||
-    !Number.isFinite(Date.parse(payload.createdAt)) || !Array.isArray(payload.tables) || payload.tables.length !== definitions.length) fail('backup-invalid');
+    !Number.isFinite(Date.parse(payload.createdAt)) || !Array.isArray(payload.tables) || payload.tables.length !== selected.length) fail('backup-invalid');
   let count = 0;
-  for (let i = 0; i < definitions.length; i++) {
-    const table = payload.tables[i], definition = definitions[i];
+  for (let i = 0; i < selected.length; i++) {
+    const table = payload.tables[i], definition = selected[i];
     if (!keys(table, ['name','columns','nextId','rows']) || table.name !== definition.name ||
       !Array.isArray(table.columns) || JSON.stringify(table.columns) !== JSON.stringify(definition.columns) ||
       !(table.nextId === null || (Number.isSafeInteger(table.nextId) && table.nextId >= 1 && table.nextId <= 4294967296)) ||
@@ -75,36 +84,44 @@ function validateSnapshot(snapshot) {
     count += table.rows.length;
     if (count > MAX_ROWS) fail('backup-too-large');
   }
-  if (JSON.stringify(payload.tables[0].rows) !== '[[1,9]]') fail('backup-invalid');
+  if (JSON.stringify(payload.tables[0].rows) !== JSON.stringify([[1, payload.schemaVersion]])) fail('backup-invalid');
   if (Buffer.byteLength(JSON.stringify(snapshot)) > MAX_BYTES) fail('backup-too-large');
   if (digest(payload) !== snapshot.sha256) fail('backup-checksum-mismatch');
-  return { schemaVersion: 9, tables: definitions.length, rows: count, sha256: snapshot.sha256 };
+  return { schemaVersion: payload.schemaVersion, tables: selected.length, rows: count, sha256: snapshot.sha256 };
 }
 
-async function validateDatabase(c) {
-  const [names] = await c.query('SHOW TABLES');
-  if (names.map(row => Object.values(row)[0]).sort().join(',') !== definitions.map(d => d.name).sort().join(',')) fail('database-incompatible');
+async function readSchemaVersion(c) {
   const [marker] = await c.query('SELECT id, version FROM cl_schema');
-  if (marker.length !== 1 || marker[0].id !== 1 || marker[0].version !== 9) fail('database-incompatible');
+  if (marker.length !== 1 || marker[0].id !== 1) fail('database-incompatible');
+  definitionsForVersion(marker[0].version);
+  return marker[0].version;
+}
+
+async function validateDatabase(c, expectedVersion) {
+  const [names] = await c.query('SHOW TABLES');
+  const version = await readSchemaVersion(c), selected = definitionsForVersion(version);
+  if (expectedVersion !== undefined && version !== expectedVersion) fail('database-incompatible');
+  if (names.map(row => Object.values(row)[0]).sort().join(',') !== selected.map(d => d.name).sort().join(',')) fail('database-incompatible');
   const [tables] = await c.query('SELECT TABLE_NAME AS name, ENGINE AS engine, AUTO_INCREMENT AS nextId FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()');
-  if (tables.length !== definitions.length || definitions.some(d => !tables.some(t => t.name === d.name && t.engine?.toLowerCase() === 'innodb'))) fail('database-incompatible');
+  if (tables.length !== selected.length || selected.some(d => !tables.some(t => t.name === d.name && t.engine?.toLowerCase() === 'innodb'))) fail('database-incompatible');
   const [triggers] = await c.query('SHOW TRIGGERS');
   if (triggers.length) fail('database-incompatible');
-  for (const d of definitions) {
+  for (const d of selected) {
     const [columns] = await c.query('SHOW FULL COLUMNS FROM ' + identifier(d.name));
     if (columns.map(column => column.Field).join(',') !== d.columns.join(',')) fail('database-incompatible');
     if (baseTypes[d.name] && columns.some((column, i) => column.Null !== 'NO' ||
       !baseTypes[d.name][i].test(String(column.Type).toLowerCase()))) fail('database-incompatible');
   }
-  for (const name of ['verifyDepartmentSchema','verifyChatSchema','verifyContactSchema','verifyOpportunitySchema',
-    'verifyConversationContactSchema','verifyPortalSchema','verifySubscriptionSchema','verifyCampaignSchema']) await validators[name](c);
+  const modules = ['verifyDepartmentSchema','verifyChatSchema','verifyContactSchema','verifyOpportunitySchema',
+    'verifyConversationContactSchema','verifyPortalSchema','verifySubscriptionSchema','verifyCampaignSchema'];
+  for (const name of modules.slice(0, version - 1)) await validators[name](c);
   return tables;
 }
 
-async function collect(c, metadata) {
+async function collect(c, metadata, selected) {
   let count = 0;
   const tables = [];
-  for (const definition of definitions) {
+  for (const definition of selected) {
     const fields = definition.columns.map(identifier).join(',');
     const nextId = metadata.find(t => t.name === definition.name).nextId;
     const table = { name: definition.name, columns: [...definition.columns], nextId: nextId === null ? null : Number(nextId), rows: [] };
@@ -133,8 +150,9 @@ async function captureSnapshot(c, { validate = validateDatabase, now = () => new
     await c.query("SET SESSION time_zone = '+00:00'");
     await c.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
     await c.query('START TRANSACTION READ ONLY, WITH CONSISTENT SNAPSHOT'); transaction = true;
-    const metadata = await validate(c);
-    const payload = { schemaVersion: 9, createdAt: now().toISOString(), tables: await collect(c, metadata) };
+    const schemaVersion = await readSchemaVersion(c), selected = definitionsForVersion(schemaVersion);
+    const metadata = await validate(c, schemaVersion);
+    const payload = { schemaVersion, createdAt: now().toISOString(), tables: await collect(c, metadata, selected) };
     const snapshot = { format: 'conversa-livre-database', version: 1, payload, sha256: digest(payload) };
     validateSnapshot(snapshot);
     await c.query('ROLLBACK'); transaction = false;
@@ -144,25 +162,27 @@ async function captureSnapshot(c, { validate = validateDatabase, now = () => new
   }
 }
 
-async function requireEmptyData(c) {
-  for (const definition of definitions.slice(1)) {
+async function requireEmptyData(c, selected) {
+  for (const definition of selected.slice(1)) {
     const [rows] = await c.query('SELECT 1 AS present FROM ' + identifier(definition.name) + ' LIMIT 1');
     if (rows.length) fail('restore-target-not-empty');
   }
 }
 
-// Restore ONLY to previously prepared, empty schema9. No creation/DROP/TRUNCATE,
+// Restore ONLY to the matching, previously prepared empty schema. No creation/DROP/TRUNCATE,
 // no update of existing records and no SQL loaded from the backup.
 async function restoreSnapshot(c, snapshot, { validate = validateDatabase } = {}) {
   const summary = validateSnapshot(snapshot);
+  const selected = definitionsForVersion(summary.schemaVersion);
   const [lock] = await c.execute(lockSql);
   if (Number(lock[0]?.acquired) !== 1) fail('database-busy');
   let transaction = false;
   try {
     await c.query("SET SESSION time_zone = '+00:00'");
     await c.query("SET SESSION sql_mode = 'STRICT_ALL_TABLES,NO_ENGINE_SUBSTITUTION'");
-    const metadata = await validate(c);
-    await requireEmptyData(c);
+    if (await readSchemaVersion(c) !== summary.schemaVersion) fail('restore-schema-mismatch');
+    const metadata = await validate(c, summary.schemaVersion);
+    await requireEmptyData(c, selected);
     // Maintenance/offline required. DDL implicitly commits; do it before the data
     // transaction. Recheck emptiness afterward, then lock the first-access marker.
     for (const table of snapshot.payload.tables) {
@@ -176,15 +196,15 @@ async function restoreSnapshot(c, snapshot, { validate = validateDatabase } = {}
     }
     await c.query('START TRANSACTION'); transaction = true;
     const [marker] = await c.query('SELECT id, version FROM cl_schema WHERE id = 1 FOR UPDATE');
-    if (marker.length !== 1 || marker[0].version !== 9) fail('database-incompatible');
-    await requireEmptyData(c);
+    if (marker.length !== 1 || marker[0].id !== 1 || marker[0].version !== summary.schemaVersion) fail('database-incompatible');
+    await requireEmptyData(c, selected);
     let revokedSessions = 0;
     for (const table of snapshot.payload.tables.slice(1)) {
       if (sessions.has(table.name)) { revokedSessions += table.rows.length; continue; }
       const sql = 'INSERT INTO ' + identifier(table.name) + ' (' + table.columns.map(identifier).join(',') + ') VALUES (' + table.columns.map(() => '?').join(',') + ')';
       for (const row of table.rows) await c.execute(sql, row);
     }
-    const restored = await collect(c, await validate(c));
+    const restored = await collect(c, await validate(c, summary.schemaVersion), selected);
     for (let i = 0; i < restored.length; i++) {
       const expected = snapshot.payload.tables[i];
       if (JSON.stringify(restored[i].rows) !== JSON.stringify(sessions.has(expected.name) ? [] : expected.rows)) fail('restore-verification-failed');
@@ -255,5 +275,5 @@ async function withConnection(env, work, { connect = options => require('mysql2/
   }
 }
 
-module.exports = { definitions, MAX_BYTES, MAX_ROWS, validateSnapshot, validateDatabase, captureSnapshot,
+module.exports = { definitions, definitionsForVersion, MAX_BYTES, MAX_ROWS, validateSnapshot, validateDatabase, captureSnapshot,
   restoreSnapshot, writeSnapshot, readSnapshot, privatePath, withConnection };

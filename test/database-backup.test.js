@@ -12,9 +12,9 @@ function cleanupOwned(dir) {
   assert.match(path.basename(resolved), /^chatcrm-backup-(test|cli)-/);
   fs.rmSync(resolved, { recursive: true, force: true });
 }
-function snapshot() {
-  const payload = { schemaVersion: 9, createdAt: '2026-10-05T12:00:00.000Z', tables: backup.definitions.map(d =>
-    ({ name: d.name, columns: [...d.columns], nextId: auto.has(d.name) ? 1 : null, rows: d.name === 'cl_schema' ? [[1,9]] : [] })) };
+function snapshot(version = 9) {
+  const payload = { schemaVersion: version, createdAt: '2026-10-05T12:00:00.000Z', tables: backup.definitionsForVersion(version).map(d =>
+    ({ name: d.name, columns: [...d.columns], nextId: auto.has(d.name) ? 1 : null, rows: d.name === 'cl_schema' ? [[1,version]] : [] })) };
   return sign({ format: 'conversa-livre-database', version: 1, payload, sha256: '' });
 }
 function sign(s) { s.sha256 = crypto.createHash('sha256').update(JSON.stringify(s.payload)).digest('hex'); return s; }
@@ -29,9 +29,9 @@ function model(s = snapshot()) {
       if (sql === 'COMMIT') { inTransaction = false; if (fault === 'commit-response') throw Error('lost COMMIT response'); return [[]]; }
       if (sql === 'ROLLBACK') { if (inTransaction) tables.splice(0, tables.length, ...saved); inTransaction = false; return [[]]; }
       if (/^(SET SESSION|SET TRANSACTION)/.test(sql)) return [[]];
-      if (sql.startsWith('SELECT id, version FROM cl_schema WHERE')) {
-        if (raced) tables[1].rows.push([1,'concurrent first-access']);
-        return [[{ id: 1, version: 9 }]];
+      if (sql.startsWith('SELECT id, version FROM cl_schema')) {
+        if (raced && sql.endsWith('FOR UPDATE')) tables[1].rows.push([1,'concurrent first-access']);
+        return [tables[0].rows.map(([id, version]) => ({ id, version }))];
       }
       if (sql.startsWith('SELECT 1 AS present FROM')) {
         const name = /FROM `(\w+)`/.exec(sql)[1]; return [tables.find(t => t.name === name).rows.length ? [{ present: 1 }] : []];
@@ -177,4 +177,83 @@ test('bounded connection shuts down stalled query/prepare/close and a late openi
   }
   let complete,destroyed=0;await assert.rejects(backup.withConnection(env,()=>{}, {connect:()=>new Promise(resolve=>complete=resolve),timeoutMs:15}));
   complete({destroy:()=>destroyed++});await new Promise(resolve=>setImmediate(resolve));assert.equal(destroyed,1);
+});
+
+test('each completed schema captures only its fixed tables and restores matching data with sessions revoked', async () => {
+  const counts = [0,4,6,10,11,13,15,17,18,21];
+  for (let version = 1; version <= 9; version++) {
+    const source = snapshot(version);
+    source.payload.tables[1].rows = [[1, 'Empresa fictícia 😃']];
+    source.payload.tables[3].rows = [['a'.repeat(64), 7, '2099-01-01 00:00:00']];
+    const portal = source.payload.tables.find(t => t.name === 'cl_portal_sessions');
+    if (portal) portal.rows = [['b'.repeat(64),14,'2099-01-01 00:00:00']];
+    sign(source);
+    const origin = model(source);
+    const captured = await backup.captureSnapshot(origin.c, {validate:origin.validate, now:()=>new Date(source.payload.createdAt)});
+    assert.deepEqual(captured, source); assert.equal(captured.payload.tables.length, counts[version]);
+    const target = model(snapshot(version));
+    const result = await backup.restoreSnapshot(target.c, captured, {validate:target.validate});
+    assert.equal(result.schemaVersion, version); assert.equal(result.tables, counts[version]);
+    assert.equal(result.revokedSessions, portal ? 2 : 1); assert.equal(result.rowsRestored,1);
+    assert.deepEqual(target.tables[1].rows, source.payload.tables[1].rows);
+    assert(!target.calls.some(sql => /^(CREATE|DROP|DELETE|UPDATE|TRUNCATE)/.test(sql)));
+    const sourceDepartment = source.payload.tables.find(t => t.name === 'cl_departments');
+    if (version === 2) assert.equal(sourceDepartment.columns.includes('public_chat'), false);
+    if (version >= 3) assert.equal(sourceDepartment.columns.includes('public_chat'), true);
+  }
+});
+
+test('cross-version restore refuses before changing counters or records, and never upgrades the marker', async () => {
+  for (const [sourceVersion, targetVersion] of [[1,9],[9,1],[2,3],[3,2],[8,9],[9,8]]) {
+    const s = snapshot(sourceVersion), target = model(snapshot(targetVersion));
+    s.payload.tables[2].nextId = 123; sign(s);
+    await assert.rejects(backup.restoreSnapshot(target.c,s,{validate:target.validate}), {code:'restore-schema-mismatch'});
+    assert(!target.calls.some(sql=>/^(ALTER|INSERT|UPDATE|DELETE|CREATE|DROP|TRUNCATE)/.test(sql)));
+    assert.deepEqual(target.tables[0].rows, [[1,targetVersion]]);
+    assert(target.calls.at(-1).includes('RELEASE_LOCK'));
+  }
+});
+
+test('unknown, partial and mixed contracts are refused offline before any SQL', async () => {
+  for (const version of [0,10,-1,1.5,'9',null]) {
+    const s = snapshot(); s.payload.schemaVersion=version; sign(s);
+    const target=model(); await assert.rejects(backup.restoreSnapshot(target.c,s,{validate:target.validate}),{code:'backup-invalid'});
+    assert.equal(target.calls.length,0);
+  }
+  for (const version of [1,2,3,8,9]) {
+    for (const mutate of [s=>s.payload.tables.pop(), s=>s.payload.tables.push(clone(backup.definitions[20])),
+      s=>s.payload.tables[0].rows=[[1, version === 9 ? 8 : 9]],
+      s=>s.payload.tables[1].columns.push('unexpected')]) {
+      const s=snapshot(version); mutate(s); sign(s); assert.throws(()=>backup.validateSnapshot(s),{code:'backup-invalid'});
+    }
+  }
+  const mixed=snapshot(2); mixed.payload.tables[4].columns.push('public_chat'); sign(mixed);
+  assert.throws(()=>backup.validateSnapshot(mixed),{code:'backup-invalid'});
+});
+
+test('database validation rejects premature tables and version mismatch before reading private records', async () => {
+  for (const [version,names,expectedVersion] of [[1,backup.definitions,undefined],[8,backup.definitions,undefined],[9,backup.definitions,8]]) {
+    const calls=[];
+    const c={query:async sql=>{ calls.push(sql);
+      if(sql==='SHOW TABLES')return[names.map(d=>({name:d.name}))];
+      if(sql==='SELECT id, version FROM cl_schema')return[[{id:1,version}]];
+      throw Error('Should refuse before column/data reads');
+    }};
+    await assert.rejects(backup.validateDatabase(c,expectedVersion),{code:'database-incompatible'});
+    assert.equal(calls.length,2);
+  }
+});
+
+test('migration CLI selects a bounded target and empty-only preparation without loading secrets for help or invalid input', () => {
+  const {parseArguments:parse} = require('../scripts/migrate-database');
+  assert.deepEqual(parse([]),{});
+  assert.deepEqual(parse(['--target-version','2','--require-empty']),{targetVersion:2,requireEmpty:true});
+  assert.deepEqual(parse(['--require-empty','--target-version','9']),{requireEmpty:true,targetVersion:9});
+  for (const args of [['--target-version'],['--target-version','10'],['--target-version','01'],['--target-version','1.5'],
+    ['--target-version','1','--target-version','2'],['--require-empty','--require-empty'],['--password','private'],['--help','--require-empty']]) assert.equal(parse(args),null);
+  for (const [args,status] of [[['--help'],0],[['--target-version','10'],2]]) {
+    const result=spawnSync(process.execPath,[path.resolve(__dirname,'../scripts/migrate-database.js'),...args],{encoding:'utf8',timeout:4000,
+      env:{...process.env,DB_HOST:'nonexistent.test',DB_PASSWORD:'do-not-print'}});
+    assert.equal(result.status,status); assert(!(result.stdout+result.stderr).includes('do-not-print'));
+  }
 });

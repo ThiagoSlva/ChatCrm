@@ -382,13 +382,29 @@ async function migrate(connection, { targetVersion = 9, requireEmpty = false } =
   } finally { await connection.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
 }
 
+function parseArguments(args) {
+  if (args.length === 1 && args[0] === '--help') return { help: true };
+  const options = {};
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--require-empty' && !options.requireEmpty) options.requireEmpty = true;
+    else if (args[i] === '--target-version' && options.targetVersion === undefined && /^[1-9]$/.test(args[i + 1] || '')) options.targetVersion = Number(args[++i]);
+    else return null;
+  }
+  return options;
+}
+
 async function main() {
+  const args = parseArguments(process.argv.slice(2));
+  if (!args || args.help) {
+    (args ? process.stdout : process.stderr).write('Uso: npm run migrate:database -- [--target-version N] [--require-empty]\nN: 1 a 9; padrao 9. Preparacao ou migracao manual; exige banco exclusivo, configuracao privada e backup antes de atualizar. --require-empty recusa qualquer tabela existente. Nao permite downgrade.\n');
+    process.exitCode = args ? 0 : 2; return;
+  }
   loadEnvironment();
   const options = databaseOptions();
   if (!options) throw new Error('Configure o banco privado antes de migrar.');
   let connection;
-  try { connection = await mysql.createConnection(options); const result = await migrate(connection); process.stdout.write(`Estrutura v${result.schemaVersion} preparada. Nenhum administrador foi criado ou senha alterada.\n`); }
+  try { connection = await mysql.createConnection(options); const result = await migrate(connection, args); process.stdout.write(`Estrutura v${result.schemaVersion} preparada. Nenhum administrador foi criado ou senha alterada.\n`); }
   finally { if (connection) await connection.end(); }
 }
 if (require.main === module) main().catch(() => { process.stderr.write('Migracao interrompida. Confira configuracao, banco exclusivo e acesso MySQL.\n'); process.exitCode = 1; });
-module.exports = { migrate, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema };
+module.exports = { migrate, parseArguments, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema };

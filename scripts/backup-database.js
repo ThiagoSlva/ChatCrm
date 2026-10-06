@@ -9,7 +9,7 @@ function parseArguments(args) {
 async function main() {
   const args = parseArguments(process.argv.slice(2));
   if (!args || args.help) {
-    (args ? process.stdout : process.stderr).write('Uso: npm run backup:database -- (--create|--verify|--restore-empty) CAMINHO_ABSOLUTO_PRIVADO\nRestauracao somente com aplicacao parada, SETUP_TOKEN removido e schema9 preparado sem dados. Guia: docs/BACKUP-RESTAURACAO.md\n');
+    (args ? process.stdout : process.stderr).write('Uso: npm run backup:database -- (--create|--verify|--restore-empty) CAMINHO_ABSOLUTO_PRIVADO\nSchemas completos reconhecidos: 1 a 9. Restauracao somente com aplicacao parada, SETUP_TOKEN removido e mesma versao de schema preparada sem dados. Guia: docs/BACKUP-RESTAURACAO.md\n');
     process.exitCode = args ? 0 : 2; return;
   }
   privatePath(args.file);
