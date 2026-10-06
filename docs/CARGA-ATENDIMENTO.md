@@ -22,13 +22,39 @@ Esses números comprovam tratamento da saturação e comportamento de um cenári
 
 Os scripts do ensaio e sessões fictícias ficaram privados e fora do pacote. Para reproduzir, use um banco local novo e exclusivo com schema compatível, instâncias de sessão fictícias separadas, pool configurado como acima e um servidor restrito a loopback. Registre revisões, versões, tamanho dos dados, cadência, contagens por status, latência e erro de transporte. Preserve artefatos e não use o banco instalado do domínio para forçar saturação. Os quatro testes de regressão públicos em `test/database-pool.test.js` exercitam a classificação, liberação, ausência de repetição e recuperação HTTP; não são um benchmark.
 
-## Próximas verificações
+## Agendamento desde v0.13.3
 
 Desde v0.13.3, cada agendamento automático de chat, caixa de atendimento e portal soma uma variação aleatória positiva de150 a750 ms. O chat mantém a base de3 s após concluir a leitura; o portal mantém5 s, ou15 s no caminho de falha já existente. A caixa conserva os prazos mínimos de5 s para fila e3 s para histórico, acrescentando a variação à próxima espera calculada. Ao retornar a uma aba, o agendamento antes imediato passa a esperar150 a750 ms. Ações manuais continuam imediatas; o mecanismo não repete gravações nem muda o limite do pool.
 
-Quatro testes do agendador verificam trinta contextos distintos, prazos, apenas um timer, pausa quando a aba está oculta/ocupada/encerrada e preservação de envios pendentes. São testes determinísticos de scripts, não medição de carga. Revisão no navegador com persistência fictícia conferiu desktop/390px, teclado e rascunhos em chat/atendimento, reenvio incerto sem duplicação e portal vazio. A distribuição das chamadas é probabilística: não garante separação entre todas as abas, elimina saturação ou comprova maior capacidade do provedor. O benchmark acima continua sendo o ensaio da v0.13.2; carga prolongada com o novo agendador ainda precisa ser medida.
+Quatro testes do agendador verificam trinta contextos distintos, prazos, apenas um timer, pausa quando a aba está oculta/ocupada/encerrada e preservação de envios pendentes. São testes determinísticos de scripts, não medição de carga. Revisão no navegador com persistência fictícia conferiu desktop/390px, teclado e rascunhos em chat/atendimento, reenvio incerto sem duplicação e portal vazio. A distribuição das chamadas é probabilística: não garante separação entre todas as abas, elimina saturação ou comprova maior capacidade do provedor. O primeiro benchmark acima continua sendo o ensaio da v0.13.2; a medição seguinte usa a cadência atual.
 
-- Ensaiar a carga prolongada com históricos preenchidos e o padrão real de navegação, registrando consumo e latência do banco.
+## Ensaio sustentado com históricos — 06/10/2026 UTC
+
+Revisão medida: `4ec7f65cf7c123a8cc95fc772b651ce871fd6739`, v0.13.4/schema9, Windows/Node 22.15.0 e MariaDB 11.4.13. Foram 180.074 ms (cerca de três minutos), em banco local novo e exclusivo: dez operadores, vinte visitantes, vinte conversas e 8.000 mensagens fictícias, quatrocentas por conversa. Não houve carga ou dados de ensaio na hospedagem.
+
+Clientes HTTP Node modelaram as rotas e cadências atuais: visitantes aguardam pelo menos três segundos depois da leitura; atendimento mantém mínimos de cinco segundos para fila e três para mensagens, somando a variação de150 a750 ms do agendador compartilhado. Operadores alternaram entre duas conversas próprias a cada trinta segundos. Históricos foram lidos em páginas de cinquenta mensagens, até dez páginas por leitura, verificando cursores e sequências. Sessões já estavam preparadas. A primeira espera também foi distribuída; essa inicialização e o tratamento de erros modelados não reproduzem integralmente os scripts da interface no navegador.
+
+| Medida | Resultado observado |
+|---|---|
+| Requisições HTTP | 3.789 |
+| Status | 3.686 respostas200, 90 respostas201, 13 recusas429 |
+| Erros500 ou de transporte | Nenhum |
+| Latência total p50 / p95 / p99 / máxima | 13,61 / 156,80 / 227,32 / 259,28 ms |
+| Leituras de histórico | 1.851; p95 203,68 ms |
+| Pares de envios simultâneos com a mesma chave | 90 pares; cada par retornou um201 e um200, com a mesma sequência |
+| Mensagens finais no banco | 8.090; exatamente90 novas, sem duplicação, sequências finais conferidas |
+| Conexões simultâneas do pool | Máximo3; limite de vinte esperas preservado |
+| Aquisição de conexão p95 / máxima | 22,01 / 122,14 ms |
+
+As treze recusas apareceram na primeira amostra de trinta segundos. Depois dela, houve mais2.889 requisições, todas200/201, sem novas recusas. A variação de espera não elimina o pico ao carregar históricos; não houve motivo demonstrado para aumentar o pool. Ao concluir, nenhuma aquisição ou conexão de requisição permanecia pendente.
+
+O RSS amostrado passou de79,51 a100,50 MiB. CPU Node acumulada:11,453 s de usuário e3,906 s de sistema. Esses valores incluem servidor, clientes de carga e coleta no mesmo processo; não medem o consumo isolado da aplicação em produção nem CPU do MariaDB. Contadores globais do banco isolado registraram39.819 comandos `Questions`,125.167 pedidos de leitura do buffer InnoDB e nenhuma nova leitura física nessa janela. O buffer já estava aquecido pela preparação dos dados; as consultas da própria observação também entram nesses contadores.
+
+O ensaio exercita consultas com históricos preenchidos, navegação, paginação e idempotência concorrente em um cenário curto. Não executa DOM, TLS, login/hashing, Passenger, proxy, portal, múltiplos processos ou a carga do provedor. Três minutos e amostras de memória não comprovam estabilidade durante horas, ausência de vazamento ou capacidade contratada. Scripts, sessões e relatórios ficam privados, fora do Git e do ZIP; o banco fictício foi preservado e o contêiner local voltou ao estado parado. Produto e limites de conexão não foram alterados nesta entrega.
+
+## Próximas verificações
+
+- Ampliar a duração para horas e separar consumo do servidor e dos clientes, com histórico/CRM maiores e navegação real de navegador; comparar aquecimento e operação com buffer frio.
 - Homologar concorrência entre processos, restart/proxy, limite real do provedor e recuperação após desconexão.
 - Planejar retenção de dados, logs e releases com recuperação preservada, antes de qualquer limpeza automática.
 - Se forem necessárias mais conexões, medir e verificar o limite do provedor antes de mudar a configuração; aumentar filas sem medir pode apenas prolongar a espera.
