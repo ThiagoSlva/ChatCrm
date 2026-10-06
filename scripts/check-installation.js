@@ -79,9 +79,16 @@ async function inspectInstallation({ env = process.env, nodeVersion = process.ve
   let connection;
   let phase = 'connection';
   let destroyed = false;
+  let openingExpired = false;
   const destroy = () => { if (!destroyed && connection) { destroyed = true; connection.destroy(); } };
   try {
-    connection = await connect(options);
+    // Bound authentication as well as the driver handshake. A custom connector
+    // may settle after the deadline; that handle must never reach a read.
+    const opening = Promise.resolve().then(() => connect({ ...options, connectTimeout: timeoutMs }));
+    opening.then(value => {
+      if (openingExpired) { try { value.destroy(); } catch { /* Preserve timeout report. */ } }
+    }, () => {});
+    connection = await withDeadline(() => opening, timeoutMs, () => { openingExpired = true; });
     const read = readOnly(connection, { timeoutMs, onTimeout: destroy });
     const [tableRows] = await read.query('SHOW TABLES');
     const names = tableRows.map(row => Object.values(row)[0]);
@@ -119,7 +126,8 @@ async function inspectInstallation({ env = process.env, nodeVersion = process.ve
       modulesAvailable: moduleNames.slice(0, version), modulesPending: moduleNames.slice(version),
       warnings: !setup && env.SETUP_TOKEN ? ['remove-setup-token'] : [] };
   } catch (error) {
-    if (['DIAGNOSTIC_TIMEOUT', 'PROTOCOL_SEQUENCE_TIMEOUT'].includes(error.code)) return report('database-timeout');
+    if (['DIAGNOSTIC_TIMEOUT', 'PROTOCOL_SEQUENCE_TIMEOUT'].includes(error.code) ||
+      (phase === 'connection' && error.code === 'ETIMEDOUT')) return report('database-timeout');
     return report(phase === 'connection' ? 'database-unreachable' : 'schema-invalid');
   } finally {
     if (connection && !destroyed) {
@@ -137,7 +145,7 @@ const messages = {
   'url-invalid': 'Configure APP_URL com a origem HTTPS, sem caminho, credenciais ou parametros. HTTP local somente fora de production.',
   'database-config-missing': 'Preencha DB_HOST, DB_NAME, DB_USER e DB_PASSWORD na configuracao privada.',
   'database-config-invalid': 'DB_PORT deve ser uma porta valida entre 1 e 65535.',
-  'database-timeout': 'Uma leitura ou encerramento excedeu o tempo limite. A conexao propria foi encerrada; confira disponibilidade e repita.',
+  'database-timeout': 'Abertura, leitura ou encerramento excedeu o tempo limite. Nenhuma nova consulta sera iniciada; confira disponibilidade e repita.',
   'database-unreachable': 'Nao foi possivel ler o banco. Confira conexao, permissoes e disponibilidade.',
   'database-unprepared': 'Banco ainda nao preparado. Siga o guia de instalacao e migracao explicita.',
   'database-not-exclusive': 'O banco contem tabelas de outro projeto. Selecione um banco exclusivo; nenhum dado foi alterado.',

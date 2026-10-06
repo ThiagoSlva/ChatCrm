@@ -51,7 +51,7 @@ npm run install:prepare -- --prepare-empty
 
 O comando diagnostica, exige segredo privado, obtém a trava de migração e **confere novamente se o banco está vazio sob a trava**. Outra instalação iniciada após o diagnóstico provoca recusa antes do primeiro DDL. Qualquer tabela impede preparação inicial, inclusive estrutura antiga do próprio projeto.
 
-Em banco vazio, reutiliza as nove etapas e validadores do migrador. O marcador avança após validar colunas, índices, engines e relações. Não cria empresa, contas ou campanhas, não publica departamentos nem reinicia a aplicação. Conexão, cada comando e encerramento têm prazo de15 segundos; leituras diagnósticas têm5 segundos por operação. Timeout fecha a conexão própria e deixa o estado sem confirmação: DDL aplicado pode permanecer.
+Em banco vazio, reutiliza as nove etapas e validadores do migrador. O marcador avança após validar colunas, índices, engines e relações. Não cria empresa, contas ou campanhas, não publica departamentos nem reinicia a aplicação. Conexão de preparação, cada comando e encerramento têm prazo de15 segundos; abertura/autenticação, leituras e encerramento diagnósticos têm5 segundos por operação. Timeout fecha a conexão conhecida e deixa o estado sem confirmação: DDL aplicado pode permanecer. O diagnóstico fecha também uma conexão devolvida depois do prazo, sem iniciar leituras; confira os limites de conectores alternativos no [diagnóstico](DIAGNOSTICO-INSTALACAO.md).
 
 `setup-ready`, schema9 e `preparation: completed` confirmam a estrutura após o diagnóstico final. JSON e ajuda:
 
