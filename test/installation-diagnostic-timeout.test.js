@@ -46,9 +46,12 @@ async function protocolFixture(t, mode) {
 for(const mode of ['query-stall','prepare-stall']){
   test('actual mysql2 driver abandons '+mode+' on its own connection', {timeout:5000}, async t=>{
     const fixture=await protocolFixture(t,mode);
+    // Measure the read/prepare phase independently of loopback authentication.
+    // Opening has its own stalled-auth regression below.
+    const connection=await fixture.connect(require('../src/database').databaseOptions(fixture.env));
     const start=performance.now();
     const result=await inspectInstallation({env:fixture.env,nodeVersion:'24.0.0',
-      connect:fixture.connect,timeoutMs:100});
+      connect:async()=>connection,timeoutMs:100});
     assert.deepEqual(result,{ok:false,code:'database-timeout'});
     assert.ok(performance.now()-start<2000);assert.equal(fixture.destroyed(),1);
     assert.ok(fixture.seen.some(event=>event.kind==='query'&&event.sql==='SHOW TABLES'));
@@ -145,7 +148,7 @@ test('default mysql2 connector bounds authentication stall and closes its socket
   t.after(async()=>{for(const peer of peers)peer.destroy();await new Promise(resolve=>server.close(resolve));});
   const start=performance.now();
   const result=await inspectInstallation({env:{...openingEnv,DB_HOST:'127.0.0.1',
-    DB_PORT:String(server._server.address().port)},nodeVersion:'24.0.0',timeoutMs:100});
+    DB_PORT:String(server._server.address().port)},nodeVersion:'24.0.0',timeoutMs:500});
   assert.deepEqual(result,{ok:false,code:'database-timeout'});
   assert.ok(performance.now()-start<2000);assert.equal(authSeen,true);assert.equal(queries,0);
   // Permit the loopback peer to observe the client's FIN/close before checking it.

@@ -56,5 +56,7 @@ A regressão de timeout usa o driver mysql2 real com servidor de protocolo sint�
 
 Desde v0.13.4, o prazo do diagnóstico também abrange a promessa de abertura. O driver fixado já encerrava uma autenticação sem resposta após seu connectTimeout de5 s; antes, um prazo menor passado ao diagnóstico não era aplicado nessa fase e ETIMEDOUT virava database-unreachable. A regressão de autenticação sintética agora exige retorno em prazo menor e fechamento do socket, sem executar SELECT/SHOW. Conectores pendentes, retorno tardio, rejeição tardia e conexão recusada também são exercitados. A alteração não modifica conexões da aplicação web, migrações ou credenciais.
 
+Os ensaios de leitura/preparação abrem a conexão antes de iniciar sua medição de100 ms. A abertura é medida separadamente com autenticação travada e prazo de500 ms. Isso evita confundir um atraso de handshake no ambiente de teste com timeout de consulta; os limites padrão de5 s da ferramenta permanecem iguais.
+
 
 Execução hospedada registrada em03/10/2026: antes da migração, installed/schema6 com portal pendente; depois, installed/schema7 com todos os módulos disponíveis e sem avisos. Isso comprova este diagnóstico na instalação de testes, não privilégios globais, carga ou restauração. A verificação de HTTPS e os ensaios transacionais foram executados separadamente; veja ANDAMENTO.md.
