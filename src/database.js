@@ -1,6 +1,7 @@
 'use strict';
 
 const mysql = require('mysql2/promise');
+const { boundedDatabasePool } = require('./database-pool');
 const { digest, equal } = require('./security');
 const { chatRepository } = require('./chat-database');
 const { contactsRepository } = require('./contacts-database');
@@ -23,7 +24,7 @@ function createRepository(env = process.env) {
   const options = databaseOptions(env);
   if (!options) return null;
   const pool = mysql.createPool(options);
-  return repositoryForPool(pool);
+  return repositoryForPool(boundedDatabasePool(pool));
 }
 
 function repositoryForPool(pool) {

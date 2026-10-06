@@ -27,7 +27,7 @@ function loadEnvironment() {
 function buildServer(options = {}) {
   const app = Fastify({ logger: options.logger || false, bodyLimit: 8192, ajv: { customOptions: { removeAdditional: false } } });
   const env = options.env || process.env;
-  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.13.1');
+  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.13.2');
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
@@ -74,7 +74,7 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.13.1',
+    version: '0.13.2',
     commit: releaseIdentity.commit,
     releaseIdentitySource: releaseIdentity.source,
     phase: 'portal-campaigns-mvp',
@@ -109,6 +109,7 @@ function buildServer(options = {}) {
   });
 
   app.setErrorHandler(async (error, request, reply) => {
+    if (error.statusCode === 429 && error.code === 'CL_DATABASE_BUSY') reply.header('Retry-After', '1');
     reply.code((error.statusCode >= 400 && error.statusCode < 500) || error.statusCode === 503 ? error.statusCode : 500);
     reply.send({ error: 'Nao foi possivel concluir a requisicao.' });
   });
