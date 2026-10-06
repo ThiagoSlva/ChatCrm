@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs'), path = require('node:path');
 const { performance } = require('node:perf_hooks');
+const { createHash } = require('node:crypto');
 const SHA = /^[a-f0-9]{40}$/, NAME = /^release-[A-Za-z0-9]{6}$/;
 function fail(code = 'release-inventory-unconfirmed') { const error = new Error('release-inventory-unconfirmed'); error.code = code; throw error; }
 // Windows lstat can report dev=0 while fstat reports the volume serial.
@@ -36,10 +37,13 @@ function metadata(directory) {
   if (pkg.name !== 'conversa-livre' || pkg.license !== 'MIT' || typeof pkg.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(pkg.version)) fail();
   return { marker, commit, version: pkg.version, completedAt: marker.stat.mtimeMs };
 }
-function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), maxEntries = 50000, timeoutMs = 5000 } = {}) {
+function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), maxEntries = 50000, timeoutMs = 5000,
+  batchSize = null, continuation = null } = {}) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || !Number.isInteger(keep) || keep < 1 || keep > 100 ||
       !Number.isInteger(minAgeDays) || minAgeDays < 1 || minAgeDays > 3650 || !Number.isFinite(now) ||
-      !Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 1000000 || !Number.isFinite(timeoutMs) || timeoutMs <= 0) fail();
+      !Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 1000000 || !Number.isFinite(timeoutMs) || timeoutMs <= 0 ||
+      (batchSize !== null && (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 25)) ||
+      (continuation !== null && (batchSize === null || typeof continuation !== 'string' || !/^[a-f0-9]{64}\.[1-9]\d{0,4}$/.test(continuation)))) fail();
   root = path.resolve(root);
   if (!fs.lstatSync(root).isDirectory() || fs.lstatSync(root).isSymbolicLink()) fail();
   root = fs.realpathSync(root);
@@ -60,6 +64,33 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
     if (++visited > maxEntries) fail('scan-entry-limit');
     if (performance.now() - started > timeoutMs) fail('scan-time-limit');
   }
+  // The cursor contains no path and is only a position in this observed listing.
+  // Bind it to this root, receipt and direct-entry/marker/package metadata.
+  // This detects observed changes, not every nested write or an atomic snapshot.
+  function snapshot() {
+    if (names.length > 10000) fail();
+    const hash = createHash('sha256').update(JSON.stringify([root, initial.text, current, previous, keep, minAgeDays]));
+    const stamp = stat => [stat.dev, stat.ino, stat.size, stat.mtimeMs, stat.ctimeMs, stat.mode];
+    for (const name of names) {
+      budget();
+      const folder = path.join(releases, name), stat = fs.lstatSync(folder);
+      hash.update(JSON.stringify([name, stamp(stat)]));
+      if (!NAME.test(name) || !stat.isDirectory() || stat.isSymbolicLink()) continue;
+      for (const file of ['.deploy-commit', 'package.json']) {
+        budget();
+        try { hash.update(JSON.stringify([file, stamp(fs.lstatSync(path.join(folder, file)))])); }
+        catch (error) { if (error.code !== 'ENOENT') throw error; hash.update(JSON.stringify([file, 'missing'])); }
+      }
+    }
+    return hash.digest('hex');
+  }
+  const batchMode = batchSize !== null;
+  const snapshotId = batchMode ? snapshot() : null;
+  const offset = continuation === null ? 0 : Number(continuation.split('.')[1]);
+  if (continuation !== null && (continuation.split('.')[0] !== snapshotId || offset >= names.length)) fail('continuation-unconfirmed');
+  const end = batchMode ? Math.min(names.length, offset + batchSize) : names.length;
+  let nextOffset = offset;
+  if (batchMode) warnings.add('batch-report-only');
   function measure(directory, depth = 0) {
     budget(); if (depth > 32) fail();
     const before = fs.lstatSync(directory);
@@ -76,11 +107,12 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
     if (!sameFile(before, fs.lstatSync(directory))) fail();
     return bytes;
   }
-  for (const name of names) {
+  for (let index = offset; index < end; index++) {
     try { budget(); } catch (error) { warnings.add(error.code); break; }
+    const name = names[index];
     const directory = path.join(releases, name), stat = fs.lstatSync(directory);
     if (!NAME.test(name) || !stat.isDirectory() || stat.isSymbolicLink()) {
-      warnings.add('unrecognized-entries-preserved'); continue;
+      warnings.add('unrecognized-entries-preserved'); nextOffset = index + 1; continue;
     }
     const row = { name, commit: null, version: null, bytes: null, completedAt: null, protection: [] };
     if (name === current) row.protection.push('current');
@@ -98,11 +130,13 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
     }
     rows.push(row);
     if (warnings.has('scan-entry-limit') || warnings.has('scan-time-limit')) break;
+    nextOffset = index + 1;
   }
   const currentRow = rows.find(r => r.name === current), previousRow = rows.find(r => r.name === previous);
-  if (!currentRow || currentRow.commit !== state.commit || currentRow.protection.includes('unconfirmed') ||
-      (previous && (!previousRow || previousRow.protection.includes('unconfirmed')))) warnings.add('protected-release-unmeasured');
-  rows.filter(r => !r.protection.includes('unconfirmed')).sort((a,b) => b.completedAt - a.completedAt || a.name.localeCompare(b.name))
+  if ((!batchMode && (!currentRow || (previous && !previousRow))) ||
+      (currentRow && (currentRow.commit !== state.commit || currentRow.protection.includes('unconfirmed'))) ||
+      (previousRow && previousRow.protection.includes('unconfirmed'))) warnings.add('protected-release-unmeasured');
+  if (!batchMode) rows.filter(r => !r.protection.includes('unconfirmed')).sort((a,b) => b.completedAt - a.completedAt || a.name.localeCompare(b.name))
     .slice(0, keep).forEach(r => r.protection.push('recent'));
   for (const row of rows) if (row.completedAt === null || now - row.completedAt < minAgeDays * 86400000) row.protection.push('age');
   const exists = file => { try { fs.lstatSync(path.join(root, file)); return true; } catch (error) { if (error.code === 'ENOENT') return false; throw error; } };
@@ -110,6 +144,12 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
   const finalState = readSmall(stateFile, 8192);
   if (finalState.text !== initial.text || !sameFile(finalState.stat, initial.stat) || activeName(root, releases) !== current ||
       JSON.stringify(fs.readdirSync(releases).sort()) !== JSON.stringify(names)) warnings.add('snapshot-changed');
+  if (batchMode) {
+    try { if (snapshot() !== snapshotId) warnings.add('snapshot-changed'); }
+    catch (error) { warnings.add(['scan-entry-limit', 'scan-time-limit'].includes(error.code) ? error.code : 'snapshot-changed'); }
+  }
+  const stable = !warnings.has('snapshot-changed') && !warnings.has('deployment-in-progress') &&
+    !warnings.has('scan-entry-limit') && !warnings.has('scan-time-limit');
   // Any uncertainty suppresses the whole suggestion. This is never a deletion plan.
   const reviewReady = warnings.size === 0;
   const candidates = reviewReady ? rows.filter(r => r.protection.length === 0).map(r => r.name) : [];
@@ -117,6 +157,9 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
     measuredBytes: totalBytes, measurementComplete: reviewReady, releaseEntries: names.length,
     measuredReleases: rows.filter(r => r.bytes !== null).length,
     entriesVisited: visited, warnings: [...warnings].sort(), releases: rows,
+    ...(batchMode ? { batch: { snapshotId, offset, nextOffset, entryCount: end - offset,
+      complete: stable && nextOffset === end, hasMore: nextOffset < names.length,
+      continuation: stable && nextOffset > offset && nextOffset < names.length ? snapshotId + '.' + nextOffset : null } } : {}),
     candidatesForReview: candidates, candidateBytes: rows.filter(r => candidates.includes(r.name)).reduce((n,r) => n + r.bytes, 0) };
 }
 module.exports = { inspectReleases };

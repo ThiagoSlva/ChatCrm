@@ -19,7 +19,7 @@ Em 02/10/2026, o usuário reiterou autorização para identificar funções úte
 | CRM | Tarefas, lembretes e visão de atividade | Dono, vencimento, histórico e conclusão; lembretes não enviam contatos sem autorização |
 | Evolução | Chatbot e editor de fluxos | Regras validadas, limite de passos, simulação com dados de teste, versão e transferência para humano |
 | Qualidade | Acessibilidade, carga, proxy e retenção | Teclado/leitor de tela, duas partes HTTPS, conexões SQL concorrentes, limite de recursos e limpeza recuperável |
-| Parcial v0.13.5 | Inventário de releases para retenção | Medição manual somente de leitura; ativa/anterior/recentes preservadas, sugestões suspensas por inconsistência/deploy. Não implementa exclusão, rotação de logs ou retenção do CRM |
+| Parcial v0.13.6 | Inventário de releases para retenção | Medição manual somente de leitura, inteira ou por lotes com cursor; lotes nunca sugerem exclusão. Ativa/anterior/recentes preservadas na inspeção inteira, sugestões suspensas por inconsistência/deploy. Não implementa exclusão, rotação de logs ou retenção do CRM |
 
 Verificar segurança, custo de recursos e simplicidade de auto-hospedagem em cada entrega. Manter MIT, interface própria e canal independente. Não copiar marcas/código incompatível nem usar integrações não oficiais do WhatsApp. Não criar mudanças artificiais quando o backlog útil estiver concluído.
 

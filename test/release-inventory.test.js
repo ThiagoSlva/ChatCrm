@@ -93,3 +93,60 @@ test('CLI é independente do banco, retorna erro genérico e nunca imprime confi
   r=run(['--root',f.root,'--delete']);assert.equal(r.status,2);assert.doesNotMatch(r.stdout+r.stderr,/synthetic-never-display|private-invalid|chatcrm-release-inventory-/);
   fs.writeFileSync(path.join(f.root,'.deployed.json'),'{broken private-never-print');r=run(['--root',f.root]);assert.equal(r.status,1);assert.doesNotMatch(r.stdout+r.stderr,/private-never-print|synthetic-never-display|chatcrm-release-inventory-/);
 });
+
+test('lotes cobrem a listagem uma vez, conservam bytes e nunca sugerem exclusão',t=>{
+  const f=fixture(t),before=fingerprint(f.root),full=inspectReleases({root:f.root,now});
+  const rows=[];let continuation=null,id;
+  for(let i=0;i<3;i++) {
+    const r=inspectReleases({root:f.root,now,batchSize:2,continuation});
+    assert.equal(r.reviewReady,false);assert.equal(r.measurementComplete,false);
+    assert.deepEqual(r.candidatesForReview,[]);assert.equal(r.candidateBytes,0);
+    assert.deepEqual(r.warnings,['batch-report-only']);assert.equal(r.batch.complete,true);
+    assert.equal(r.batch.offset,i*2);assert.equal(r.batch.nextOffset,(i+1)*2);
+    assert.equal(r.batch.hasMore,i<2);if(id)assert.equal(r.batch.snapshotId,id);id=r.batch.snapshotId;
+    rows.push(...r.releases);continuation=r.batch.continuation;
+  }
+  assert.equal(continuation,null);assert.deepEqual(rows.map(r=>r.name),full.releases.map(r=>r.name));
+  assert.equal(rows.reduce((n,r)=>n+r.bytes,0),full.measuredBytes);assert.equal(fingerprint(f.root),before);
+});
+
+test('retomada recusa outra raiz, opções alteradas, cursor inválido e mudança em metadados',t=>{
+  const f=fixture(t),other=fixture(t),options={root:f.root,now,batchSize:2};
+  let cursor=inspectReleases(options).batch.continuation;
+  for(const override of [{root:other.root},{keep:4},{minAgeDays:8},{continuation:'0'.repeat(64)+'.2'},
+    {continuation:cursor.split('.')[0]+'.6'},{continuation:cursor.split('.')[0]+'.0'},
+    {continuation:'../private'}, {batchSize:null}])
+    assert.throws(()=>inspectReleases({...options,continuation:cursor,...override}));
+  fs.appendFileSync(path.join(f.releases,'release-444444','package.json'),' ');
+  assert.throws(()=>inspectReleases({...options,continuation:cursor}));
+  cursor=inspectReleases(options).batch.continuation;
+  fs.mkdirSync(path.join(f.releases,'release-AAAAAA'));
+  assert.throws(()=>inspectReleases({...options,continuation:cursor}));
+  for(const batchSize of [0,26,1.5])assert.throws(()=>inspectReleases({...options,batchSize}));
+});
+
+test('mudança entre preflight e fechamento ou limite bloqueia continuação de lote',t=>{
+  const f=fixture(t),read=fs.readdirSync;let changed=false;
+  fs.readdirSync=function(directory,...args){
+    if(directory===f.current&&!changed){changed=true;fs.appendFileSync(path.join(f.releases,'release-555555','package.json'),' ');}
+    return read.call(fs,directory,...args);
+  };
+  try {
+    const r=inspectReleases({root:f.root,now,batchSize:2});
+    assert(changed);assert(r.warnings.includes('snapshot-changed'));assert.equal(r.batch.complete,false);
+    assert.equal(r.batch.continuation,null);assert.deepEqual(r.candidatesForReview,[]);
+  } finally {fs.readdirSync=read;}
+  const r=inspectReleases({root:f.root,now,batchSize:2,maxEntries:25});
+  assert(r.warnings.includes('scan-entry-limit'));assert.equal(r.batch.complete,false);assert.equal(r.batch.continuation,null);
+});
+
+test('CLI aceita cursor opaco e mantém aviso explícito em lotes, sem ler segredos',t=>{
+  const f=fixture(t),cli=path.resolve(__dirname,'../scripts/check-releases.js');
+  let r=spawnSync(process.execPath,[cli,'--root',f.root,'--batch-size','2'],{encoding:'utf8'});
+  assert.equal(r.status,1,r.stderr);const first=JSON.parse(r.stdout);assert.equal(first.batch.complete,true);
+  r=spawnSync(process.execPath,[cli,'--root',f.root,'--batch-size','2','--continuation',first.batch.continuation],{encoding:'utf8'});
+  assert.equal(r.status,1,r.stderr);assert.equal(JSON.parse(r.stdout).batch.offset,2);
+  assert.doesNotMatch(r.stdout+r.stderr,/DB_PASSWORD|synthetic-never-display|chatcrm-release-inventory-/);
+  assert.deepEqual(parseArguments(['--root',f.root,'--batch-size','2','--continuation',first.batch.continuation]),
+    {root:f.root,batchSize:2,continuation:first.batch.continuation});
+});

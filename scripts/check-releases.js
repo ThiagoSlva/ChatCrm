@@ -4,9 +4,9 @@ function parseArguments(args) {
   if (args.length === 1 && args[0] === '--help') return { help: true };
   const value = {};
   for (let i=0; i<args.length; i+=2) {
-    const key = { '--root':'root', '--keep':'keep', '--min-age-days':'minAgeDays' }[args[i]], text=args[i+1];
+    const key = { '--root':'root', '--keep':'keep', '--min-age-days':'minAgeDays', '--batch-size':'batchSize', '--continuation':'continuation' }[args[i]], text=args[i+1];
     if (!key || Object.hasOwn(value,key) || !text || text.startsWith('--')) return null;
-    if (key === 'root') value.root=text;
+    if (key === 'root' || key === 'continuation') value[key]=text;
     else { if (!/^[1-9]\d*$/.test(text)) return null; value[key]=Number(text); }
   }
   return value.root ? value : null;
@@ -14,7 +14,7 @@ function parseArguments(args) {
 function main(args=process.argv.slice(2)) {
   const parsed=parseArguments(args);
   if (!parsed || parsed.help) {
-    (parsed ? process.stdout : process.stderr).write('Uso: npm run check:releases -- --root PASTA_ABSOLUTA_DA_APLICACAO [--keep 3] [--min-age-days 7]\nSomente leitura, sem exclusao. Guia: docs/RETENCAO-RELEASES.md\n');
+    (parsed ? process.stdout : process.stderr).write('Uso: npm run check:releases -- --root PASTA_ABSOLUTA_DA_APLICACAO [--keep 3] [--min-age-days 7] [--batch-size 5] [--continuation TOKEN]\nSomente leitura, sem exclusao. Lotes nunca geram sugestoes de limpeza. Guia: docs/RETENCAO-RELEASES.md\n');
     process.exitCode=parsed ? 0 : 2; return;
   }
   try {
