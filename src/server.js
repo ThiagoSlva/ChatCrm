@@ -27,7 +27,7 @@ function loadEnvironment() {
 function buildServer(options = {}) {
   const app = Fastify({ logger: options.logger || false, bodyLimit: 8192, ajv: { customOptions: { removeAdditional: false } } });
   const env = options.env || process.env;
-  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.13.6');
+  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.14.0');
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
@@ -38,6 +38,8 @@ function buildServer(options = {}) {
     ['/chat.js', 'chat.js', 'application/javascript; charset=utf-8'],
     ['/inbox.js', 'inbox.js', 'application/javascript; charset=utf-8'],
     ['/inbox-crm.js', 'inbox-crm.js', 'application/javascript; charset=utf-8'],
+    ['/quick-replies.js', 'quick-replies.js', 'application/javascript; charset=utf-8'],
+    ['/inbox-replies.js', 'inbox-replies.js', 'application/javascript; charset=utf-8'],
     ['/widget.js', 'widget.js', 'application/javascript; charset=utf-8'],
     ['/portal.js', 'portal.js', 'application/javascript; charset=utf-8'],
     ['/portal-chat.js', 'portal-chat.js', 'application/javascript; charset=utf-8'],
@@ -75,7 +77,7 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.13.6',
+    version: '0.14.0',
     commit: releaseIdentity.commit,
     releaseIdentitySource: releaseIdentity.source,
     phase: 'portal-campaigns-mvp',

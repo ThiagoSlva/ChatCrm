@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Base de homologação v0.13.6, com pacote ZIP reproduzível e guia de instalação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**Base de homologação v0.14.0, com pacote ZIP reproduzível e guia de instalação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 O [inventário de releases](docs/RETENCAO-RELEASES.md) mede o acúmulo do deploy cPanel e indica versões antigas para revisão, preservando ativa, anterior e recentes. É manual e somente de leitura; não implementa limpeza automática.
 
@@ -87,3 +87,5 @@ Configuração privada: [backup e preparação da recuperação](docs/BACKUP-CON
 [Recuperação conjunta](docs/RECUPERACAO-CONJUNTA.md): manutenção, cópias privadas, revisão dos parâmetros do destino e critérios funcionais após restaurar, com evidência local e limites de homologação.
 
 O [ensaio de concorrência e limite de conexões](docs/CARGA-ATENDIMENTO.md) registra o cenário local com dez operadores/vinte visitantes e a recusa temporária429 quando a fila MySQL enche. Não é garantia de capacidade da hospedagem.
+
+A [biblioteca inicial de respostas rápidas](docs/RESPOSTAS-RAPIDAS.md) ajuda o operador a preparar um rascunho com seis modelos, busca e prévia. A inserção não envia mensagens; catálogo privado compartilhado é evolução pendente.

@@ -2,6 +2,7 @@
 
 const inboxElement = id => document.getElementById(id);
 let inboxCrm = null;
+let inboxReplies = null;
 let inboxProfile = null;
 let inboxCsrf = null;
 let inboxSelected = null;
@@ -67,6 +68,7 @@ function inboxRevokeSelected(id) {
   if (inboxSelected?.id !== id) return;
   inboxDraft(id).text = inboxElement('inbox-text').value;
   inboxSelected = null; inboxMetadataConfirmed = false; inboxMetadataNotice = ''; inboxOutsidePage = false;
+  inboxReplies?.clear();
   inboxMessageNodes.clear(); inboxElement('inbox-messages').replaceChildren(); inboxElement('inbox-text').value = '';
   for (const suffix of ['conversation-title', 'conversation-detail', 'conversation-state', 'selection-note', 'message-feedback']) inboxElement('inbox-' + suffix).textContent = '';
   inboxElement('inbox-conversation').hidden = true; inboxElement('inbox-placeholder').hidden = false;
@@ -114,10 +116,12 @@ function inboxSetControls() {
   inboxElement('inbox-send').textContent = pending ? 'Reenviar mesma resposta' : 'Enviar resposta';
   inboxElement('inbox-space').setAttribute('aria-busy', String(inboxBusy));
   inboxCrm?.controls();
+  inboxReplies?.controls();
 }
 function inboxClearIdentityData() {
   inboxCrm?.clear();
   inboxProfile = null; inboxCsrf = null; inboxSelected = null; inboxPage = 1; inboxTotal = 0;
+  inboxReplies?.clear();
   inboxFilters = { status: 'active', assignment: 'any', q: '' }; inboxWriteFilters();
   inboxMetadataConfirmed = false; inboxMetadataNotice = ''; inboxOutsidePage = false;
   inboxQueueAttemptAt = 0; inboxMessagesAttemptAt = 0;
@@ -230,6 +234,7 @@ function inboxState(conversation) {
 async function inboxSelect(conversation) {
   if (inboxSelected) inboxDraft().text = inboxElement('inbox-text').value;
   inboxSelected = conversation; inboxCrm?.select(conversation.id); inboxMetadataConfirmed = false; inboxMetadataNotice = 'Verificando o estado deste atendimento…'; inboxOutsidePage = false;
+  inboxReplies?.clear();
   inboxMessageNodes = new Map(); inboxElement('inbox-messages').replaceChildren();
   inboxElement('inbox-text').value = inboxDraft().text;
   inboxElement('inbox-message-feedback').textContent = inboxDraft().pending ? 'Há uma resposta aguardando confirmação. Reenvie o mesmo texto para confirmar sem duplicar.' : '';
