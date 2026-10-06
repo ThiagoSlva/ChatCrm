@@ -2,7 +2,7 @@
 const fs = require('node:fs'), path = require('node:path');
 const { performance } = require('node:perf_hooks');
 const SHA = /^[a-f0-9]{40}$/, NAME = /^release-[A-Za-z0-9]{6}$/;
-function fail() { throw new Error('release-inventory-unconfirmed'); }
+function fail(code = 'release-inventory-unconfirmed') { const error = new Error('release-inventory-unconfirmed'); error.code = code; throw error; }
 // Windows lstat can report dev=0 while fstat reports the volume serial.
 function sameFile(a, b) { return (process.platform === 'win32' || a.dev === b.dev) && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs; }
 function readSmall(file, limit) {
@@ -29,6 +29,13 @@ function activeName(root, releases) {
   if (!fs.lstatSync(file).isSymbolicLink()) fail();
   return releaseName(releases, path.resolve(root, fs.readlinkSync(file)));
 }
+function metadata(directory) {
+  const marker = readSmall(path.join(directory, '.deploy-commit'), 41), commit = marker.text.trim();
+  if (!SHA.test(commit)) fail();
+  const pkg = JSON.parse(readSmall(path.join(directory, 'package.json'), 32768).text);
+  if (pkg.name !== 'conversa-livre' || pkg.license !== 'MIT' || typeof pkg.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(pkg.version)) fail();
+  return { marker, commit, version: pkg.version, completedAt: marker.stat.mtimeMs };
+}
 function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), maxEntries = 50000, timeoutMs = 5000 } = {}) {
   if (typeof root !== 'string' || !path.isAbsolute(root) || !Number.isInteger(keep) || keep < 1 || keep > 100 ||
       !Number.isInteger(minAgeDays) || minAgeDays < 1 || minAgeDays > 3650 || !Number.isFinite(now) ||
@@ -44,9 +51,15 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
   const current = activeName(root, releases), recorded = releaseName(releases, state.release);
   if (current !== recorded) fail();
   const previous = state.previousRelease === null ? null : releaseName(releases, state.previousRelease);
+  // Confirm protected identities before the bounded size walk, which may stop early.
+  if (metadata(path.join(releases, current)).commit !== state.commit) fail();
+  if (previous) metadata(path.join(releases, previous));
   const names = fs.readdirSync(releases).sort(), rows = [], warnings = new Set();
   const started = performance.now(); let visited = 0, totalBytes = 0;
-  function budget() { if (++visited > maxEntries || performance.now() - started > timeoutMs) fail(); }
+  function budget() {
+    if (++visited > maxEntries) fail('scan-entry-limit');
+    if (performance.now() - started > timeoutMs) fail('scan-time-limit');
+  }
   function measure(directory, depth = 0) {
     budget(); if (depth > 32) fail();
     const before = fs.lstatSync(directory);
@@ -64,7 +77,8 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
     return bytes;
   }
   for (const name of names) {
-    budget(); const directory = path.join(releases, name), stat = fs.lstatSync(directory);
+    try { budget(); } catch (error) { warnings.add(error.code); break; }
+    const directory = path.join(releases, name), stat = fs.lstatSync(directory);
     if (!NAME.test(name) || !stat.isDirectory() || stat.isSymbolicLink()) {
       warnings.add('unrecognized-entries-preserved'); continue;
     }
@@ -72,21 +86,22 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
     if (name === current) row.protection.push('current');
     if (name === previous) row.protection.push('previous');
     try {
-      const marker = readSmall(path.join(directory, '.deploy-commit'), 41);
-      const commit = marker.text.trim(); if (!SHA.test(commit)) fail();
-      const pkg = JSON.parse(readSmall(path.join(directory, 'package.json'), 32768).text);
-      if (pkg.name !== 'conversa-livre' || pkg.license !== 'MIT' || typeof pkg.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(pkg.version)) fail();
-      row.commit = commit; row.version = pkg.version; row.completedAt = marker.stat.mtimeMs;
-      row.bytes = measure(directory); totalBytes += row.bytes;
-      if (!Number.isSafeInteger(totalBytes)) fail();
+      const { marker, commit, version, completedAt } = metadata(directory);
+      row.commit = commit; row.version = version; row.completedAt = completedAt;
+      row.bytes = measure(directory);
       const finalMarker = readSmall(path.join(directory, '.deploy-commit'), 41);
       if (finalMarker.text !== marker.text || !sameFile(finalMarker.stat, marker.stat)) fail();
-    } catch { row.protection.push('unconfirmed'); warnings.add('incomplete-or-unmeasured-release'); }
+      totalBytes += row.bytes; if (!Number.isSafeInteger(totalBytes)) fail();
+    } catch (error) {
+      row.bytes = null; row.protection.push('unconfirmed'); warnings.add('incomplete-or-unmeasured-release');
+      if (['scan-entry-limit', 'scan-time-limit'].includes(error.code)) warnings.add(error.code);
+    }
     rows.push(row);
+    if (warnings.has('scan-entry-limit') || warnings.has('scan-time-limit')) break;
   }
   const currentRow = rows.find(r => r.name === current), previousRow = rows.find(r => r.name === previous);
   if (!currentRow || currentRow.commit !== state.commit || currentRow.protection.includes('unconfirmed') ||
-      (previous && (!previousRow || previousRow.protection.includes('unconfirmed')))) fail();
+      (previous && (!previousRow || previousRow.protection.includes('unconfirmed')))) warnings.add('protected-release-unmeasured');
   rows.filter(r => !r.protection.includes('unconfirmed')).sort((a,b) => b.completedAt - a.completedAt || a.name.localeCompare(b.name))
     .slice(0, keep).forEach(r => r.protection.push('recent'));
   for (const row of rows) if (row.completedAt === null || now - row.completedAt < minAgeDays * 86400000) row.protection.push('age');
@@ -99,7 +114,9 @@ function inspectReleases({ root, keep = 3, minAgeDays = 7, now = Date.now(), max
   const reviewReady = warnings.size === 0;
   const candidates = reviewReady ? rows.filter(r => r.protection.length === 0).map(r => r.name) : [];
   return { ok: true, code: 'release-inventory', readOnly: true, reviewReady, current, previous, keep, minAgeDays,
-    measuredBytes: totalBytes, entriesVisited: visited, warnings: [...warnings].sort(), releases: rows,
+    measuredBytes: totalBytes, measurementComplete: reviewReady, releaseEntries: names.length,
+    measuredReleases: rows.filter(r => r.bytes !== null).length,
+    entriesVisited: visited, warnings: [...warnings].sort(), releases: rows,
     candidatesForReview: candidates, candidateBytes: rows.filter(r => candidates.includes(r.name)).reduce((n,r) => n + r.bytes, 0) };
 }
 module.exports = { inspectReleases };

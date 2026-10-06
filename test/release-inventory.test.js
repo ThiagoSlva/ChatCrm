@@ -70,7 +70,11 @@ test('marcador inválido, grande ou diretório e pacote inválido impedem confir
 });
 test('limites de entrada/tempo e opções inválidas falham de forma fechada',t=>{
   const f=fixture(t);
-  for(const options of [{maxEntries:1},{timeoutMs:0},{keep:0},{minAgeDays:0},{root:'.'},{now:NaN}])assert.throws(()=>inspectReleases({root:f.root,now,...options}));
+  for(const options of [{timeoutMs:0},{keep:0},{minAgeDays:0},{root:'.'},{now:NaN}])assert.throws(()=>inspectReleases({root:f.root,now,...options}));
+  const partial=inspectReleases({root:f.root,now,maxEntries:1});
+  assert.equal(partial.reviewReady,false);assert.equal(partial.measurementComplete,false);assert.equal(partial.releaseEntries,6);
+  assert.equal(partial.current,'release-000000');assert.equal(partial.previous,'release-111111');assert(partial.warnings.includes('scan-entry-limit'));
+  assert.deepEqual(partial.candidatesForReview,[]);assert.equal(partial.candidateBytes,0);assert.equal(partial.measuredBytes,0);
   assert.deepEqual(parseArguments(['--root',f.root,'--keep','2']),{root:f.root,keep:2});
   for(const args of [[],['--delete'],['--root',f.root,'--root',f.root],['--root',f.root,'--keep','2.5'],['--root']])assert.equal(parseArguments(args),null);
 });
