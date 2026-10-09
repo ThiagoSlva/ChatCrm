@@ -47,7 +47,7 @@ async function verifyAccess(origin, credentials) {
     assert.equal(profile.data.user.password_hash, undefined);
     checks.push('authenticated-profile');
     const capabilities = profile.data.capabilities;
-    assert.equal([1, 2, 3, 4, 5, 6, 7, 8, 9].includes(capabilities?.schemaVersion), true);
+    assert.equal([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(capabilities?.schemaVersion), true);
     assert.equal(capabilities.departments, capabilities.schemaVersion >= 2);
     if (capabilities.schemaVersion >= 3) assert.equal(capabilities.chat, true);
     else assert.equal(capabilities.chat === undefined || capabilities.chat === false, true);
@@ -57,6 +57,7 @@ async function verifyAccess(origin, credentials) {
     assert.equal(capabilities.portal === true, capabilities.schemaVersion >= 7);
     assert.equal(capabilities.subscriptions === true, capabilities.schemaVersion >= 8);
     assert.equal(capabilities.campaigns === true, capabilities.schemaVersion >= 9);
+    assert.equal(capabilities.replies === true, capabilities.schemaVersion >= 10);
     assert.equal(capabilities.conversationContacts === true, capabilities.schemaVersion >= 6);
     assert.equal(capabilities.portal === true, capabilities.schemaVersion >= 7);
     checks.push('capabilities');

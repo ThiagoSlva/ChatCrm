@@ -3,7 +3,7 @@
 const { databaseOptions } = require('../src/database');
 const {
   verifyDepartmentSchema, verifyChatSchema, verifyContactSchema,
-  verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema
+  verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema, verifyReplySchema
 } = require('./migrate-database');
 
 const groups = [
@@ -12,11 +12,11 @@ const groups = [
   ['cl_visitors', 'cl_chat_conversations', 'cl_chat_messages', 'cl_chat_limits'],
   ['cl_contacts'], ['cl_opportunities', 'cl_opportunity_events'],
   ['cl_conversation_contacts', 'cl_conversation_contact_events'],
-  ['cl_portal_accounts', 'cl_portal_sessions'], ['cl_portal_subscription_events'], ['cl_campaigns','cl_campaign_recipients','cl_campaign_batches']
+  ['cl_portal_accounts', 'cl_portal_sessions'], ['cl_portal_subscription_events'], ['cl_campaigns','cl_campaign_recipients','cl_campaign_batches'], ['cl_reply_templates']
 ];
-const moduleNames = ['authentication', 'departments', 'chat', 'contacts', 'opportunities', 'conversationContacts', 'portal', 'subscriptions', 'campaigns'];
+const moduleNames = ['authentication', 'departments', 'chat', 'contacts', 'opportunities', 'conversationContacts', 'portal', 'subscriptions', 'campaigns', 'replies'];
 const validators = [verifyDepartmentSchema, verifyChatSchema, verifyContactSchema,
-  verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema];
+  verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema, verifyReplySchema];
 
 function validOrigin(env) {
   try {

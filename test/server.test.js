@@ -14,7 +14,7 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
   assert.equal(response.json().chatImplemented, true);
   assert.equal(response.json().contactsImplemented, true);
   assert.equal(response.json().opportunitiesImplemented, true);
-  assert.equal(response.json().version, '0.14.1');
+  assert.equal(response.json().version, '0.15.0');
   assert.equal(response.json().conversationContactsImplemented, true);
   assert.equal(response.json().portalImplemented, true);
 });
@@ -38,7 +38,7 @@ test('arquivos privados e caminhos arbitrarios nao sao publicados', async (t) =>
 test('pagina e assets publicos sao servidos com politica restrita', async (t) => {
   const app = buildServer();
   t.after(() => app.close());
-  for (const url of ['/', '/styles.css', '/status.js', '/acesso', '/access.js', '/chat', '/chat.js', '/atendimento', '/inbox.js', '/inbox-crm.js', '/quick-replies.js', '/inbox-replies.js', '/widget.js', '/contatos', '/contacts.js', '/vendas', '/opportunities.js', '/portal', '/portal.js', '/portal-chat.js', '/portal-subscription.js']) {
+  for (const url of ['/', '/styles.css', '/status.js', '/acesso', '/access.js', '/chat', '/chat.js', '/atendimento', '/inbox.js', '/inbox-crm.js', '/quick-replies.js', '/inbox-replies.js', '/respostas', '/reply-catalog.js', '/widget.js', '/contatos', '/contacts.js', '/vendas', '/opportunities.js', '/portal', '/portal.js', '/portal-chat.js', '/portal-subscription.js']) {
     const response = await app.inject(url);
     assert.equal(response.statusCode, 200, url);
     assert.equal(response.headers['x-content-type-options'], 'nosniff');
@@ -49,7 +49,7 @@ test('pagina e assets publicos sao servidos com politica restrita', async (t) =>
 test('HTML usa assets identificados pelo conteudo para evitar cache ou arquivos antigos no Passenger', async (t) => {
   const app = buildServer();
   t.after(() => app.close());
-  for (const url of ['/', '/acesso', '/chat', '/atendimento', '/contatos', '/vendas', '/portal', '/campanhas']) {
+  for (const url of ['/', '/acesso', '/chat', '/atendimento', '/contatos', '/vendas', '/portal', '/campanhas', '/respostas']) {
     const html = (await app.inject(url)).body;
     const urls = [...html.matchAll(/(?:href|src)="(\/assets\/[a-f0-9]{16}\/[^"]+)"/g)].map(match => match[1]);
     assert.equal(urls.length, url === '/portal' || url === '/atendimento' ? 6 : url === '/chat' ? 3 : 2);

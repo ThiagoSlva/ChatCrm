@@ -6,7 +6,7 @@ const validators = require('./migrate-database');
 const { withDeadline } = require('./check-installation');
 
 // Fixed, versioned contracts. Names/SQL never come from a backup or command line.
-const definitions = [
+const allDefinitions = [
   ['cl_schema','id,version'], ['cl_company','id,name'],
   ['cl_users','id,name,email,password_hash,role,active,created_at'],
   ['cl_sessions','token_hash,user_id,expires_at'],
@@ -25,13 +25,16 @@ const definitions = [
   ['cl_portal_subscription_events','account_id,version,subscribed,notice_version,client_key,request_hash,created_at'],
   ['cl_campaigns','id,title,text,created_by,client_key,request_hash,audience_hash,notice_version,state,created_at'],
   ['cl_campaign_recipients','campaign_id,account_id,consent_version,state,delivered_at,read_at'],
-  ['cl_campaign_batches','campaign_id,client_key,delivered,skipped,remaining,created_at']
+  ['cl_campaign_batches','campaign_id,client_key,delivered,skipped,remaining,created_at'],
+  ['cl_reply_templates','id,department_id,title,text,active,version,created_by,updated_by,client_key,request_hash,created_at,updated_at']
 ].map(([name, columns]) => Object.freeze({ name, columns: Object.freeze(columns.split(',')) }));
-Object.freeze(definitions);
-const tableCounts = Object.freeze([0, 4, 6, 10, 11, 13, 15, 17, 18, 21]);
+Object.freeze(allDefinitions);
+// Preserve the public schema9 verifier contract; versioned operations select explicitly.
+const definitions = Object.freeze(allDefinitions.slice(0, 21));
+const tableCounts = Object.freeze([0, 4, 6, 10, 11, 13, 15, 17, 18, 21, 22]);
 function definitionsForVersion(version) {
   if (!Number.isInteger(version) || version < 1 || version >= tableCounts.length) fail('database-incompatible');
-  return Object.freeze(definitions.slice(0, tableCounts[version]).map(definition =>
+  return Object.freeze(allDefinitions.slice(0, tableCounts[version]).map(definition =>
     version === 2 && definition.name === 'cl_departments'
       ? Object.freeze({ name: definition.name, columns: Object.freeze(definition.columns.slice(0, 4)) }) : definition));
 }
@@ -40,7 +43,7 @@ const lockSql = "SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired";
 const releaseSql = "SELECT RELEASE_LOCK('conversa-livre-schema-v1')";
 const sessions = new Set(['cl_sessions', 'cl_portal_sessions']);
 const autoTables = new Set(['cl_users','cl_departments','cl_visitors','cl_chat_conversations',
-  'cl_contacts','cl_opportunities','cl_portal_accounts','cl_campaigns']);
+  'cl_contacts','cl_opportunities','cl_portal_accounts','cl_campaigns','cl_reply_templates']);
 const uint = /^int(?:\(\d+\))? unsigned$/;
 const baseTypes = {
   cl_schema: [/^tinyint(?:\(\d+\))? unsigned$/, uint],
@@ -59,7 +62,7 @@ function validateSnapshot(snapshot) {
     snapshot.version !== 1 || !/^[a-f0-9]{64}$/.test(snapshot.sha256 || '') ||
     !keys(snapshot.payload, ['schemaVersion','createdAt','tables'])) fail('backup-invalid');
   const payload = snapshot.payload;
-  if (!Number.isInteger(payload.schemaVersion) || payload.schemaVersion < 1 || payload.schemaVersion > 9) fail('backup-invalid');
+  if (!Number.isInteger(payload.schemaVersion) || payload.schemaVersion < 1 || payload.schemaVersion > 10) fail('backup-invalid');
   const selected = definitionsForVersion(payload.schemaVersion);
   if (typeof payload.createdAt !== 'string' ||
     !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(payload.createdAt) ||
@@ -113,7 +116,7 @@ async function validateDatabase(c, expectedVersion) {
       !baseTypes[d.name][i].test(String(column.Type).toLowerCase()))) fail('database-incompatible');
   }
   const modules = ['verifyDepartmentSchema','verifyChatSchema','verifyContactSchema','verifyOpportunitySchema',
-    'verifyConversationContactSchema','verifyPortalSchema','verifySubscriptionSchema','verifyCampaignSchema'];
+    'verifyConversationContactSchema','verifyPortalSchema','verifySubscriptionSchema','verifyCampaignSchema','verifyReplySchema'];
   for (const name of modules.slice(0, version - 1)) await validators[name](c);
   return tables;
 }

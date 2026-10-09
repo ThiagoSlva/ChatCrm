@@ -1,6 +1,6 @@
-# Backup privado e restauração — schemas 1 a 9
+# Backup privado e restauração — schemas 1 a 10
 
-Esta ferramenta exporta instalações completas nas versões de schema 1 a 9 e restaura em um **schema da mesma versão já preparado, sem dados**, com a aplicação de destino parada. O schema 9 contém 21 tabelas. Não substitui backup da configuração, arquivos privados ou hospedagem. Não usa conta do autor, serviço pago ou cron. Consulte o andamento para distinguir ensaios locais e hospedados.
+Esta ferramenta exporta instalações completas nas versões de schema 1 a 10 e restaura em um **schema da mesma versão já preparado, sem dados**, com a aplicação de destino parada. O schema 9 contém 21 tabelas; o schema 10 contém 22, incluindo o catálogo privado de respostas. Não substitui backup da configuração, arquivos privados ou hospedagem. Não usa conta do autor, serviço pago ou cron. Consulte o andamento para distinguir ensaios locais e hospedados.
 
 | Versão do schema | Tabelas esperadas |
 | --- | ---: |
@@ -13,6 +13,7 @@ Esta ferramenta exporta instalações completas nas versões de schema 1 a 9 e r
 | 7 | 17 |
 | 8 | 18 |
 | 9 | 21 |
+| 10 | 22 |
 
 O contrato é fixo para cada versão, incluindo a ausência de `public_chat` no schema 2. Versões desconhecidas, tabelas faltantes ou de uma etapa posterior e estruturas parciais são recusadas. Não remova tabelas ou diminua o marcador para contornar uma recusa. Snapshots de schema 9 feitos anteriormente mantêm o mesmo formato e podem ser verificados/restaurados.
 
@@ -46,7 +47,7 @@ Uma escrita interrompida pode deixar arquivo privado incompleto: nenhum sucesso 
 ## Restaurar sem substituir dados existentes
 
 1. Preserve a instalação de origem e uma cópia verificada do backup. Confira `schemaVersion` no resumo de `--verify`. Prepare uma instalação de destino isolada, compatível com essa versão, usando banco exclusivo **novo**, usuário próprio e configuração privada. Não use o banco instalado de origem.
-2. Para schema 9, siga [instalação simples](INSTALADOR-CPANEL.md) para preparar somente a estrutura. Para versões anteriores, usando esta ferramenta atual e a configuração apontada ao destino novo, execute `npm run migrate:database -- --target-version N --require-empty`, substituindo `N` pela versão inteira de 1 a 9 do backup. A opção exige banco vazio sob a trava de migração; não autoriza downgrade ou retomada de estrutura parcial. **Não crie a empresa ou administrador pelo navegador**: eles virão do backup.
+2. Para schema 10, siga [instalação simples](INSTALADOR-CPANEL.md) para preparar somente a estrutura. Para versões anteriores, usando esta ferramenta atual e a configuração apontada ao destino novo, execute `npm run migrate:database -- --target-version N --require-empty`, substituindo `N` pela versão inteira de 1 a 10 do backup. A opção exige banco vazio sob a trava de migração; não autoriza downgrade ou retomada de estrutura parcial. **Não crie a empresa ou administrador pelo navegador**: eles virão do backup.
 3. Remova SETUP_TOKEN da configuração de destino e mantenha a aplicação Node de destino parada durante toda a recuperação. O comando recusa SETUP_TOKEN ainda configurado, mas não controla processos externos; confirme a parada pelo seu painel. Não permita acesso web ou outro processo escrevendo no destino até concluir.
 4. Confira o artefato offline. A configuração de conexão agora deve apontar para o **destino vazio**. Nenhuma credencial é copiada pelo programa.
 5. Execute explicitamente:

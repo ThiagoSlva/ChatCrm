@@ -4,7 +4,7 @@ const fs = require('node:fs'), path = require('node:path'), os = require('node:o
 const { spawnSync } = require('node:child_process');
 const backup = require('../scripts/database-backup');
 const { parseArguments } = require('../scripts/backup-database');
-const auto = new Set(['cl_users','cl_departments','cl_visitors','cl_chat_conversations','cl_contacts','cl_opportunities','cl_portal_accounts','cl_campaigns']);
+const auto = new Set(['cl_users','cl_departments','cl_visitors','cl_chat_conversations','cl_contacts','cl_opportunities','cl_portal_accounts','cl_campaigns','cl_reply_templates']);
 const clone = value => JSON.parse(JSON.stringify(value));
 function cleanupOwned(dir) {
   const resolved = fs.realpathSync(dir), temporaryRoot = fs.realpathSync(os.tmpdir());
@@ -215,7 +215,7 @@ test('cross-version restore refuses before changing counters or records, and nev
 });
 
 test('unknown, partial and mixed contracts are refused offline before any SQL', async () => {
-  for (const version of [0,10,-1,1.5,'9',null]) {
+  for (const version of [0,11,-1,1.5,'9',null]) {
     const s = snapshot(); s.payload.schemaVersion=version; sign(s);
     const target=model(); await assert.rejects(backup.restoreSnapshot(target.c,s,{validate:target.validate}),{code:'backup-invalid'});
     assert.equal(target.calls.length,0);
@@ -249,11 +249,20 @@ test('migration CLI selects a bounded target and empty-only preparation without 
   assert.deepEqual(parse([]),{});
   assert.deepEqual(parse(['--target-version','2','--require-empty']),{targetVersion:2,requireEmpty:true});
   assert.deepEqual(parse(['--require-empty','--target-version','9']),{requireEmpty:true,targetVersion:9});
-  for (const args of [['--target-version'],['--target-version','10'],['--target-version','01'],['--target-version','1.5'],
+  for (const args of [['--target-version'],['--target-version','11'],['--target-version','01'],['--target-version','1.5'],
     ['--target-version','1','--target-version','2'],['--require-empty','--require-empty'],['--password','private'],['--help','--require-empty']]) assert.equal(parse(args),null);
-  for (const [args,status] of [[['--help'],0],[['--target-version','10'],2]]) {
+  for (const [args,status] of [[['--help'],0],[['--target-version','11'],2]]) {
     const result=spawnSync(process.execPath,[path.resolve(__dirname,'../scripts/migrate-database.js'),...args],{encoding:'utf8',timeout:4000,
       env:{...process.env,DB_HOST:'nonexistent.test',DB_PASSWORD:'do-not-print'}});
     assert.equal(result.status,status); assert(!(result.stdout+result.stderr).includes('do-not-print'));
   }
+});
+
+test('schema10 snapshot restores private catalogue and preserves previous schema9 contract',async()=>{
+ assert.equal(backup.definitions.length,21);assert.equal(backup.definitionsForVersion(10).length,22);
+ const s=snapshot(10),templates=s.payload.tables.at(-1);templates.rows.push([7,null,'Orientação fictícia','Olá, {{visitante}}! <texto literal>',1,3,2,2,'b'.repeat(32),'c'.repeat(64),'2026-10-06 09:48:00','2026-10-06 09:48:00']);templates.nextId=12;sign(s);
+ assert.equal(backup.validateSnapshot(s).schemaVersion,10);
+ const f=model(snapshot(10));await backup.restoreSnapshot(f.c,s,{validate:f.validate});assert.deepEqual(f.tables.at(-1),templates);
+ const captured=await backup.captureSnapshot(f.c,{validate:f.validate,now:()=>new Date(s.payload.createdAt)});assert.deepEqual(captured.payload.tables.at(-1),templates);
+ const old=model(snapshot(9));await assert.rejects(backup.restoreSnapshot(old.c,s,{validate:old.validate}),{code:'restore-schema-mismatch'});assert(!old.calls.some(x=>/^(ALTER|INSERT|UPDATE)/.test(x)));
 });

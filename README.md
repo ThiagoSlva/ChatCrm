@@ -1,6 +1,6 @@
 # Conversa Livre — chat e CRM aberto
 
-**Base de homologação v0.14.1, com pacote ZIP reproduzível e guia de instalação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
+**Base de homologação v0.15.0, com pacote ZIP reproduzível e guia de instalação. Conversa Livre é um nome provisório.** A base inclui instalação protegida, equipe, operadores, senha, departamentos, atendimento de texto e o primeiro cadastro do CRM. O widget abre o chat em nova aba. Portal e preferências passaram por verificações SQL e HTTPS com identidades fictícias descartáveis. O primeiro módulo de [campanhas e caixa de novidades](docs/CAMPANHAS-MVP.md) usa inscrições explícitas e lotes manuais idempotentes; instalador completo e homologação ampla da recuperação seguem pendentes; o projeto ainda não está homologado para atendimento real.
 
 O [inventário de releases](docs/RETENCAO-RELEASES.md) mede o acúmulo do deploy cPanel e indica versões antigas para revisão, preservando ativa, anterior e recentes. É manual e somente de leitura; não implementa limpeza automática.
 
@@ -80,7 +80,7 @@ Os aplicativos baixados são clientes da rede Telegram. Não incluem o servidor 
 
 [Verificação manual cliente/operador por HTTPS](docs/VERIFICACAO-HTTPS-PORTAL.md): ferramenta com sessões sintéticas preparadas, backup17 obrigatório e limpeza por propriedade. Não faz parte do deploy; consulte o andamento para execução e limites.
 
-[Backup e restauração](docs/BACKUP-RESTAURACAO.md): exportação privada das versões completas de schema 1 a 9, verificação offline e recuperação explícita em destino vazio da mesma versão, com sessões da equipe/portal encerradas. Não substitui backup de configuração nem restaura sobre dados existentes.
+[Backup e restauração](docs/BACKUP-RESTAURACAO.md): exportação privada das versões completas de schema 1 a 10, verificação offline e recuperação explícita em destino vazio da mesma versão, com sessões da equipe/portal encerradas. Não substitui backup de configuração nem restaura sobre dados existentes.
 
 Configuração privada: [backup e preparação da recuperação](docs/BACKUP-CONFIGURACAO.md), sem ativar arquivos antigos ou substituir a instalação existente.
 
@@ -89,3 +89,5 @@ Configuração privada: [backup e preparação da recuperação](docs/BACKUP-CON
 O [ensaio de concorrência e limite de conexões](docs/CARGA-ATENDIMENTO.md) registra o cenário local com dez operadores/vinte visitantes e a recusa temporária429 quando a fila MySQL enche. Não é garantia de capacidade da hospedagem.
 
 A [biblioteca inicial de respostas rápidas](docs/RESPOSTAS-RAPIDAS.md) ajuda o operador a preparar um rascunho com seis modelos, busca e prévia. A inserção não envia mensagens; catálogo privado compartilhado é evolução pendente.
+
+O [catálogo privado de respostas da equipe](docs/MODELOS-EQUIPE.md) permite modelos da empresa ou da área, edição com versões, criação sem duplicação no reenvio e prévia antes de acrescentar ao rascunho. Requer schema10 preparado explicitamente; código compatível mantém instalações anteriores operacionais.

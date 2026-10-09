@@ -83,14 +83,14 @@ test('v6 compatibility reports portal pending and validates its registered versi
   } });
   assert.equal(validated, 6);
   assert.equal(result.code, 'installed'); assert.equal(result.ok, true);
-  assert.deepEqual(result.modulesPending, ['portal', 'subscriptions', 'campaigns']);
+  assert.deepEqual(result.modulesPending, ['portal', 'subscriptions', 'campaigns', 'replies']);
   assert.equal(state.closed(), 1);
 });
 test('v7 report can list portal without claiming operational homologation', async () => {
   const state = model({ version: 7 });
   const result = await inspect(state, { validate: async () => {} }); // Structural validators have their own migration tests.
   assert.equal(result.ok, true); assert.equal(result.schemaVersion, 7);
-  assert.ok(result.modulesAvailable.includes('portal')); assert.deepEqual(result.modulesPending, ['subscriptions', 'campaigns']);
+  assert.ok(result.modulesAvailable.includes('portal')); assert.deepEqual(result.modulesPending, ['subscriptions', 'campaigns', 'replies']);
   assert.match(formatReport(result), /Nao comprova HTTPS, cron, carga, backup ou restauracao/);
 });
 test('empty database remains untouched and requires explicit preparation', async () => {
@@ -116,11 +116,11 @@ test('missing and partial-migration tables prevent a successful report', async (
   }
 });
 test('zero marker and future marker do not suggest downgrade or perform DDL', async () => {
-  for (const [version, code] of [[0, 'database-unprepared'], [10, 'schema-incompatible']]) {
+  for (const [version, code] of [[0, 'database-unprepared'], [11, 'schema-incompatible']]) {
     const state = model({ version, tables: groups[0] });
     const result = await inspect(state);
     assert.equal(result.code, code); assert.equal(state.closed(), 1);
-    if (version === 10) assert.match(formatReport(result), /nao diminua o marcador/);
+    if (version === 11) assert.match(formatReport(result), /nao diminua o marcador/);
   }
 });
 test('fresh installation requires a private setup secret without creating accounts', async () => {

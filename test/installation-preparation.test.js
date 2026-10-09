@@ -10,7 +10,7 @@ const env = { APP_URL: 'https://support.example.test', NODE_ENV: 'production',
   DB_HOST: 'private-host', DB_NAME: 'private-database', DB_USER: 'private-user',
   DB_PASSWORD: 'private-password', SETUP_TOKEN: 'private-setup-secret-' + 's'.repeat(32) };
 const empty = { ok: false, code: 'database-unprepared' };
-const ready = { ok: true, code: 'setup-ready', schemaVersion: 9, modulesPending: [] };
+const ready = { ok: true, code: 'setup-ready', schemaVersion: 10, modulesPending: [] };
 function fixture(options = {}) {
   const calls = []; let reads = 0;
   const connection = {
@@ -24,7 +24,7 @@ function fixture(options = {}) {
     connect: async options => { calls.push(['connect', options]); return connection; },
     migrateDatabase: async (bounded, options) => {
       calls.push(['migrate', options]); await bounded.query('SHOW TABLES');
-      await bounded.execute('SELECT 1'); return { schemaVersion: 9 };
+      await bounded.execute('SELECT 1'); return { schemaVersion: 10 };
     }, ...options };
   return { calls, connection, run: changes => prepareInstallation({ ...configuration, ...changes }) };
 }

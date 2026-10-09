@@ -53,7 +53,7 @@ O comando diagnostica, exige segredo privado, obtém a trava de migração e **c
 
 Em banco vazio, reutiliza as nove etapas e validadores do migrador. O marcador avança após validar colunas, índices, engines e relações. Não cria empresa, contas ou campanhas, não publica departamentos nem reinicia a aplicação. Conexão de preparação, cada comando e encerramento têm prazo de15 segundos; abertura/autenticação, leituras e encerramento diagnósticos têm5 segundos por operação. Timeout fecha a conexão conhecida e deixa o estado sem confirmação: DDL aplicado pode permanecer. O diagnóstico fecha também uma conexão devolvida depois do prazo, sem iniciar leituras; confira os limites de conectores alternativos no [diagnóstico](DIAGNOSTICO-INSTALACAO.md).
 
-`setup-ready`, schema9 e `preparation: completed` confirmam a estrutura após o diagnóstico final. JSON e ajuda:
+`setup-ready`, schema10 e `preparation: completed` confirmam a estrutura após o diagnóstico final. JSON e ajuda:
 
 ```sh
 npm run install:prepare -- --json
@@ -82,7 +82,7 @@ Somente em instalação nova com banco vazio, acrescente `--prepare-empty` ao ú
 4. Cadastre dois operadores e departamento, vincule os operadores e habilite entrada pública somente na área escolhida. Ela começa desligada.
 5. Copie o trecho HTML do widget para uma página de teste. Ele abre `/chat` em nova aba. Use dados fictícios e responda em `/atendimento` com operadores autorizados.
 6. Cadastre contato/lead e oportunidade; confira escopo/histórico. Teste conta fictícia do portal. Novidades começam desligadas; campanhas usam inscrição explícita no canal próprio.
-7. Execute `npm run check:installation`. `installed`/schema9 confirma registros essenciais e módulos, não recuperação ou qualidade do atendimento. Não há senha padrão, licença ou ativação externa.
+7. Execute `npm run check:installation`. `installed`/schema10 confirma registros essenciais e módulos, não recuperação ou qualidade do atendimento. Não há senha padrão, licença ou ativação externa.
 
 ## Interrupções e atualizações
 

@@ -18,7 +18,7 @@ function fixture() {
   const run = code => vm.runInContext(code, context);
   run('inboxProfile={user:{id:2,name:"Equipe fictícia"}};inboxSelected={id:101,status:"open",assignedTo:2,visitorName:"Pessoa fictícia",departmentName:"Suporte"};inboxMetadataConfirmed=true;');
   vm.runInContext(fs.readFileSync('public/inbox-replies.js','utf8'), context);
-  return { run, element: id => document.getElementById(id), document, calls: () => calls };
+  return { context, run, element: id => document.getElementById(id), document, calls: () => calls };
 }
 test('biblioteca é original, limitada e busca sem depender de acentos; variáveis são texto literal', () => {
   const f=fixture(); assert.equal(f.run('window.ClQuickReplies.search().length'),6);
@@ -76,4 +76,22 @@ test('biblioteca fica fora do formulário de envio e scripts são externos, sem 
     assert(html.includes(`<script src="/${name}.js" defer></script>`));
     assert.doesNotMatch(fs.readFileSync('public/'+name+'.js','utf8'),/localStorage|sessionStorage|innerHTML|fetch\(/);
   }
+});
+
+test('private team templates are freshly authorized and changed versions require another review before append',async()=>{
+ const f=fixture();f.run('inboxProfile.capabilities={replies:true};inboxSelected.departmentId=10;inboxRun=async work=>{inboxBusy=true;try{await work();}finally{inboxBusy=false;inboxReplies.controls();}};');
+ let detail={id:7,version:1,title:'Privado fictício',text:'Olá, {{visitante}}!',active:true,departmentId:10};
+ f.context.inboxApi=async url=>url.endsWith('/7')?{template:{...detail}}:{templates:[{...detail}],total:1,page:1,limit:20};
+ f.element('inbox-replies-source').value='team';f.element('inbox-replies-source').handlers.change();await f.element('inbox-replies-load').handlers.click();
+ f.element('inbox-replies-model').value='7';f.element('inbox-text').value='Preservar';detail={...detail,version:2,text:'Nova orientação para {{visitante}}'};
+ await f.element('inbox-replies-insert').handlers.click();assert.equal(f.element('inbox-text').value,'Preservar');assert.match(f.element('inbox-replies-feedback').textContent,/modelo mudou/);assert.match(f.element('inbox-replies-preview').textContent,/Nova orientação/);
+ await f.element('inbox-replies-insert').handlers.click();assert.equal(f.element('inbox-text').value,'Preservar\n\nNova orientação para Pessoa fictícia');assert.equal(f.run('inboxDraft().pending'),null);
+});
+test('private models are removed on scope change or denied detail; pending draft is untouched',async()=>{
+ const f=fixture();f.run('inboxProfile.capabilities={replies:true};inboxSelected.departmentId=10;inboxRun=async work=>{try{await work();}catch(e){return e.status;}};');
+ f.context.inboxApi=async()=>({templates:[{id:7,version:1,title:'Privado fictício',text:'Texto privado',active:true,departmentId:10}],total:1});
+ f.element('inbox-replies-source').value='team';f.element('inbox-replies-source').handlers.change();await f.element('inbox-replies-load').handlers.click();f.element('inbox-replies-model').value='7';f.element('inbox-text').value='Preservar';
+ f.context.inboxApi=async()=>{throw Object.assign(Error(),{status:404});};await f.element('inbox-replies-insert').handlers.click();assert.equal(f.element('inbox-text').value,'Preservar');assert.doesNotMatch(f.element('inbox-replies-preview').textContent,/Texto privado/);
+ f.run('inboxSelected.departmentId=20;inboxReplies.controls();');assert.equal(f.element('inbox-replies-insert').disabled,true);
+ f.run('inboxDraft().pending={text:"pendente",clientKey:"a".repeat(32)};');await f.element('inbox-replies-load').handlers.click();assert.equal(f.run('inboxDraft().pending.text'),'pendente');
 });

@@ -6,7 +6,7 @@ function fixture(t, version, change = () => {}) {
   let active = false, logoutCount = 0;
   const calls = [], capabilities = { schemaVersion: version, departments: version >= 2,
     chat: version >= 3, contacts: version >= 4, opportunities: version >= 5,
-    conversationContacts: version >= 6, portal: version >= 7, subscriptions: version >= 8, campaigns: version >= 9 };
+    conversationContacts: version >= 6, portal: version >= 7, subscriptions: version >= 8, campaigns: version >= 9, replies: version >= 10 };
   change(capabilities);
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     const u = new URL(url), route = u.pathname, method = options.method, headers = options.headers;
@@ -54,7 +54,7 @@ test('legacy schemas still verify while newer modules report preparation pending
   }
 });
 test('unknown schemas and inconsistent module flags fail and revoke the temporary login', async t => {
-  for (const change of [c => c.schemaVersion = 10, c => c.schemaVersion = '9', c => c.campaigns = false,
+  for (const change of [c => c.schemaVersion = 11, c => c.schemaVersion = '9', c => c.campaigns = false,
     c => c.subscriptions = false, c => c.portal = false, c => c.conversationContacts = false]) {
     const f = fixture(t, 9, change);
     await assert.rejects(verifyAccess(origin + '/', { email: 'operator@example.test', password }));
@@ -63,3 +63,5 @@ test('unknown schemas and inconsistent module flags fail and revoke the temporar
     t.mock.restoreAll();
   }
 });
+
+test("schema10 verifier accepts replies capability and preserves logout",async t=>{const f=fixture(t,10);assert((await verifyAccess(origin,{email:"operator@example.test",password})).checks.includes("capabilities"));assert.equal(f.logoutCount(),1);});

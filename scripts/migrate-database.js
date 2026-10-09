@@ -1,6 +1,7 @@
 'use strict';
 const { definitions: campaignDefinitions, statements: campaignStatements, verifyCampaignSchema } = require('./campaigns-schema');
 const {statement: subscriptionStatement, verifySubscriptionSchema} = require('./subscriptions-schema');
+const {name: replyTable, statement: replyStatement, verifyReplySchema} = require('./replies-schema');
 
 const mysql = require('mysql2/promise');
 const { databaseOptions } = require('../src/database');
@@ -280,8 +281,8 @@ async function verifyPortalSchema(connection) {
   if (foreignKeys.length !== keys.length || keys.some(([table, column, target]) => !foreignKeys.some(row => row.tableName === table && row.columnName === column && row.referencedTable === target && row.referencedColumn === 'id' && Number(row.localSchema) === 1 && row.deleteRule === 'RESTRICT' && row.updateRule === 'RESTRICT'))) throw new Error('Vinculos do portal incompativeis.');
 }
 
-async function migrate(connection, { targetVersion = 9, requireEmpty = false } = {}) {
-  if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
+async function migrate(connection, { targetVersion = 10, requireEmpty = false } = {}) {
+  if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(targetVersion)) throw new Error('Versao alvo nao reconhecida.');
   // Keep the established lock so an older explicit v1 migrator cannot race this one.
   const [lock] = await connection.execute("SELECT GET_LOCK('conversa-livre-schema-v1', 10) AS acquired");
   if (Number(lock[0]?.acquired) !== 1) throw new Error('Outra migracao em andamento.');
@@ -296,7 +297,7 @@ async function migrate(connection, { targetVersion = 9, requireEmpty = false } =
       throw error;
     }
     const baseTables = ['cl_schema', 'cl_company', 'cl_users', 'cl_sessions'];
-    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables, ...portalTables, 'cl_portal_subscription_events', ...campaignDefinitions.map(d => d.name)];
+    const allowed = [...baseTables, 'cl_departments', 'cl_department_members', ...chatTables, 'cl_contacts', ...opportunityTables, ...conversationContactTables, ...portalTables, 'cl_portal_subscription_events', ...campaignDefinitions.map(d => d.name), replyTable];
     if (names.some(name => !allowed.includes(name))) throw new Error('Use um banco exclusivo e vazio para o projeto.');
     if (names.length && !names.includes('cl_schema')) throw new Error('Banco sem identificacao do projeto.');
     let version = 0;
@@ -305,7 +306,7 @@ async function migrate(connection, { targetVersion = 9, requireEmpty = false } =
       // A crash between creating the marker table and inserting its row is resumable.
       if (!rows.length && names.length !== 1) throw new Error('Banco sem identificacao do projeto.');
       version = rows.length ? Number(rows[0].version) : 0;
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(version)) throw new Error('Versao nao reconhecida; verifique a migracao anterior.');
     }
     if (version > targetVersion) throw new Error('Downgrade de schema nao permitido.');
     if (version >= 1 && baseTables.some(name => !names.includes(name))) throw new Error('Estrutura base incompleta.');
@@ -325,6 +326,8 @@ async function migrate(connection, { targetVersion = 9, requireEmpty = false } =
     if (version >= 8 && !names.includes('cl_portal_subscription_events')) throw new Error('Estrutura de inscricoes incompleta.');
     if (version < 8 && campaignDefinitions.some(d => names.includes(d.name))) throw new Error('Estrutura sem inscricoes concluidas.');
     if (version >= 9 && campaignDefinitions.some(d => !names.includes(d.name))) throw new Error('Estrutura de campanhas incompleta.');
+    if (version < 9 && names.includes(replyTable)) throw new Error('Estrutura sem campanhas concluidas.');
+    if (version >= 10 && !names.includes(replyTable)) throw new Error('Estrutura de respostas incompleta.');
     // MySQL DDL commits implicitly. Keep v1 intact while v2 is partial, and resume by table.
     if (version === 0) {
       await connection.query(statements[0]);
@@ -376,7 +379,12 @@ async function migrate(connection, { targetVersion = 9, requireEmpty = false } =
     if (targetVersion >= 9) {
       if (version === 8) for (const statement of campaignStatements) await connection.query(statement);
       await verifyCampaignSchema(connection);
-      if (version === 8) await connection.execute('UPDATE cl_schema SET version = 9 WHERE id = 1');
+      if (version === 8) { await connection.execute('UPDATE cl_schema SET version = 9 WHERE id = 1'); version = 9; }
+    }
+    if (targetVersion >= 10) {
+      if (version === 9) await connection.query(replyStatement);
+      await verifyReplySchema(connection);
+      if (version === 9) await connection.execute('UPDATE cl_schema SET version = 10 WHERE id = 1');
     }
     return { schemaVersion: targetVersion };
   } finally { await connection.execute("SELECT RELEASE_LOCK('conversa-livre-schema-v1')"); }
@@ -387,7 +395,7 @@ function parseArguments(args) {
   const options = {};
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--require-empty' && !options.requireEmpty) options.requireEmpty = true;
-    else if (args[i] === '--target-version' && options.targetVersion === undefined && /^[1-9]$/.test(args[i + 1] || '')) options.targetVersion = Number(args[++i]);
+    else if (args[i] === '--target-version' && options.targetVersion === undefined && /^(?:[1-9]|10)$/.test(args[i + 1] || '')) options.targetVersion = Number(args[++i]);
     else return null;
   }
   return options;
@@ -396,7 +404,7 @@ function parseArguments(args) {
 async function main() {
   const args = parseArguments(process.argv.slice(2));
   if (!args || args.help) {
-    (args ? process.stdout : process.stderr).write('Uso: npm run migrate:database -- [--target-version N] [--require-empty]\nN: 1 a 9; padrao 9. Preparacao ou migracao manual; exige banco exclusivo, configuracao privada e backup antes de atualizar. --require-empty recusa qualquer tabela existente. Nao permite downgrade.\n');
+    (args ? process.stdout : process.stderr).write('Uso: npm run migrate:database -- [--target-version N] [--require-empty]\nN: 1 a 10; padrao 10. Preparacao ou migracao manual; exige banco exclusivo, configuracao privada e backup antes de atualizar. --require-empty recusa qualquer tabela existente. Nao permite downgrade.\n');
     process.exitCode = args ? 0 : 2; return;
   }
   loadEnvironment();
@@ -407,4 +415,4 @@ async function main() {
   finally { if (connection) await connection.end(); }
 }
 if (require.main === module) main().catch(() => { process.stderr.write('Migracao interrompida. Confira configuracao, banco exclusivo e acesso MySQL.\n'); process.exitCode = 1; });
-module.exports = { migrate, parseArguments, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema };
+module.exports = { migrate, parseArguments, verifyReplySchema, verifyDepartmentSchema, verifyChatSchema, verifyContactSchema, verifyOpportunitySchema, verifyConversationContactSchema, verifyPortalSchema, verifySubscriptionSchema, verifyCampaignSchema };

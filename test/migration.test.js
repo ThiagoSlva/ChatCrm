@@ -829,12 +829,12 @@ test('marker6 incompleto ou tabelas novas antes de oportunidades concluidas recu
 });
 
 test('targets invalidos e marker futuro recusam antes de mutacao', async () => {
-  for (const targetVersion of [0, 10, '7', null, false]) {
+  for (const targetVersion of [0, 11, '7', null, false]) {
     const { connection, statements } = migrationConnection();
     await assert.rejects(migrate(connection, { targetVersion }), /alvo/);
     assert.equal(statements.length, 0);
   }
-  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 10 });
+  const { connection, statements } = migrationConnection({ tables: [...schema5Tables, ...conversationContactTables], version: 11 });
   await assert.rejects(migrate(connection, { targetVersion: 6 }), /nao reconhecida/);
   assert.equal(statements.some(sql => /^(CREATE|ALTER|UPDATE|INSERT|DELETE|DROP)/.test(sql)), false);
   assert.match(statements.at(-1), /RELEASE_LOCK/);
@@ -991,9 +991,9 @@ function campaignMigration(options={}){
 }
 const schema8Tables=[...schema6Tables,...portalTables,'cl_portal_subscription_events'];
 test('campaign upgrade8 creates three tables, validates before marker9 and idempotent read-only recheck',async()=>{
- const f=campaignMigration({tables:schema8Tables,version:8});assert.deepEqual(await migrate(f.connection),{schemaVersion:9});assert.equal(f.state.tables.size,21);
+ const f=campaignMigration({tables:schema8Tables,version:8});assert.deepEqual(await migrate(f.connection,{targetVersion:9}),{schemaVersion:9});assert.equal(f.state.tables.size,21);
  assert.equal(f.statements.filter(s=>s.startsWith('CREATE TABLE')).length,3);assert(f.statements.indexOf('UPDATE cl_schema SET version = 9 WHERE id = 1')>f.statements.indexOf('SHOW INDEX FROM cl_campaign_batches'));
- f.statements.length=0;await migrate(f.connection);assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));await assert.rejects(migrate(f.connection,{targetVersion:8}),/Downgrade/);
+ f.statements.length=0;await migrate(f.connection,{targetVersion:9});assert(!f.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));await assert.rejects(migrate(f.connection,{targetVersion:8}),/Downgrade/);
 });
 test('campaign schema refuses invalid columns, unique indexes, engine and foreign keys; marker8 survives interruptions',async()=>{
  for(const mutate of[
@@ -1008,13 +1008,50 @@ test('campaign schema refuses invalid columns, unique indexes, engine and foreig
   s=>s.campaignKeys.cl_campaign_recipients[0].deleteRule='CASCADE',
   s=>s.campaignKeys.cl_campaign_batches[0].localSchema=0
  ]){
-  const f=campaignMigration({tables:[...schema8Tables,...campaignDefinitions.map(d=>d.name)],version:8});mutate(f.state);await assert.rejects(migrate(f.connection),/incompat/);assert.equal(f.state.version,8);
+  const f=campaignMigration({tables:[...schema8Tables,...campaignDefinitions.map(d=>d.name)],version:8});mutate(f.state);await assert.rejects(migrate(f.connection,{targetVersion:9}),/incompat/);assert.equal(f.state.version,8);
  }
- const f=campaignMigration({tables:schema8Tables,version:8});f.state.failTable='cl_campaign_recipients';await assert.rejects(migrate(f.connection),/Interrupcao/);assert.equal(f.state.version,8);f.state.failTable=null;await migrate(f.connection);assert.equal(f.state.version,9);
+ const f=campaignMigration({tables:schema8Tables,version:8});f.state.failTable='cl_campaign_recipients';await assert.rejects(migrate(f.connection,{targetVersion:9}),/Interrupcao/);assert.equal(f.state.version,8);f.state.failTable=null;await migrate(f.connection,{targetVersion:9});assert.equal(f.state.version,9);
 });
 test('fresh default prepares9 without campaigns; incomplete9 and premature campaign tables refuse any DDL',async()=>{
- const f=campaignMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection,{requireEmpty:true}),{schemaVersion:9});assert.equal(f.state.tables.size,21);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_campaign')));
+ const f=campaignMigration({tables:[],version:0});assert.deepEqual(await migrate(f.connection,{targetVersion:9,requireEmpty:true}),{schemaVersion:9});assert.equal(f.state.tables.size,21);assert(!f.statements.some(s=>s.startsWith('INSERT INTO cl_campaign')));
  for(const options of[{tables:schema8Tables,version:9},{tables:[...schema6Tables,...portalTables,'cl_campaigns'],version:7}]){
-  const g=campaignMigration(options);await assert.rejects(migrate(g.connection),/incompleta|concluidas/);assert(!g.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
+  const g=campaignMigration(options);await assert.rejects(migrate(g.connection,{targetVersion:9}),/incompleta|concluidas/);assert(!g.statements.some(s=>/^(CREATE|ALTER|UPDATE|DELETE|INSERT|DROP)/.test(s)));
  }
+});
+
+const repliesSchema=require('../scripts/replies-schema');
+function replyMigration(options={}) {
+ const f=campaignMigration(options),query=f.connection.query.bind(f.connection),execute=f.connection.execute.bind(f.connection);
+ f.state.replyColumns=repliesSchema.columns.map(([Field,type,Null,Extra])=>({Field,Type:type.source.includes('unsigned')?'int unsigned':type.source.includes('tinyint')?'tinyint':type.source.includes('datetime')?'datetime':type.source.includes('varchar')?'varchar('+type.source.match(/\d+/)[0]+')':'char('+type.source.match(/\d+/)[0]+')',Null,Extra,Default:null,Collation:['title','text'].includes(Field)?'utf8mb4_unicode_ci':['client_key','request_hash'].includes(Field)?'ascii_bin':null}));
+ f.state.replyIndexes=repliesSchema.indexes.flatMap(([name,cols,unique])=>cols.map((col,i)=>({Key_name:name,Column_name:col,Seq_in_index:i+1,Non_unique:unique?0:1,Sub_part:null})));
+ f.state.replyEngine={engine:'InnoDB',tableCollation:'utf8mb4_unicode_ci'};
+ f.state.replyKeys=[['department_id','cl_departments'],['created_by','cl_users'],['updated_by','cl_users']].map(([columnName,referencedTable])=>({columnName,referencedTable,referencedColumn:'id',localSchema:1,deleteRule:'RESTRICT',updateRule:'RESTRICT'}));
+ f.connection.query=async(sql,args)=>{
+  if(sql===repliesSchema.statement){f.statements.push(sql);f.state.tables.add(repliesSchema.name);if(f.state.failTable===repliesSchema.name)throw Error('Interrupcao');return[[]];}
+  if(sql==='SHOW FULL COLUMNS FROM '+repliesSchema.name){f.statements.push(sql);return[f.state.replyColumns];}
+  if(sql==='SHOW INDEX FROM '+repliesSchema.name){f.statements.push(sql);return[f.state.replyIndexes];}
+  return query(sql,args);
+ };
+ f.connection.execute=async(sql,args=[])=>{
+  if(args[0]===repliesSchema.name&&sql.includes('information_schema.TABLES')){f.statements.push(sql);return[[f.state.replyEngine]];}
+  if(args[0]===repliesSchema.name&&sql.includes('information_schema.KEY_COLUMN_USAGE')){f.statements.push(sql);return[f.state.replyKeys];}
+  if(sql==='UPDATE cl_schema SET version = 10 WHERE id = 1'){f.statements.push(sql);f.state.version=10;return[{affectedRows:1}];}
+  return execute(sql,args);
+ };return f;
+}
+const schema9Tables=[...schema8Tables,...campaignDefinitions.map(d=>d.name)];
+test('reply upgrade preserves legacy9, creates one table and validates before10; fresh default and recheck',async()=>{
+ const f=replyMigration({tables:schema9Tables,version:9});await migrate(f.connection,{targetVersion:9});assert(!f.statements.some(s=>/^(CREATE|UPDATE|INSERT|ALTER|DROP)/.test(s)));
+ f.statements.length=0;assert.deepEqual(await migrate(f.connection),{schemaVersion:10});assert.equal(f.state.tables.size,22);assert.equal(f.statements.filter(s=>s.startsWith('CREATE TABLE')).length,1);
+ assert(f.statements.indexOf('UPDATE cl_schema SET version = 10 WHERE id = 1')>f.statements.indexOf('SHOW INDEX FROM cl_reply_templates'));
+ f.statements.length=0;await migrate(f.connection);assert(!f.statements.some(s=>/^(CREATE|UPDATE|INSERT|ALTER|DROP)/.test(s)));
+ await assert.rejects(migrate(f.connection,{targetVersion:9}),/Downgrade/);
+ const fresh=replyMigration({tables:[],version:0});assert.deepEqual(await migrate(fresh.connection,{requireEmpty:true}),{schemaVersion:10});assert.equal(fresh.state.tables.size,22);
+});
+test('reply partial creation resumes; incompatible columns, indexes, engine and FK preserve marker9',async()=>{
+ for(const mutate of [s=>s.replyColumns[0].Type='int',s=>s.replyColumns[2].Collation='ascii_bin',s=>s.replyColumns[4].Default='1',s=>s.replyIndexes.pop(),s=>s.replyEngine.engine='MyISAM',s=>s.replyKeys[0].deleteRule='CASCADE',s=>s.replyKeys[1].localSchema=0]){
+  const f=replyMigration({tables:schema9Tables,version:9});mutate(f.state);await assert.rejects(migrate(f.connection),/incompat/);assert.equal(f.state.version,9);
+ }
+ const f=replyMigration({tables:schema9Tables,version:9});f.state.failTable=repliesSchema.name;await assert.rejects(migrate(f.connection),/Interrupcao/);assert.equal(f.state.version,9);f.state.failTable=null;await migrate(f.connection);assert.equal(f.state.version,10);
+ for(const options of [{tables:schema9Tables,version:10},{tables:[...schema8Tables,repliesSchema.name],version:8}]){const g=replyMigration(options);await assert.rejects(migrate(g.connection),/incompleta|concluidas/);assert(!g.statements.some(s=>/^(CREATE|UPDATE|INSERT|ALTER|DROP)/.test(s)));}
 });

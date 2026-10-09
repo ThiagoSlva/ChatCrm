@@ -59,7 +59,7 @@ async function prepareInstallation({ prepare = false, env = process.env,
   }
   if (!result.ok) return result;
   const after = await inspect({ env, nodeVersion });
-  if (after.ok && ['setup-ready', 'installed'].includes(after.code) && after.schemaVersion === 9) {
+  if (after.ok && ['setup-ready', 'installed'].includes(after.code) && after.schemaVersion === 10) {
     return { ...after, mode, preparation: 'completed' };
   }
   return failure('preparation-unconfirmed');

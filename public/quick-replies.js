@@ -22,14 +22,18 @@
   function render(id, context = {}) {
     const template = templates.find(template => template.id === id);
     if (!template) return null;
+    return renderText(template.text, context);
+  }
+  function renderText(text, context = {}) {
+    if (typeof text !== 'string' || !text || text.length > 2000) return null;
     const values = { visitante: plain(context.visitorName, 'tudo bem'), operador: plain(context.operatorName, 'um integrante da equipe'), area: plain(context.departmentName, 'atendimento') };
     // One pass only: values are literal text, never HTML or another template.
-    return template.text.replace(/\{\{(visitante|operador|area)\}\}/g, (_, key) => values[key]);
+    return text.replace(/\{\{(visitante|operador|area)\}\}/g, (_, key) => values[key]);
   }
   function append(draft, reply) {
     if (typeof draft !== 'string' || typeof reply !== 'string' || !reply) return null;
     const combined = draft + (draft ? '\n\n' : '') + reply;
     return combined.length <= 2000 ? combined : null;
   }
-  window.ClQuickReplies = Object.freeze({ search, render, append });
+  window.ClQuickReplies = Object.freeze({ search, render, renderText, append });
 })();

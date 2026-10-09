@@ -15,6 +15,7 @@ const { registerConversationContacts } = require('./conversation-contacts');
 const { registerCampaigns } = require('./campaigns');
 const { registerSubscriptions } = require('./subscriptions');
 const { registerPortal } = require('./portal');
+const { registerReplies } = require('./replies');
 const { resolveReleaseIdentity } = require('./release-identity');
 
 const projectRoot = path.resolve(__dirname, '..');
@@ -27,7 +28,7 @@ function loadEnvironment() {
 function buildServer(options = {}) {
   const app = Fastify({ logger: options.logger || false, bodyLimit: 8192, ajv: { customOptions: { removeAdditional: false } } });
   const env = options.env || process.env;
-  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.14.1');
+  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.15.0');
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
@@ -40,6 +41,7 @@ function buildServer(options = {}) {
     ['/inbox-crm.js', 'inbox-crm.js', 'application/javascript; charset=utf-8'],
     ['/quick-replies.js', 'quick-replies.js', 'application/javascript; charset=utf-8'],
     ['/inbox-replies.js', 'inbox-replies.js', 'application/javascript; charset=utf-8'],
+    ['/reply-catalog.js', 'reply-catalog.js', 'application/javascript; charset=utf-8'],
     ['/widget.js', 'widget.js', 'application/javascript; charset=utf-8'],
     ['/portal.js', 'portal.js', 'application/javascript; charset=utf-8'],
     ['/portal-chat.js', 'portal-chat.js', 'application/javascript; charset=utf-8'],
@@ -68,7 +70,7 @@ function buildServer(options = {}) {
     app.get(route, async (request, reply) => reply.type(contentType).send(content));
     app.get(versionedUrl, async (request, reply) => reply.type(contentType).send(content));
   }
-  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html'], ['/portal', 'portal.html'], ['/campanhas','campaigns.html']]) {
+  for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html'], ['/portal', 'portal.html'], ['/campanhas','campaigns.html'], ['/respostas','reply-catalog.html']]) {
     let content = fs.readFileSync(path.join(projectRoot, 'public', fileName), 'utf8');
     for (const [asset, url] of assetUrls) content = content.replaceAll(`="${asset}"`, `="${url}"`).replaceAll(`="/${asset}"`, `="${url}"`);
     app.get(route, async (request, reply) => reply.type('text/html; charset=utf-8').send(content));
@@ -77,7 +79,7 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.14.1',
+    version: '0.15.0',
     commit: releaseIdentity.commit,
     releaseIdentitySource: releaseIdentity.source,
     phase: 'portal-campaigns-mvp',
@@ -93,6 +95,7 @@ function buildServer(options = {}) {
     subscriptionsImplemented: true,
     campaignsImplemented: true,
     crmImplemented: false,
+    replyCatalogImplemented: true,
     chatImplemented: true
   }));
 
@@ -106,6 +109,7 @@ function buildServer(options = {}) {
   registerContacts(app, repository, auth);
   registerOpportunities(app, repository, auth);
   registerConversationContacts(app, repository, auth);
+  registerReplies(app, repository, auth);
 
   app.setNotFoundHandler(async (request, reply) => {
     reply.code(404).send({ error: 'Rota nao encontrada.' });

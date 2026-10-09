@@ -34,3 +34,14 @@
 .campaign-preview h4{overflow-wrap:anywhere}@media(max-width:580px){.campaign-main .topbar{flex-direction:column;align-items:flex-start}.campaign-main .topbar .secondary-button{align-self:flex-start}}
 
 .quick-replies{border-top:1px solid #dfe7f0;padding-top:16px;margin-bottom:18px;min-width:0}.quick-replies button{min-height:44px;margin:0;white-space:normal;overflow-wrap:anywhere}.quick-replies h3{font-size:18px;margin:20px 0 8px}.quick-replies-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}.quick-replies-fields>div{min-width:0}.quick-replies label{display:block;font-size:14px;font-weight:650;margin:12px 0 8px}.quick-replies input,.quick-replies select{width:100%;min-width:0;min-height:44px;border:1px solid #b8c6d8;border-radius:8px;padding:12px;background:#fff;color:#172b4d;font:inherit;font-size:16px}.quick-replies-preview-label{font-size:13px;font-weight:650;margin:16px 0 8px}.quick-replies-preview{border:1px solid #dfe7f0;border-radius:10px;padding:14px;background:#f4f7fb;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7}.quick-replies .feedback:empty{display:none}@media(max-width:580px){.quick-replies-fields{grid-template-columns:minmax(0,1fr)}.quick-replies button{width:100%}}
+.reply-catalog-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; }
+.reply-catalog-grid > .card { min-width: 0; }
+.reply-catalog-grid input:not([type=checkbox]), .reply-catalog-grid select, .reply-catalog-grid textarea { width: 100%; box-sizing: border-box; }
+.reply-catalog-grid textarea { min-height: 200px; resize: vertical; }
+.reply-catalog-grid button, .reply-catalog-grid select, .quick-replies-actions button, #inbox-replies-source { min-height: 44px; }
+.reply-catalog-grid label { display: block; margin-top: 16px; }
+.reply-catalog-grid label:has(input[type=checkbox]) { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.reply-catalog-grid .conversation-select { overflow-wrap: anywhere; text-align: left; width: 100%; }
+#reply-review-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.quick-replies-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+@media (max-width: 760px) { .reply-catalog-grid { grid-template-columns: minmax(0, 1fr); } }
