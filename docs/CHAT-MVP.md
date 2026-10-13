@@ -20,6 +20,18 @@ Copie o trecho do botão mostrado nessa tela para o HTML do site. O `src` usa o 
 
 O site precisa permitir esse domínio em sua política de scripts. O botão usa estilo próprio; se a política do site bloquear estilos inline, use um link comum para `https://chat.suaempresa.example/chat`. O script não recebe nomes, tokens ou IDs de visitantes do site hospedeiro.
 
+Desde v0.15.3, os atributos opcionais `data-label` e `data-position` personalizam o texto e o lado do botão sem editar JavaScript:
+
+```html
+<script src="https://chat.suaempresa.example/widget.js"
+  data-label="Fale com nossa equipe"
+  data-position="left" defer></script>
+```
+
+Use `left` para o canto esquerdo e `right` para o direito. Sem atributos, continua aparecendo “Abrir atendimento” no canto direito. O texto deve ter até 80 caracteres, sem quebras de linha ou caracteres de controle; valores inválidos usam o padrão. O rótulo é texto literal, nunca HTML. O botão informa que abre outra aba, permite navegação por teclado, quebra textos longos e considera as margens seguras informadas pelo navegador móvel. Seu contêiner tem estilo isolado para preservar posição, margem e aparência diante de regras genéricas do site. Confira a posição junto a banners e outros botões: a escolha de lado não detecta automaticamente sobreposição com elementos de terceiros ou alterações de layout feitas por outros scripts.
+
+O destino continua sendo `/chat` no domínio do script, sem opções para inserir credenciais, identidade do cliente ou URL externa. A configuração altera somente o botão desta página, sem salvar preferências no banco, criar visitantes ou enviar mensagens. Incluir o script mais de uma vez não cria botões duplicados. Não é uma janela de conversa incorporada nem substitui o acesso pelo portal para clientes cadastrados.
+
 Visitantes escolhem uma área em `/chat`, informam o nome e iniciam a conversa. A equipe entra em `/atendimento`, seleciona o atendimento e clica **Assumir** antes de responder. Pode devolver à fila ou encerrar. Para reabrir atendimento, o visitante inicia outra conversa; o histórico encerrado continua disponível durante sua sessão. O cookie expira em oito horas: ainda não há login de cliente ou recuperação entre dispositivos.
 
 ## Contrato HTTP
