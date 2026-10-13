@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const assert = require('node:assert/strict');
 const { loadEnvironment } = require('../src/server');
+const { verifyRepliesAccess } = require('./verify-replies-access');
 
 async function verifyAccess(origin, credentials) {
   const url = new URL(origin);
@@ -61,6 +62,7 @@ async function verifyAccess(origin, credentials) {
     assert.equal(capabilities.conversationContacts === true, capabilities.schemaVersion >= 6);
     assert.equal(capabilities.portal === true, capabilities.schemaVersion >= 7);
     checks.push('capabilities');
+    checks.push(...await verifyRepliesAccess(request, cookie, profile.data));
     for (const route of ['/api/portal/me','/api/portal/conversations','/api/portal/conversations/4294967295/messages']) assert.equal((await request(route)).response.status, capabilities.portal ? 401 : 503);
     checks.push('portal-anonymous-or-unprepared-denied');
     assert.equal((await request('/api/portal/subscription')).response.status, capabilities.subscriptions ? 401 : 503);

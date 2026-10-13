@@ -56,6 +56,8 @@ O primeiro cadastro usa uma transação e trava na linha única do schema para i
 
 O comando `npm run verify:access -- CAMINHO_PRIVADO` verifica uma instalação já configurada por HTTPS: acesso anônimo, origem estrangeira, senha incorreta, login, cookie seguro, perfil, CSRF, logout e revogação. O arquivo privado contém o e-mail e a senha do usuário usado no teste; mantenha-o fora do Git e da pasta pública, com acesso restrito ao dono. O comando não cria administradores nem altera senhas e não imprime credenciais ou tokens. Ele abre e encerra uma sessão de verificação.
 
+Também confere leitura e permissões dos [modelos privados da equipe](MODELOS-EQUIPE.md), incluindo preparação pendente antes do schema 10, bloqueio para operadores na administração e modelos de uma conversa aberta já atribuída ao usuário. Essa parte usa somente GET e exige `Cache-Control: no-store`. Ausência de conversa ou de modelos é registrada como cobertura pendente, sem criar fixtures, enviar mensagens ou exibir o conteúdo privado no relatório.
+
 Este comando é explícito: não roda em CI, `npm test` ou no cron de deploy. Esses processos continuam isolados do banco real. Para esta hospedagem:
 
 ```sh

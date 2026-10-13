@@ -11,7 +11,7 @@ function fixture(t, version, change = () => {}) {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
     const u = new URL(url), route = u.pathname, method = options.method, headers = options.headers;
     assert.equal(u.origin, origin); calls.push({ route, method });
-    const reply = (status, data = {}, extra = {}) => ({ status, json: async () => data, headers: new Headers(extra) });
+    const reply = (status, data = {}, extra = {}) => ({ status, json: async () => data, headers: new Headers({ 'cache-control': 'no-store', ...extra }) });
     const authenticated = active && headers.Cookie === '__Host-cl_session=' + token;
     if (route === '/api/installation') return reply(200, { state: 'installed' });
     if (route === '/api/auth/password') return reply(401);
@@ -27,6 +27,8 @@ function fixture(t, version, change = () => {}) {
       active = false; logoutCount++; return reply(200, {}, { 'set-cookie': '__Host-cl_session=; Max-Age=0' });
     }
     if (route === '/api/team/operators') return reply(403);
+    if (route === '/api/replies/templates') return reply(authenticated ? 403 : 401);
+    if (route === '/api/chat/team/conversations') return reply(200, { conversations: [], total: 0, page: 1, limit: 20 });
     if (route === '/api/campaigns') return reply(authenticated ? 403 : 401);
     if (route === '/api/portal/subscription') return reply(version >= 8 ? 401 : 503);
     if (route.startsWith('/api/portal/')) return reply(version >= 7 ? 401 : 503);
@@ -64,4 +66,16 @@ test('unknown schemas and inconsistent module flags fail and revoke the temporar
   }
 });
 
-test("schema10 verifier accepts replies capability and preserves logout",async t=>{const f=fixture(t,10);assert((await verifyAccess(origin,{email:"operator@example.test",password})).checks.includes("capabilities"));assert.equal(f.logoutCount(),1);});
+test("schema10 verifier checks private replies routes and preserves logout",async t=>{const f=fixture(t,10);const result=await verifyAccess(origin,{email:"operator@example.test",password});assert(result.checks.includes("replies-administration-operator-denied"));assert(result.checks.includes("replies-owned-conversation-check-pending-no-fixtures"));assert.equal(f.logoutCount(),1);});
+
+test('a failed replies check revokes the verification login and never performs catalogue writes', async t => {
+  const f = fixture(t, 10), transport = globalThis.fetch;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    const result = await transport(url, options);
+    if (new URL(url).pathname === '/api/replies/templates' && options.headers.Cookie) result.status = 200;
+    return result;
+  });
+  await assert.rejects(verifyAccess(origin, { email: 'operator@example.test', password }), /nao foi confirmada/);
+  assert.equal(f.active(), false); assert.equal(f.logoutCount(), 1);
+  assert(f.calls.filter(x => x.route.startsWith('/api/replies')).every(x => x.method === 'GET'));
+});
