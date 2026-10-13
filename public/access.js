@@ -1,7 +1,9 @@
 'use strict';
 
 const byId = id => document.getElementById(id);
-const panels = ['configuration', 'setup', 'login', 'account'];
+const panels = ['configuration', 'verification', 'setup', 'login', 'account'];
+let accessDisposed = false;
+let accessController = new AbortController();
 let csrfToken = null;
 let teamPage = 1;
 let teamBusy = false;
@@ -25,22 +27,43 @@ function show(panel, title, description) {
   byId('description').textContent = description;
 }
 async function api(url, options = {}) {
-  const response = await fetch(url, { ...options, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(10000) });
-  const data = await response.json();
-  if (!response.ok) { const error = new Error(data.error || 'Não foi possível conectar ao banco. Confira a configuração e a migração.'); error.status = response.status; throw error; }
-  return data;
+  const generation = departmentsGeneration;
+  const controller = accessController;
+  const cancelled = () => accessDisposed || generation !== departmentsGeneration || controller.signal.aborted;
+  try {
+    if (cancelled()) throw new DOMException('A página deixou de estar ativa.', 'AbortError');
+    const response = await fetch(url, { ...options, credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) });
+    const data = await response.json();
+    if (cancelled()) throw new DOMException('A página deixou de estar ativa.', 'AbortError');
+    if (!response.ok) { const error = new Error(data.error || 'Não foi possível concluir a solicitação. Confira sua conexão e tente novamente.'); error.status = response.status; throw error; }
+    return data;
+  } catch (error) {
+    if (cancelled()) throw new DOMException('A página deixou de estar ativa.', 'AbortError');
+    throw error;
+  }
 }
-async function refresh() {
-  window.ClSetupChecklist.clear();
+function clearAccess() {
   csrfToken = null;
   resetDepartments();
-  const generation = departmentsGeneration;
+  teamPage = 1; teamTotal = 0; setTeamBusy(false);
   byId('team').hidden = true;
   byId('operator-list').replaceChildren();
-  byId('operator-create').reset();
-  byId('password-change').reset();
-  byId('password-message').textContent = '';
-  byId('message').textContent = '';
+  for (const id of ['user-name', 'user-detail', 'role-description', 'team-page', 'team-message', 'password-message', 'message', 'department-detail-title', 'department-detail-state', 'department-channel-state', 'members-page', 'departments-page']) byId(id).textContent = '';
+  for (const id of ['setup', 'login', 'operator-create', 'password-change', 'department-channel-form']) byId(id).reset();
+  // Form reset can restore browser defaults; discard credential values explicitly.
+  document.querySelectorAll('input, textarea, button').forEach(control => { if (control.type === 'checkbox') control.checked = false; else if (control.tagName !== 'BUTTON') control.value = ''; control.disabled = false; });
+  byId('logout').disabled = false;
+  byId('access-retry').disabled = false;
+  show('verification', 'Conferindo seu acesso.', 'Os dados da equipe aparecem após confirmar sua sessão.');
+}
+async function refresh() {
+  if (accessDisposed) return;
+  accessController.abort();
+  accessController = new AbortController();
+  window.ClSetupChecklist.clear();
+  clearAccess();
+  const generation = departmentsGeneration;
+  byId('access-retry').disabled = true;
   try {
     const installation = await api('/api/installation');
     if (generation !== departmentsGeneration) return;
@@ -59,7 +82,7 @@ async function refresh() {
       window.ClSetupChecklist.update(profile);
       if (profile.user.role === 'admin') {
         byId('team').hidden = false; teamPage = 1;
-        try { await loadTeam(); } catch (error) { if (error.status === 401) throw error; byId('team-message').textContent = 'Não foi possível carregar a equipe. Use Atualizar equipe para tentar novamente.'; }
+        try { await loadTeam(); } catch (error) { if (generation !== departmentsGeneration) return; if (error.status === 401) throw error; byId('team-message').textContent = 'Não foi possível carregar a equipe. Use Atualizar equipe para tentar novamente.'; }
       }
       if (generation !== departmentsGeneration) return;
       departmentsAdmin = profile.user.role === 'admin';
@@ -69,19 +92,31 @@ async function refresh() {
         byId('departments-title').textContent = departmentsAdmin ? 'Departamentos de atendimento' : 'Seus departamentos';
         byId('departments-description').textContent = departmentsAdmin ? 'Organize quem pode atender em cada área. Só os operadores vinculados a departamentos ativos podem acessar seu atendimento.' : 'Aqui aparecem apenas os departamentos ativos aos quais você está vinculado.';
         try { await loadDepartments(); }
-        catch (error) { if (error.status === 401) throw error; showDepartmentError(error); }
+        catch (error) { if (generation !== departmentsGeneration) return; if (error.status === 401) throw error; showDepartmentError(error); }
       } else byId('departments-pending').hidden = !departmentsAdmin;
     } catch (error) {
       if (generation !== departmentsGeneration) return;
       if (error.status !== 401) throw error;
+      clearAccess();
       show('login', 'Bom ter você por aqui.', 'Entre para acessar o espaço da sua equipe.');
     }
-  } catch (error) { if (generation !== departmentsGeneration) return; show('configuration', 'Vamos conferir o banco.', 'A instalação ainda precisa de uma verificação.'); byId('message').textContent = error.message; }
+  } catch (error) { if (generation !== departmentsGeneration || accessDisposed) return; show('verification', 'Não foi possível confirmar seu acesso.', 'Confira sua conexão e verifique novamente.'); byId('message').textContent = error.message; }
+  finally { if (generation === departmentsGeneration && !accessDisposed) byId('access-retry').disabled = false; }
+}
+async function revalidateAfterAction(message, focusEmail = false) {
+  const validating = refresh();
+  const controller = accessController;
+  await validating;
+  if (accessDisposed || controller !== accessController) return;
+  if (message) byId('message').textContent = message;
+  if (focusEmail && !byId('login').hidden) byId('email').focus();
 }
 for (const id of ['setup', 'login']) {
   byId(id).addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
+    if (accessDisposed) return;
+    const generation = departmentsGeneration;
     const button = form.querySelector('button');
     button.disabled = true;
     byId('message').textContent = 'Aguarde…';
@@ -89,22 +124,31 @@ for (const id of ['setup', 'login']) {
       const body = Object.fromEntries(new FormData(form));
       await api(id === 'setup' ? '/api/install' : '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       form.reset();
-      await refresh();
-      if (id === 'setup') byId('message').textContent = 'Administrador criado. Entre com seu e-mail e sua senha. Remova SETUP_TOKEN na hospedagem.';
-    } catch (error) { byId('message').textContent = error.message; }
-    finally { button.disabled = false; }
+      await revalidateAfterAction(id === 'setup' ? 'Administrador criado. Entre com seu e-mail e sua senha. Remova SETUP_TOKEN na hospedagem.' : '');
+    } catch (error) { if (generation === departmentsGeneration && !accessDisposed) byId('message').textContent = error.message; }
+    finally { if (generation === departmentsGeneration && !accessDisposed) button.disabled = false; }
   });
 }
 byId('logout').addEventListener('click', async () => {
+  if (accessDisposed || !csrfToken) return;
+  const generation = departmentsGeneration;
   byId('logout').disabled = true;
   try { await api('/api/auth/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } }); csrfToken = null; await refresh(); }
-  catch (error) { byId('message').textContent = error.message; }
-  finally { byId('logout').disabled = false; }
+  catch (error) { if (generation === departmentsGeneration && !accessDisposed) byId('message').textContent = error.message; }
+  finally { if (generation === departmentsGeneration && !accessDisposed) byId('logout').disabled = false; }
 });
-byId('retry').addEventListener('click', refresh);
+function retryAccess() {
+  const validating = refresh();
+  if (!accessDisposed) byId('title').focus();
+  return validating;
+}
+byId('retry').addEventListener('click', retryAccess);
+byId('access-retry').addEventListener('click', retryAccess);
 byId('password-change').addEventListener('submit', async event => {
   event.preventDefault();
   const form = event.currentTarget;
+  if (accessDisposed || !csrfToken) return;
+  const generation = departmentsGeneration;
   const body = Object.fromEntries(new FormData(form));
   if (body.newPassword !== body.confirmation) { byId('password-message').textContent = 'A confirmação deve ser igual à nova senha.'; return; }
   const controls = form.querySelectorAll('input, button');
@@ -112,14 +156,13 @@ byId('password-change').addEventListener('submit', async event => {
   byId('password-message').textContent = 'Aguarde…';
   try {
     await api('/api/auth/password', { method: 'POST', headers: teamHeaders(), body: JSON.stringify(body) });
-    form.reset(); await refresh();
-    byId('message').textContent = 'Senha alterada e sessões encerradas. Entre com sua nova senha.';
-    byId('email').focus();
+    form.reset(); await revalidateAfterAction('Senha alterada e sessões encerradas. Entre com sua nova senha.', true);
   } catch (error) {
+    if (generation !== departmentsGeneration || accessDisposed) return;
     form.reset();
-    if (error.status === 401 || error.status === 409) { await refresh(); byId('message').textContent = error.message; }
+    if (error.status === 401 || error.status === 409) await revalidateAfterAction(error.message);
     else byId('password-message').textContent = error.message;
-  } finally { controls.forEach(control => { control.disabled = false; }); }
+  } finally { if (generation === departmentsGeneration && !accessDisposed) controls.forEach(control => { control.disabled = false; }); }
 });
 
 function teamHeaders() { return { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken }; }
@@ -154,18 +197,22 @@ async function loadTeam() {
   }
 }
 async function teamAction(work) {
-  if (teamBusy) return;
+  if (teamBusy || accessDisposed || !csrfToken) return;
+  const generation = departmentsGeneration;
   setTeamBusy(true);
   byId('team-message').textContent = 'Aguarde…';
   try { await work(); await loadTeam(); }
   catch (error) {
-    if (error.status === 401) { await refresh(); byId('message').textContent = 'Sua sessão encerrou. Entre novamente.'; }
+    if (generation !== departmentsGeneration || accessDisposed) return;
+    if (error.status === 401) await revalidateAfterAction('Sua sessão encerrou. Entre novamente.');
     else byId('team-message').textContent = error.status === 409 ? 'O e-mail já está cadastrado ou o limite de 200 operadores foi atingido.' : error.message;
   } finally {
-    setTeamBusy(false);
-    // Preserve pagination boundaries after restoring the controls.
-    byId('team-previous').disabled = teamPage === 1;
-    byId('team-next').disabled = teamPage * 20 >= teamTotal;
+    if (generation === departmentsGeneration && !accessDisposed) {
+      setTeamBusy(false);
+      // Preserve pagination boundaries after restoring the controls.
+      byId('team-previous').disabled = teamPage === 1;
+      byId('team-next').disabled = teamPage * 20 >= teamTotal;
+    }
   }
 }
 byId('operator-create').addEventListener('submit', event => {
@@ -336,7 +383,7 @@ async function loadDepartmentChannel(id) {
   if (generation === departmentsGeneration) setDepartmentsBusy(departmentsBusy);
 }
 async function departmentAction(work, options = {}) {
-  if (departmentsBusy) return;
+  if (departmentsBusy || accessDisposed || !csrfToken) return;
   const generation = departmentsGeneration;
   const detailId = selectedDepartment?.id;
   const focusedId = document.activeElement?.id;
@@ -354,7 +401,7 @@ async function departmentAction(work, options = {}) {
     } else byId('departments-message').textContent = options.success || '';
   } catch (error) {
     if (generation !== departmentsGeneration) return;
-    if (error.status === 401) { await refresh(); byId('message').textContent = 'Sua sessão encerrou. Entre novamente.'; byId('email').focus(); }
+    if (error.status === 401) await revalidateAfterAction('Sua sessão encerrou. Entre novamente.', true);
     else {
       if (error.status === 404 && detailId) closeDepartmentDetail();
       showDepartmentError(error);
@@ -406,9 +453,24 @@ byId('department-channel-form').addEventListener('submit', event => {
   departmentAction(async () => { await api(`/api/chat/team/channels/${id}`, { method: 'PUT', headers: teamHeaders(), body: JSON.stringify(body) }); }, { reloadDetail: true, success: body.enabled ? 'Entrada pública habilitada.' : 'Entrada pública desabilitada. Conversas existentes foram preservadas.' });
 });
 byId('widget-copy').addEventListener('click', async () => {
+  if (accessDisposed) return;
+  const generation = departmentsGeneration;
   const input = byId('widget-code');
-  try { await navigator.clipboard.writeText(input.value); byId('widget-feedback').textContent = 'Código do botão copiado.'; }
-  catch { input.focus(); input.select(); byId('widget-feedback').textContent = 'Selecione e copie o código acima para seu site.'; }
+  try { await navigator.clipboard.writeText(input.value); if (generation === departmentsGeneration && !accessDisposed) byId('widget-feedback').textContent = 'Código do botão copiado.'; }
+  catch { if (generation !== departmentsGeneration || accessDisposed) return; input.focus(); input.select(); byId('widget-feedback').textContent = 'Selecione e copie o código acima para seu site.'; }
+});
+window.addEventListener('pagehide', () => {
+  accessDisposed = true;
+  accessController.abort();
+  clearAccess();
+});
+window.addEventListener('pageshow', event => {
+  if (!event.persisted) return;
+  accessDisposed = false;
+  // A restored document must read the current permissions; never replay a write.
+  const restoring = refresh();
+  byId('title').focus();
+  return restoring;
 });
 window.ClSetupChecklist.init(refresh);
 refresh();
