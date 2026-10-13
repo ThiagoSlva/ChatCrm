@@ -41,6 +41,7 @@ function buildServer(options = {}) {
     ['/styles.css', 'styles.css', 'text/css; charset=utf-8'],
     ['/status.js', 'status.js', 'application/javascript; charset=utf-8'],
     ['/access.js', 'access.js', 'application/javascript; charset=utf-8'],
+    ['/setup-checklist.js', 'setup-checklist.js', 'application/javascript; charset=utf-8'],
     ['/chat.js', 'chat.js', 'application/javascript; charset=utf-8'],
     ['/inbox.js', 'inbox.js', 'application/javascript; charset=utf-8'],
     ['/inbox-crm.js', 'inbox-crm.js', 'application/javascript; charset=utf-8'],

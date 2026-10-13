@@ -19,6 +19,7 @@ const departmentPageSize = 20;
 let chatAvailable = false;
 let departmentChannelLoaded = false;
 function show(panel, title, description) {
+  if (panel !== 'account') window.ClSetupChecklist.clear();
   panels.forEach(id => { byId(id).hidden = id !== panel; });
   byId('title').textContent = title;
   byId('description').textContent = description;
@@ -30,6 +31,7 @@ async function api(url, options = {}) {
   return data;
 }
 async function refresh() {
+  window.ClSetupChecklist.clear();
   csrfToken = null;
   resetDepartments();
   const generation = departmentsGeneration;
@@ -54,6 +56,7 @@ async function refresh() {
       byId('user-detail').textContent = `${profile.company} · ${profile.user.email} · ${profile.user.role === 'admin' ? 'Administrador' : 'Operador'}`;
       byId('role-description').textContent = profile.user.role === 'admin' ? 'Gerencie os operadores e os departamentos da sua equipe abaixo.' : 'Você tem acesso de operador. A gestão da equipe fica com o administrador.';
       show('account', 'Bem-vindo à sua empresa.', 'Você entrou no Conversa Livre.');
+      window.ClSetupChecklist.update(profile);
       if (profile.user.role === 'admin') {
         byId('team').hidden = false; teamPage = 1;
         try { await loadTeam(); } catch (error) { if (error.status === 401) throw error; byId('team-message').textContent = 'Não foi possível carregar a equipe. Use Atualizar equipe para tentar novamente.'; }
@@ -407,4 +410,5 @@ byId('widget-copy').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(input.value); byId('widget-feedback').textContent = 'Código do botão copiado.'; }
   catch { input.focus(); input.select(); byId('widget-feedback').textContent = 'Selecione e copie o código acima para seu site.'; }
 });
+window.ClSetupChecklist.init(refresh);
 refresh();

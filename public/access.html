@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Acesso — Conversa Livre</title>
-  <link rel="stylesheet" href="/styles.css"><script src="/access.js" defer></script>
+  <link rel="stylesheet" href="/styles.css"><script src="/setup-checklist.js" defer></script><script src="/access.js" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -25,6 +25,7 @@
       <form id="login" class="card access-card" hidden><h2>Entre na sua conta</h2><label for="email">E-mail</label><input id="email" name="email" type="email" required maxlength="254" autocomplete="username"><label for="password">Senha</label><input id="password" name="password" type="password" required minlength="15" maxlength="256" autocomplete="current-password"><button type="submit">Entrar no painel</button><p>A recuperação de senha ainda será implementada. Guarde seu acesso com cuidado.</p></form>
       <section id="account" hidden>
         <div class="card access-card"><span class="card-label">SESSÃO ATIVA</span><h2 id="user-name"></h2><p id="user-detail"></p><p id="role-description"></p><button id="logout" type="button">Sair da conta</button></div>
+        <section id="setup-checklist-panel" class="card access-card setup-checklist" hidden aria-labelledby="setup-checklist-title"><span class="card-label">PRIMEIRO ATENDIMENTO</span><h2 id="setup-checklist-title">Prepare seu canal</h2><p>Confira a preparação dos recursos e a entrada pública. Uma área habilitada permite novas conversas; esta verificação não testa todos os fluxos do sistema.</p><p id="setup-checklist-status" role="status" aria-live="polite"></p><ol id="setup-checklist-list"></ol><button id="setup-checklist-refresh" type="button">Atualizar verificação</button><p class="session-note">Habilitar áreas, publicar campanhas e cadastrar modelos continuam sendo escolhas da administração.</p></section>
         <section id="chat-shortcut" class="card access-card" hidden><h2>Caixa de atendimento</h2><p>Assuma as conversas da sua área, responda ao visitante e acompanhe o histórico. O atendimento funciona com consultas periódicas nesta versão.</p><a class="button-link" href="/atendimento">Abrir caixa de atendimento</a></section>
         <form id="password-change" class="card access-card"><h2>Sua senha</h2><p>Use uma senha exclusiva, com pelo menos 15 caracteres. Ao trocar, todas as suas sessões serão encerradas e você precisará entrar novamente.</p><p id="password-message" class="feedback" role="status" aria-live="polite"></p><label for="current-password">Senha atual</label><input id="current-password" name="currentPassword" type="password" required minlength="15" maxlength="256" autocomplete="current-password"><label for="new-password">Nova senha</label><input id="new-password" name="newPassword" type="password" required minlength="15" maxlength="256" autocomplete="new-password"><label for="password-confirmation">Confirme a nova senha</label><input id="password-confirmation" name="confirmation" type="password" required minlength="15" maxlength="256" autocomplete="new-password"><button type="submit">Trocar minha senha</button></form>
         <section id="team" hidden aria-labelledby="team-title">
