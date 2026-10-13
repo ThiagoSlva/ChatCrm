@@ -16,6 +16,10 @@ A criação usa uma chave por pedido. Quando a rede não confirma o resultado, o
 
 A edição exige a versão lida. Se outra pessoa editou, a API retorna 409 e a tela preserva sua proposta, mostrando a versão atual do servidor. Compare texto, escopo e disponibilidade; só então use **Revisei: continuar com esta versão** e salve. O botão adota a versão atual para a próxima tentativa, mantendo seus campos propostos. Uma resposta perdida após edição pode resultar nesse mesmo conflito na repetição; não significa que o primeiro pedido falhou. Uma gravação sem alterações mantém a versão.
 
+Na v0.15.1, quando o navegador restaura a tela pelo histórico em vez de carregá-la novamente, o catálogo revalida a conta e consulta áreas/modelos atuais. O [evento pageshow](https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event) contempla esse retorno e informa se a página foi restaurada da memória. Enquanto a confirmação está pendente, os controles ficam bloqueados; falha de rede permite verificar novamente e perda de acesso limpa os dados privados. O foco retorna a **Verificar acesso e catálogo**.
+
+Sair da tela continua limpando campos privados e pedidos não confirmados desta página. A volta não recupera esses pedidos nem envia gravações automaticamente. Abortar uma consulta no navegador não comprova que uma gravação anterior foi revertida no servidor; confira o catálogo atual antes de cadastrar novamente um modelo cujo resultado ficou incerto. A correção não altera essa política de limpeza nem a exigência de revisão explícita de cada edição.
+
 ## Instalação e atualização
 
 Schema 10 acrescenta somente `cl_reply_templates` ao schema 9 completo. O cron publica código e testa releases; não migra banco. Código v0.15.0 reconhece schemas 1 a 10, e o catálogo retorna 503 até a migração explícita. `replyCatalogImplemented` em `/health` indica código disponível; a capacidade autenticada `replies` indica schema preparado, sem comprovar homologação integral.

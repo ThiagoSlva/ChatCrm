@@ -12,7 +12,7 @@ const replyCatalog={
     if(!response.ok)throw Object.assign(Error(this.error(response.status)),{status:response.status});return data;
   },
   reset() {this.selected=null;this.review=null;this.dirty=false;this.el('form').reset();this.el('active').checked=true;this.el('heading').textContent='Novo modelo';this.el('version').textContent='O modelo pode atender toda a empresa ou somente uma área.';this.el('review').hidden=true;this.el('review-text').textContent='';this.el('review-title').textContent='';this.el('review-scope').textContent='';},
-  clear() {this.user=null;this.csrf=null;this.pending=null;this.ready=false;this.reset();this.el('department').replaceChildren();const option=document.createElement('option');option.value='';option.textContent='Toda a empresa';this.el('department').append(option);this.el('list').replaceChildren();this.el('identity').textContent='';this.el('query').value='';this.query='';this.page=1;this.total=0;this.el('work').hidden=true;},
+  clear() {this.user=null;this.csrf=null;this.pending=null;this.ready=false;this.reset();this.el('department').replaceChildren();const option=document.createElement('option');option.value='';option.textContent='Toda a empresa';this.el('department').append(option);this.el('list').replaceChildren();this.el('identity').textContent='';this.el('query').value='';this.query='';this.page=1;this.total=0;this.el('work').hidden=true;this.el('access').hidden=true;this.el('access-note').textContent='';},
   controls() {
     const locked=this.busy||!this.ready||Boolean(this.pending);
     this.el('refresh').disabled=this.busy;this.el('retry').hidden=!this.pending;this.el('retry').disabled=this.busy||!this.ready;
@@ -96,4 +96,18 @@ replyCatalog.el('search').addEventListener('submit',e=>{e.preventDefault();if(re
 for(const [id,delta] of [['previous',-1],['next',1]])replyCatalog.el(id).addEventListener('click',()=>{if(replyCatalog.busy||replyCatalog.pending)return;replyCatalog.page+=delta;replyCatalog.run(()=>replyCatalog.list());});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!replyCatalog.busy)replyCatalog.run(()=>replyCatalog.profile());});
 window.addEventListener('pagehide',()=>{replyCatalog.disposed=true;replyCatalog.generation++;replyCatalog.controller?.abort();replyCatalog.clear();});
+window.addEventListener('pageshow',event=>{
+  if(!event.persisted)return;
+  replyCatalog.disposed=false;replyCatalog.busy=false;
+  replyCatalog.el('feedback').textContent='Revalidando seu acesso e catálogo…';
+  return replyCatalog.run(async()=>{
+    try {
+      await replyCatalog.profile();await replyCatalog.departments();await replyCatalog.list();
+      replyCatalog.el('feedback').textContent='Catálogo atualizado. Confira os modelos antes de editar.';
+    } catch(error) {
+      if(error.name!=='AbortError'&&![401,403,503].includes(error.status))throw Object.assign(Error('Não foi possível revalidar seu acesso e catálogo. Verifique novamente.'),{status:error.status});
+      throw error;
+    }
+  },'reply-refresh');
+});
 replyCatalog.run(async()=>{await replyCatalog.profile();await replyCatalog.departments();await replyCatalog.list();replyCatalog.el('feedback').textContent='Catálogo pronto. Cadastre ou selecione um modelo.';});
