@@ -14,7 +14,7 @@ test('health distingue servidor operacional de CRM ainda nao implementado', asyn
   assert.equal(response.json().chatImplemented, true);
   assert.equal(response.json().contactsImplemented, true);
   assert.equal(response.json().opportunitiesImplemented, true);
-  assert.equal(response.json().version, '0.15.3');
+  assert.equal(response.json().version, '0.15.4');
   assert.equal(response.json().conversationContactsImplemented, true);
   assert.equal(response.json().portalImplemented, true);
 });
@@ -24,6 +24,27 @@ test('health usa a identidade do ambiente desta instância e conserva prioridade
   t.after(() => app.close());
   const body = (await app.inject('/health')).json();
   assert.equal(body.commit, commit); assert.equal(body.releaseIdentitySource, 'environment');
+});
+
+test('paginas identificam a release do processo sem fase ou numero de modulo obsoleto', async t => {
+  const app = buildServer({ repository: null }); t.after(() => app.close());
+  const version = (await app.inject('/health')).json().version;
+  assert.equal(version, require('../package.json').version);
+  for (const url of ['/acesso','/chat','/atendimento','/contatos','/vendas']) {
+    const response = await app.inject(url), badge = response.body.match(/<span class="version">([^<]+)<\/span>/)?.[1];
+    assert.equal(response.statusCode, 200); assert.equal(badge, 'v' + version, url);
+    assert(!response.body.includes('{{APP_VERSION}}')); assert(!badge.includes('Fase'));
+    assert.equal(response.headers['cache-control'], 'no-store');
+  }
+});
+
+test('parametros e cabecalhos do visitante nao alteram a versao renderizada', async t => {
+  const app = buildServer({ repository: null }); t.after(() => app.close());
+  const version = (await app.inject('/health')).json().version;
+  const marker = '<img src=x onerror=alert(1)>';
+  const response = await app.inject({ url:'/chat?version='+encodeURIComponent(marker), headers:{'x-app-version':marker} });
+  assert.equal(response.statusCode,200); assert(response.body.includes('<span class="version">v'+version+'</span>'));
+  assert(!response.body.includes(marker)); assert.match(response.headers['content-security-policy'],/script-src 'self'/);
 });
 
 test('arquivos privados e caminhos arbitrarios nao sao publicados', async (t) => {

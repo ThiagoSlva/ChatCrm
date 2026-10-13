@@ -19,6 +19,11 @@ const { registerReplies } = require('./replies');
 const { resolveReleaseIdentity } = require('./release-identity');
 
 const projectRoot = path.resolve(__dirname, '..');
+const applicationVersion = require('../package.json').version;
+if (typeof applicationVersion !== 'string' || applicationVersion.length > 64 ||
+  !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(applicationVersion)) {
+  throw new Error('Metadados da versão da aplicação inválidos.');
+}
 
 function loadEnvironment() {
   const envPath = path.join(projectRoot, '.env');
@@ -28,7 +33,7 @@ function loadEnvironment() {
 function buildServer(options = {}) {
   const app = Fastify({ logger: options.logger || false, bodyLimit: 8192, ajv: { customOptions: { removeAdditional: false } } });
   const env = options.env || process.env;
-  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, '0.15.3');
+  const releaseIdentity = resolveReleaseIdentity(projectRoot, env, applicationVersion);
   const repository = Object.hasOwn(options, 'repository') ? options.repository : createRepository(env);
   if (repository) app.addHook('onClose', async () => repository.close());
   const assets = [
@@ -72,6 +77,7 @@ function buildServer(options = {}) {
   }
   for (const [route, fileName] of [['/', 'index.html'], ['/acesso', 'access.html'], ['/chat', 'chat.html'], ['/atendimento', 'inbox.html'], ['/contatos', 'contacts.html'], ['/vendas', 'opportunities.html'], ['/portal', 'portal.html'], ['/campanhas','campaigns.html'], ['/respostas','reply-catalog.html']]) {
     let content = fs.readFileSync(path.join(projectRoot, 'public', fileName), 'utf8');
+    content = content.replaceAll('{{APP_VERSION}}', applicationVersion);
     for (const [asset, url] of assetUrls) content = content.replaceAll(`="${asset}"`, `="${url}"`).replaceAll(`="/${asset}"`, `="${url}"`);
     app.get(route, async (request, reply) => reply.type('text/html; charset=utf-8').send(content));
   }
@@ -79,7 +85,7 @@ function buildServer(options = {}) {
   app.get('/health', async () => ({
     status: 'ok',
     application: 'conversa-livre',
-    version: '0.15.3',
+    version: applicationVersion,
     commit: releaseIdentity.commit,
     releaseIdentitySource: releaseIdentity.source,
     phase: 'portal-campaigns-mvp',
