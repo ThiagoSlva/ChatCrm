@@ -9,26 +9,36 @@
 </head>
 <body>
   <div class="shell">
-    <aside class="sidebar">
+    <aside class="sidebar overview-sidebar">
       <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">c</span>Conversa Livre</a>
       <p class="sidebar-label">SEU CANAL, SEU CONTROLE</p>
-      <nav aria-label="Navegação"><a class="nav-item active" href="./" aria-current="page">Visão geral</a><a class="nav-item" href="/acesso">Acesso da equipe</a><a class="nav-item" href="/atendimento">Atendimento</a><a class="nav-item" href="/contatos">Contatos</a><a class="nav-item" href="/vendas">Vendas</a><a class="nav-item" href="/campanhas">Campanhas</a></nav>
+      <nav aria-label="Navegação"><a class="nav-item active" href="./" aria-current="page">Visão geral</a><a class="nav-item" href="/atendimento">Atendimento</a><a class="nav-item" href="/contatos">Contatos</a><a class="nav-item" href="/vendas">Vendas</a><a class="nav-item" href="/respostas">Modelos da equipe</a><a class="nav-item" href="/campanhas">Campanhas</a><a class="nav-item" href="/portal">Portal do cliente</a><a class="nav-item" href="/acesso">Acesso da equipe</a></nav>
       <div class="sidebar-note"><strong>Código aberto</strong><p>Hospedado por você.<br>Construído para sua equipe.</p></div>
     </aside>
-    <main>
-      <header><span class="eyebrow">SEU ESPAÇO DE ATENDIMENTO</span><span class="version">Fase 3 · v0.7.0</span></header>
+    <main class="overview-main">
+      <header><span class="eyebrow">SEU ESPAÇO DE ATENDIMENTO</span><span class="version" id="release-version">Versão a verificar</span></header>
       <section class="welcome">
         <p class="eyebrow">ATENDIMENTO COM IDENTIDADE PRÓPRIA</p>
         <h1>Um novo espaço<br>para suas conversas.</h1>
         <p class="intro">Atenda visitantes no seu próprio canal, organize contatos e acompanhe oportunidades por etapa. Seus dados ficam na sua hospedagem.</p>
         <a class="button-link" href="/acesso">Abrir acesso da equipe</a>
       </section>
-      <section class="cards" aria-label="Estado do projeto">
-        <article class="card"><span class="card-label">Servidor</span><h2 id="server-status">Verificando…</h2><p id="server-detail" role="status" aria-live="polite">Consultando o aplicativo Node.js.</p><button id="refresh" type="button">Verificar novamente</button></article>
-        <article class="card"><span class="card-label">Instalação</span><h2 id="installation-status">Verificando…</h2><p id="installation-detail">Consultando a configuração do banco e o primeiro acesso.</p><a href="/acesso">Abrir acesso da equipe</a></article>
+      <section class="cards" id="status-cards" aria-label="Estado do aplicativo" aria-busy="true">
+        <article class="card"><span class="card-label">Servidor</span><h2 id="server-status">Verificando…</h2><p id="server-detail" role="status" aria-live="polite">Consultando o aplicativo.</p><button id="refresh" type="button">Verificar novamente</button></article>
+        <article class="card"><span class="card-label">Instalação</span><h2 id="installation-status">Verificando…</h2><p id="installation-detail" role="status" aria-live="polite">Consultando a configuração e o primeiro acesso.</p><a href="/acesso">Abrir acesso da equipe</a></article>
       </section>
-      <section class="roadmap"><div><p class="eyebrow">O QUE VEM A SEGUIR</p><h2>Do primeiro contato à próxima venda.</h2></div><div class="steps"><p><span>01</span>Operadores e permissões</p><p><span>02</span>Chat e botão no seu site</p><p><span>03</span>Leads e funil de vendas</p><p><span>04</span>Portal e campanhas</p></div></section>
-      <footer>Atendimento, botão para sites, contatos e oportunidades com histórico estão disponíveis para testes. Associação ao chat, portal e campanhas seguem em desenvolvimento.</footer>
+      <section class="overview-workspace" aria-labelledby="workspace-heading">
+        <p class="eyebrow">SEU DIA A DIA</p><h2 id="workspace-heading">Do primeiro contato à próxima venda.</h2>
+        <p class="workspace-note">Explore as áreas do sistema. A disponibilidade depende da instalação e das permissões da sua conta.</p>
+        <div class="workspace-links">
+          <a href="/atendimento"><strong>Atendimento</strong><span>Conversas, visitantes e respostas da equipe.</span><span class="workspace-action">Abrir atendimento →</span></a>
+          <a href="/contatos"><strong>Contatos e vendas</strong><span>Organize leads e acompanhe oportunidades com histórico.</span><span class="workspace-action">Abrir contatos →</span></a>
+          <a href="/portal"><strong>Portal do cliente</strong><span>Um espaço para retornar às próprias conversas e novidades.</span><span class="workspace-action">Abrir portal →</span></a>
+          <a href="/campanhas"><strong>Campanhas</strong><span>Novidades no canal próprio para quem aceitou recebê-las.</span><span class="workspace-action">Abrir campanhas →</span></a>
+        </div>
+      </section>
+      <noscript><p class="feedback">Ative o JavaScript para verificar a versão, a instalação e usar o atendimento.</p></noscript>
+      <footer>Conversa Livre está em homologação. A conexão com o servidor e a criação do administrador não confirmam todos os módulos. O software é gratuito e aberto; você utiliza sua própria hospedagem.</footer>
     </main>
   </div>
 </body>
